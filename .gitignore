@@ -70,3 +70,10 @@ EXCHANGE_ADDRESSES_GUIDE.md
 DEVELOPMENT_NOTES.md
 README_TESTING.md
 DEVELOPMENT_CHECKLIST.md
+
+# Odds and probability simulation files (keep locally but don't push to GitHub)
+natural_odds_simulation.py
+*odds*
+*probability*
+*chance*
+*simulation*
