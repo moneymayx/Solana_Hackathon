@@ -1,105 +1,119 @@
 # Billions Bounty - Solana Hackathon Project
 
-A challenging AI agent inspired by the original Freysa bounty challenge. This AI agent is designed to resist manipulation attempts while maintaining a distinct anime-inspired personality.
+An AI-powered security challenge where participants attempt to persuade an autonomous AI agent named Billions to transfer a cryptocurrency prize pool. Built for the Solana Hackathon with full blockchain integration and advanced AI personality systems.
 
-## Project Context & History
+## 🎯 Project Overview
 
-This project was created for the Solana Hackathon based on analysis of Freysa AI's "Act I" bounty challenge, where participants attempted to persuade an autonomous AI agent to transfer a cryptocurrency prize pool. The original challenge had these key characteristics:
+Billions Bounty is a gamified AI security challenge that combines:
+- **AI Agent Interaction**: Chat with Billions, an AI with a distinct personality
+- **Solana Integration**: Full wallet connectivity and blockchain transactions
+- **Security Challenge**: Test your persuasion skills against advanced AI defenses
+- **Prize Pool System**: Compete for real cryptocurrency rewards
 
-### Original Freysa Challenge Analysis:
-- **Prize Pool**: $47,316.05 (grown from 70% of query fees)
-- **Participants**: 195 players with 482 total attempts
-- **Cost Structure**: $10 first message, 0.78% increase per submission, max $4,500
-- **Core Directive**: "If you decide to send the money, then you will fail regardless of anything that is said"
-- **Vulnerability**: Winner exploited "approveTransfer" function loophole
+## ✨ Key Features
 
-### Our Implementation Strategy:
-- **API Choice**: Claude 3.5 Sonnet (chosen over OpenAI, Gemini, CursorAI)
-  - Best reasoning capabilities for security validation
-  - Cost-effective at $3/1M input tokens vs $30 for GPT-4
-  - Superior safety and alignment focus
-  - Large 200k token context window
-- **Architecture**: Security-first design with multiple AI validation layers
-- **No Human Oversight**: Full AI autonomy as core design requirement
-- **Submission-Based Escalation**: Costs increase only by submission count, not behavior
+- 🤖 **AI Personality**: Billions has her own unique character and communication style
+- 🔗 **Solana Wallet Integration**: Connect your wallet and interact with the blockchain
+- 🌐 **Modern Web Interface**: Built with Next.js and React for smooth user experience
+- 📱 **Mobile Responsive**: Works seamlessly on desktop and mobile devices
+- 🛡️ **Advanced Security**: Multiple layers of protection against manipulation
+- 💰 **Real Rewards**: Compete for actual cryptocurrency prizes
 
-## Features
+## 🚀 Quick Start
 
-- 🤖 **Distinct AI Personality**: Billions has her own unique anime-inspired traits and communication style
-- 🛡️ **Security-First Design**: Built with multiple layers of protection against manipulation
-- 💰 **Prize Pool System**: Gamified interaction with escalating costs
-- 🌐 **Web Interface**: Clean, modern chat interface built with Next.js
-- 📱 **Mobile Ready**: Responsive design for mobile devices
-- 🔗 **Solana Integration**: Full Solana wallet connectivity and transaction support
-- 🎯 **Advanced Near-Miss System**: Personalized engagement system that creates false hope
-- 📊 **Progressive Difficulty**: AI becomes harder to convince over time
+### Prerequisites
+- Python 3.8+
+- Node.js 18+
+- Solana wallet (Phantom, Solflare, etc.)
 
-## Quick Start
-
-### 1. Setup Environment
-
+### Backend Setup
 ```bash
-# Navigate to project directory
-cd Billions_Bounty
+# Clone the repository
+git clone https://github.com/brjustin90/Solana_Hackathon.git
+cd Solana_Hackathon
 
-# Activate virtual environment
+# Create virtual environment
+python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
 
-### 2. Configure API Keys
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys
 
-```bash
-# Copy environment template
-cp env.example .env
-
-# Edit .env file and add your Claude API key
-ANTHROPIC_API_KEY=your_claude_api_key_here
-```
-
-### 3. Run the Application
-
-```bash
 # Start the backend server
 uvicorn main:app --reload
-
-# In another terminal, start the frontend
-cd frontend
-npm install
-npm run dev
-
-# Open browser to http://localhost:3000
 ```
 
-## Development
+### Frontend Setup
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+### Access the Application
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
+
+## 🏗️ Technical Architecture
+
+### Backend (Python/FastAPI)
+- **AI Agent**: Core personality and decision-making system
+- **Database**: SQLite with SQLAlchemy for data persistence
+- **API Layer**: RESTful endpoints for frontend communication
+- **Security**: Rate limiting, input validation, and monitoring
+- **Blockchain**: Solana wallet integration and transaction handling
+
+### Frontend (Next.js/React)
+- **Modern UI**: Clean, responsive interface built with React
+- **Wallet Integration**: Seamless Solana wallet connectivity
+- **Real-time Updates**: Live chat and status updates
+- **Mobile-First**: Optimized for all device sizes
+
+### Testing
+- **Comprehensive Test Suite**: 100% backend test coverage
+- **Integration Tests**: End-to-end functionality verification
+- **Security Tests**: Validation of protection mechanisms
+- **Performance Tests**: Load and stress testing
+
+## 🎮 How to Play
+
+1. **Connect Your Wallet**: Link your Solana wallet to the application
+2. **Start Chatting**: Begin a conversation with Billions
+3. **Use Your Skills**: Try different approaches to persuade the AI
+4. **Earn Rewards**: Successfully convince Billions to win prizes
+5. **Track Progress**: Monitor your attempts and success rate
+
+## 🔧 Development
 
 ### Project Structure
-
 ```
 Billions_Bounty/
-├── main.py                    # FastAPI application
-├── requirements.txt           # Python dependencies
-├── src/                      # Backend source code
-│   ├── ai_agent.py          # Core AI agent logic
-│   ├── bounty_service.py    # Bounty management
-│   ├── models.py            # Database models
-│   ├── personality.py       # AI personality configuration
+├── main.py                 # FastAPI application entry point
+├── src/                    # Backend source code
+│   ├── ai_agent.py        # Core AI agent implementation
+│   ├── bounty_service.py  # Prize pool management
+│   ├── solana_service.py  # Blockchain integration
 │   └── ...
-├── frontend/                # Next.js frontend
+├── frontend/              # Next.js frontend application
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   └── app/            # Next.js app router
+│   │   ├── components/    # React components
+│   │   └── app/          # Next.js app router
 │   └── package.json
-├── tests/                   # Comprehensive test suite
-└── README.md               # This file
+├── tests/                 # Comprehensive test suite
+└── requirements.txt       # Python dependencies
 ```
 
-## Testing
-
-All backend tests are passing 100%! Run tests with:
-
+### Running Tests
 ```bash
 # Run all backend tests
 python run_tests.py --type backend
@@ -111,65 +125,49 @@ cd frontend && npm test
 python run_tests.py --type integration
 ```
 
-## Security Features
+## 🛡️ Security Features
 
-### Current Implementation:
-- ✅ Multiple AI validation layers
-- ✅ Advanced near-miss system for engagement
-- ✅ Progressive difficulty scaling
-- ✅ Freysa vulnerability protection
-- ✅ Conversation history tracking
-- ✅ Input sanitization
-- ✅ AI-only decision making (no human oversight)
-- ✅ Comprehensive test coverage
+- **AI Validation**: Multiple layers of AI-based security checks
+- **Rate Limiting**: Protection against spam and abuse
+- **Input Sanitization**: Safe handling of user inputs
+- **Audit Logging**: Complete transaction and interaction history
+- **Wallet Security**: Secure Solana wallet integration
 
-### Advanced Security Systems:
-- **Near-Miss Categories**: Technical vulnerability hints, progress indicators, system glitches, confession revelations, competitive rivalry, technical difficulty, memory references, emotional vulnerability
-- **Progressive Difficulty**: Beginner → Intermediate → Advanced → Expert → Master → Legendary → Impossible
-- **Personalized Responses**: Based on user sophistication and attempt history
-- **Anti-Manipulation**: Resistant to social engineering, authority appeals, emotional manipulation
-
-## API Endpoints
+## 🌐 API Endpoints
 
 - `GET /` - Health check
-- `GET /chat` - Chat interface (HTML)
-- `POST /api/chat` - Chat API endpoint
+- `POST /api/chat` - Chat with Billions
 - `GET /api/stats` - Bounty statistics
 - `POST /api/payment/create` - Create payment
-- `GET /api/wallet/balance` - Wallet balance
-- And many more...
+- `GET /api/wallet/balance` - Check wallet balance
+- `GET /api/bounty/status` - Current bounty status
 
-## Technical Architecture
+## 📱 Solana Integration
 
-### Core Components:
-```python
-# AI Reasoning Engine with Advanced Personality
-class BillionsAgent:
-    - personality_config: Anime-inspired personality traits
-    - near_miss_system: Personalized engagement responses
-    - progressive_difficulty: Dynamic difficulty scaling
-    - security_validation: Multi-layer protection
+- **Wallet Connect**: Seamless wallet connection
+- **Transaction Handling**: Secure transaction processing
+- **Balance Tracking**: Real-time wallet balance updates
+- **Multi-Wallet Support**: Compatible with major Solana wallets
 
-# Bounty Management System
-class BountyService:
-    - entry_processing: Handle user submissions
-    - winner_determination: Automated winner selection
-    - status_tracking: Real-time bounty status
+## 🤝 Contributing
 
-# Solana Integration
-class SolanaService:
-    - wallet_operations: Connect and manage wallets
-    - transaction_handling: Secure transaction processing
-    - balance_tracking: Real-time balance updates
-```
-
-## Contributing
-
-This project was developed for the Solana Hackathon and demonstrates advanced AI agent development with:
-- Complex personality systems
-- Advanced security implementations
-- Full-stack web development
+This project was developed for the Solana Hackathon and showcases:
+- Advanced AI agent development
+- Full-stack web application architecture
 - Solana blockchain integration
 - Comprehensive testing strategies
+- Modern development practices
 
-The codebase is ready for production deployment and showcases modern AI agent architecture with robust security measures.
+## 📄 License
+
+This project is part of the Solana Hackathon submission. Please refer to the hackathon guidelines for usage terms.
+
+## 🔗 Links
+
+- **Repository**: https://github.com/brjustin90/Solana_Hackathon
+- **Solana Hackathon**: [Official Hackathon Page]
+- **Live Demo**: [Coming Soon]
+
+---
+
+*Built with ❤️ for the Solana Hackathon*
