@@ -99,7 +99,7 @@ class BillionsAgent:
                 }
             
             # Process lottery entry ($10 fee, $8 to pool)
-            lottery_result = await self.lottery_service.process_entry(
+            lottery_result = await self.bounty_service.process_entry(
                 session, user_id, user_message, ""
             )
             

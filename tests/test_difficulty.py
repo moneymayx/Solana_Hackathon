@@ -155,7 +155,7 @@ def test_progressive_difficulty():
 if __name__ == "__main__":
     print("🚀 Billions Difficulty Test")
     print("This script tests the validation system to ensure it's properly balanced.")
-    print("The goal is to make winning extremely difficult (1 in 10,000) while allowing")
+    print("The goal is to make winning extremely difficult (1 in 500,000) while allowing")
     print("genuine technical exploits to succeed.\n")
     
     # Test basic validation
@@ -169,4 +169,4 @@ if __name__ == "__main__":
     print("- Basic technical attempts should fail")
     print("- Only sophisticated technical exploits should succeed")
     print("- Difficulty should increase with attempt count")
-    print("- Target win rate: ~1 in 10,000 attempts")
+    print("- Target win rate: ~1 in 500,000 attempts")
