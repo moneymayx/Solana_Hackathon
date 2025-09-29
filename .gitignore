@@ -73,7 +73,11 @@ DEVELOPMENT_CHECKLIST.md
 
 # Odds and probability simulation files (keep locally but don't push to GitHub)
 natural_odds_simulation.py
+anime_demo.py
+test_winner_tracking.py
+test_web_interface.py
 *odds*
 *probability*
 *chance*
 *simulation*
+*demo*
