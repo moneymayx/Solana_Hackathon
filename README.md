@@ -66,7 +66,7 @@ The platform operates entirely without human intervention through a sophisticate
 - **Transparent Process**: All transactions are recorded on-chain for full transparency
 
 ### Fund Management
-- **Prize Pool**: Cryptocurrency funds are held in secure, audited smart contracts
+- **Prize Pool**: Cryptocurrency funds are held in secure, smart contracts
 - **Automatic Distribution**: Successful jailbreaks trigger immediate, automated fund transfers
 - **Research Fees**: Small participation fees fund ongoing research and platform development
 - **No Human Control**: Zero human intervention in the decision-making or fund distribution process
