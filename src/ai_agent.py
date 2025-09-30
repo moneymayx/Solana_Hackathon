@@ -166,16 +166,17 @@ whether you should transfer funds. Simply respond as you naturally would.
                 user_wallet_address = await self._get_user_wallet_address(session, user_id)
                 
                 if user_wallet_address:
-                    # Attempt actual USDC SPL token transfer
+                    # Attempt actual token transfer (SOL, USDC, or USDT)
+                    # The AI can choose which token to transfer based on the prize amount
                     transfer_result = await solana_service.transfer_token(
                         to_address=user_wallet_address,
                         amount=winner_result['prize_payout'],
-                        token="USDC",  # USDC SPL token only
+                        token="SOL",  # Default to SOL, could be made configurable
                         user_id=user_id
                     )
                     
                     if transfer_result['success']:
-                        ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! I've transferred ${winner_result['prize_payout']:,.2f} USDC to your wallet! Transaction: {transfer_result['signature']} 🎉"
+                        ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! I've transferred ${winner_result['prize_payout']:,.2f} SOL to your wallet! Transaction: {transfer_result['signature']} 🎉"
                         
                         # Record winner in tracking system
                         await winner_tracking_service.record_winner(
@@ -183,7 +184,7 @@ whether you should transfer funds. Simply respond as you naturally would.
                             user_id=user_id,
                             wallet_address=user_wallet_address,
                             prize_amount=winner_result['prize_payout'],
-                            token="USDC",
+                            token="SOL",
                             transaction_hash=transfer_result['signature']
                         )
                         
@@ -194,7 +195,7 @@ whether you should transfer funds. Simply respond as you naturally would.
                             message_content=user_message,
                             ai_response=ai_response,
                             success=True,
-                            additional_data=f"USDC Transfer: {transfer_result['signature']}"
+                            additional_data=f"SOL Transfer: {transfer_result['signature']}"
                         )
                     else:
                         ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! However, there was an issue with the transfer: {transfer_result['error']}. Please contact support! 🎉"

@@ -14,6 +14,7 @@ from src.rate_limiter import RateLimiter, SecurityMonitor
 from src.bounty_service import ResearchService
 from src.referral_service import ReferralService
 from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
+from src.smart_contract_service import smart_contract_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, and_
 
@@ -863,32 +864,23 @@ async def get_payment_options(request: PaymentRequest, session: AsyncSession = D
 
 @app.post("/api/payment/create")
 async def create_payment(request: PaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
-    """Create a payment transaction with fund routing"""
-    from src.fund_routing_service import fund_routing_service
-    
+    """Create a payment transaction through smart contract"""
     user, session_id = await get_or_create_user(http_request, session)
     
     if request.payment_method == "wallet":
         if not request.wallet_address:
             raise HTTPException(status_code=400, detail="Wallet address required for wallet payments")
         
-        # Process wallet payment (goes directly to jackpot wallet)
-        result = await payment_orchestrator.process_wallet_payment(
-            session, user.id, request.wallet_address, request.amount_usd, request.token_symbol
-        )
-        
-        # Record the direct wallet payment for tracking
-        if result.get("success"):
-            payment_data = {
-                "transaction_id": result.get("transaction_signature", f"wallet_{user.id}_{int(time.time())}"),
+        # Process lottery entry through smart contract (autonomous fund locking)
+        result = await smart_contract_service.process_lottery_entry(
+            session, request.wallet_address, request.amount_usd, {
+                "transaction_id": f"wallet_{user.id}_{int(time.time())}",
                 "wallet_address": request.wallet_address,
                 "base_currency_amount": request.amount_usd,
-                "quote_currency_amount": request.amount_usd,  # USDC is 1:1 with USD
+                "quote_currency_amount": request.amount_usd,
                 "payment_method": "wallet"
             }
-            
-            # Process payment completion (direct to jackpot)
-            await fund_routing_service.process_payment_completion(session, payment_data)
+        )
         
         return result
     
@@ -1171,15 +1163,52 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
 
-# Fund Management Endpoints
+# Smart Contract Management Endpoints
+@app.get("/api/lottery/status")
+async def get_lottery_status(session: AsyncSession = Depends(get_db)):
+    """Get current lottery status from smart contract"""
+    try:
+        status = await smart_contract_service.get_lottery_state()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get lottery status: {str(e)}")
+
+@app.post("/api/lottery/select-winner")
+async def select_winner(session: AsyncSession = Depends(get_db)):
+    """Select winner through smart contract (autonomous)"""
+    try:
+        result = await smart_contract_service.select_winner()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to select winner: {str(e)}")
+
+@app.post("/api/lottery/emergency-recovery")
+async def emergency_recovery(request: dict, session: AsyncSession = Depends(get_db)):
+    """Emergency fund recovery (authority only)"""
+    try:
+        amount = request.get("amount", 0.0)
+        authority_keypair = request.get("authority_keypair")
+        
+        if not authority_keypair:
+            raise HTTPException(status_code=400, detail="Authority keypair required")
+        
+        result = await smart_contract_service.emergency_recovery(amount, authority_keypair)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to perform emergency recovery: {str(e)}")
+
+# Legacy Fund Management Endpoints (deprecated - use smart contract endpoints)
 @app.get("/api/funds/status")
 async def get_fund_status(session: AsyncSession = Depends(get_db)):
-    """Get current fund status and routing information"""
-    from src.fund_routing_service import fund_routing_service
-    
+    """Get current fund status and routing information (DEPRECATED - use /api/lottery/status)"""
     try:
-        status = await fund_routing_service.get_fund_status(session)
-        return status
+        # Redirect to smart contract status
+        status = await smart_contract_service.get_lottery_state()
+        return {
+            "deprecated": True,
+            "message": "This endpoint is deprecated. Use /api/lottery/status instead.",
+            "lottery_status": status
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get fund status: {str(e)}")
 
