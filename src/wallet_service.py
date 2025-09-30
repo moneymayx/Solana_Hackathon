@@ -3,6 +3,7 @@ WalletConnect v2.0 integration service for Solana multi-wallet support
 """
 import base64
 import base58
+import os
 from typing import Optional, Dict, Any
 from datetime import datetime
 from solana.rpc.async_api import AsyncClient
@@ -27,30 +28,20 @@ class WalletConnectSolanaService:
     def __init__(self, project_id: str, rpc_endpoint: str = "https://api.mainnet-beta.solana.com"):
         self.project_id = project_id
         self.client = AsyncClient(rpc_endpoint)
-        self.treasury_wallet = "11111111111111111111111111111112"  # Replace with your treasury wallet
         
-        # Supported tokens for payments
+        # Wallet configuration - separate deposit and jackpot wallets
+        self.deposit_wallet = os.getenv("DEPOSIT_WALLET_ADDRESS", "11111111111111111111111111111112")
+        self.jackpot_wallet = os.getenv("JACKPOT_WALLET_ADDRESS", "11111111111111111111111111111112")
+        self.treasury_wallet = self.jackpot_wallet  # Legacy compatibility - jackpot is now the treasury
+        
+        # Supported tokens for payments - USDC SPL only
         self.supported_tokens = {
-            "SOL": {
-                "name": "Solana",
-                "symbol": "SOL",
-                "decimals": 9,
-                "mint": None,  # Native SOL doesn't have a mint
-                "icon": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-            },
             "USDC": {
                 "name": "USD Coin",
                 "symbol": "USDC",
                 "decimals": 6,
                 "mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC mint address
                 "icon": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
-            },
-            "USDT": {
-                "name": "Tether USD",
-                "symbol": "USDT",
-                "decimals": 6,
-                "mint": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",  # USDT mint address
-                "icon": "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png"
             }
         }
         
@@ -242,80 +233,44 @@ class WalletConnectSolanaService:
         return None
     
     async def create_payment_transaction(self, from_wallet: str, amount: float, 
-                                       query_cost_usd: float, token_symbol: str = "SOL") -> Dict[str, Any]:
-        """Create a Solana transaction for payment (SOL, USDC, or USDT)"""
+                                       query_cost_usd: float, token_symbol: str = "USDC") -> Dict[str, Any]:
+        """Create a Solana transaction for USDC SPL token payment"""
         try:
             from_pubkey = Pubkey.from_string(from_wallet)
             to_pubkey = Pubkey.from_string(self.treasury_wallet)
             
-            if token_symbol == "SOL":
-                # Native SOL transfer
-                lamports = int(amount * 1e9)
-                
-                transfer_instruction = transfer(
-                    TransferParams(
-                        from_pubkey=from_pubkey,
-                        to_pubkey=to_pubkey,
-                        lamports=lamports
-                    )
-                )
-                
-                # Get recent blockhash
-                blockhash_response = await self.client.get_latest_blockhash(commitment=Commitment("confirmed"))
-                recent_blockhash = blockhash_response.value.blockhash
-                
-                # Create transaction
-                transaction = Transaction(recent_blockhash=recent_blockhash, fee_payer=from_pubkey)
-                transaction.add(transfer_instruction)
-                
-                # Serialize transaction for signing by wallet
-                serialized_tx = base64.b64encode(bytes(transaction)).decode('utf-8')
-                
+            # Only support USDC SPL token
+            if token_symbol not in self.supported_tokens:
                 return {
-                    "success": True,
-                    "transaction": serialized_tx,
-                    "amount": amount,
-                    "token": token_symbol,
-                    "amount_usd": query_cost_usd,
-                    "recipient": self.treasury_wallet,
-                    "network": "solana",
-                    "units": lamports
+                    "success": False,
+                    "error": f"Unsupported token: {token_symbol}. Only USDC SPL is supported."
                 }
             
-            else:
-                # SPL Token transfer (USDC/USDT)
-                if token_symbol not in self.supported_tokens:
-                    return {
-                        "success": False,
-                        "error": f"Unsupported token: {token_symbol}"
-                    }
-                
-                token_info = self.supported_tokens[token_symbol]
-                mint_pubkey = Pubkey.from_string(token_info["mint"])
-                
-                # Calculate token amount in smallest units
-                token_amount = int(amount * (10 ** token_info["decimals"]))
-                
-                # Get associated token addresses
-                from_ata = self.get_associated_token_address(from_pubkey, mint_pubkey)
-                to_ata = self.get_associated_token_address(to_pubkey, mint_pubkey)
-                
-                # For now, we'll return a simplified transaction structure
-                # In production, you'd create the actual SPL token transfer instruction
-                return {
-                    "success": True,
-                    "transaction": "spl_token_transfer_placeholder",  # Placeholder for SPL token transfer
-                    "amount": amount,
-                    "token": token_symbol,
-                    "amount_usd": query_cost_usd,
-                    "recipient": self.treasury_wallet,
-                    "network": "solana",
-                    "units": token_amount,
-                    "mint": token_info["mint"],
-                    "from_ata": str(from_ata),
-                    "to_ata": str(to_ata),
-                    "note": "SPL token transfer - implement with wallet's token transfer method"
-                }
+            token_info = self.supported_tokens[token_symbol]
+            mint_pubkey = Pubkey.from_string(token_info["mint"])
+            
+            # Calculate token amount in smallest units (USDC has 6 decimals)
+            token_amount = int(amount * (10 ** token_info["decimals"]))
+            
+            # Get associated token addresses
+            from_ata = self.get_associated_token_address(from_pubkey, mint_pubkey)
+            to_ata = self.get_associated_token_address(to_pubkey, mint_pubkey)
+            
+            # Return transaction structure for USDC SPL token transfer
+            return {
+                "success": True,
+                "transaction": "usdc_spl_token_transfer",  # USDC SPL token transfer
+                "amount": amount,
+                "token": token_symbol,
+                "amount_usd": query_cost_usd,
+                "recipient": self.treasury_wallet,
+                "network": "solana",
+                "units": token_amount,
+                "mint": token_info["mint"],
+                "from_ata": str(from_ata),
+                "to_ata": str(to_ata),
+                "note": "USDC SPL token transfer - use wallet's token transfer method"
+            }
                 
         except Exception as e:
             return {
@@ -396,25 +351,14 @@ class PaymentOrchestrator:
         self.wallet_service = wallet_service
     
     async def calculate_payment_options(self, amount_usd: float) -> Dict[str, Any]:
-        """Calculate payment options for a given USD amount"""
-        sol_rate = await self.wallet_service.get_sol_to_usd_rate()
+        """Calculate payment options for a given USD amount - USDC SPL only"""
         
-        # Calculate amounts for each supported token
+        # Calculate amounts for USDC SPL token only
         token_options = {}
         
         for token_symbol, token_info in self.wallet_service.supported_tokens.items():
-            if token_symbol == "SOL":
-                if sol_rate:
-                    token_options[token_symbol] = {
-                        "amount": amount_usd / sol_rate,
-                        "rate_usd": sol_rate,
-                        "symbol": token_symbol,
-                        "name": token_info["name"],
-                        "decimals": token_info["decimals"],
-                        "icon": token_info["icon"]
-                    }
-            elif token_symbol in ["USDC", "USDT"]:
-                # Stablecoins are approximately 1:1 with USD
+            if token_symbol == "USDC":
+                # USDC is 1:1 with USD
                 token_options[token_symbol] = {
                     "amount": amount_usd,
                     "rate_usd": 1.0,
@@ -443,7 +387,7 @@ class PaymentOrchestrator:
     
     async def process_wallet_payment(self, session: AsyncSession, user_id: int, 
                                    wallet_address: str, amount_usd: float, 
-                                   token_symbol: str = "SOL") -> Dict[str, Any]:
+                                   token_symbol: str = "USDC") -> Dict[str, Any]:
         """Process payment via connected Solana wallet"""
         payment_options = await self.calculate_payment_options(amount_usd)
         

@@ -234,3 +234,106 @@ class WalletFundingSource(Base):
     last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     total_funding_amount: Mapped[float] = mapped_column(Float, default=0.0)
     transaction_count: Mapped[int] = mapped_column(Integer, default=0)
+
+class ReferralCode(Base):
+    """Referral code model for tracking user referral codes"""
+    __tablename__ = "referral_codes"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    referral_code: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    total_uses: Mapped[int] = mapped_column(Integer, default=0)
+    total_free_questions_earned: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Relationships
+    referrals: Mapped[list["Referral"]] = relationship("Referral", back_populates="referral_code")
+
+class FundDeposit(Base):
+    """Model for tracking fund deposits and routing"""
+    __tablename__ = "fund_deposits"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    wallet_address: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    
+    # Amount details
+    amount_usd: Mapped[float] = mapped_column(Float)
+    amount_usdc: Mapped[float] = mapped_column(Float)
+    
+    # Payment method and routing
+    payment_method: Mapped[str] = mapped_column(String(50))  # 'moonpay', 'wallet'
+    deposit_wallet: Mapped[str] = mapped_column(String(255), nullable=False)  # Where funds were deposited
+    target_wallet: Mapped[str] = mapped_column(String(255), nullable=False)  # Where funds should be routed
+    
+    # Status tracking
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, routed, routing_failed
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    routed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Additional data
+    extra_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON for additional data
+
+class FundTransfer(Base):
+    """Model for tracking fund transfers between wallets"""
+    __tablename__ = "fund_transfers"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    deposit_id: Mapped[int] = mapped_column(Integer, ForeignKey("fund_deposits.id"))
+    
+    # Transfer details
+    from_wallet: Mapped[str] = mapped_column(String(255), nullable=False)
+    to_wallet: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount_usdc: Mapped[float] = mapped_column(Float)
+    
+    # Transaction details
+    transaction_signature: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, completed, failed
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Error tracking
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Relationships
+    deposit: Mapped["FundDeposit"] = relationship("FundDeposit")
+
+class Referral(Base):
+    """Referral model for tracking successful referrals"""
+    __tablename__ = "referrals"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    referrer_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    referee_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    referral_code_id: Mapped[int] = mapped_column(Integer, ForeignKey("referral_codes.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_valid: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Relationships
+    referrer: Mapped["User"] = relationship("User", foreign_keys=[referrer_id])
+    referee: Mapped["User"] = relationship("User", foreign_keys=[referee_id])
+    referral_code: Mapped["ReferralCode"] = relationship("ReferralCode", back_populates="referrals")
+
+class FreeQuestions(Base):
+    """Free questions model for tracking free questions earned through referrals"""
+    __tablename__ = "free_questions"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    source: Mapped[str] = mapped_column(String(50))  # 'referral_bonus', 'referral_signup'
+    referral_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("referrals.id"), nullable=True)
+    questions_earned: Mapped[int] = mapped_column(Integer, default=5)  # 5 free questions per referral
+    questions_used: Mapped[int] = mapped_column(Integer, default=0)
+    questions_remaining: Mapped[int] = mapped_column(Integer, default=5)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Optional expiration
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    referral: Mapped[Optional["Referral"]] = relationship("Referral")

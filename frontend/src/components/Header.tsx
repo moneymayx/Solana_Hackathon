@@ -23,6 +23,22 @@ export default function Header() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Legal Links */}
+            <div className="hidden md:flex items-center space-x-4 text-sm">
+              <a
+                href="/terms"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Terms
+              </a>
+              <a
+                href="/privacy"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Privacy
+              </a>
+            </div>
+            
             {connected && publicKey && (
               <div className="hidden md:block text-sm text-gray-300">
                 <span className="text-gray-500">Wallet:</span>
