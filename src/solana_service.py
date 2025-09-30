@@ -16,11 +16,9 @@ from spl.token.core import MintInfo
 import base58
 
 class SolanaService:
-    # Token mint addresses on Solana mainnet
+    # Token mint addresses on Solana mainnet - USDC SPL only
     TOKEN_MINTS = {
-        "SOL": None,  # Native SOL
-        "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "USDT": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+        "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     }
     
     # Security limits
@@ -106,30 +104,27 @@ class SolanaService:
             if t["timestamp"] > cutoff_time
         ]
     
-    async def get_balance(self, public_key: str, token: str = "SOL") -> float:
-        """Get balance for a public key (SOL or SPL token)"""
+    async def get_balance(self, public_key: str, token: str = "USDC") -> float:
+        """Get balance for a public key (USDC SPL token only)"""
         try:
             pubkey = PublicKey(public_key)
             
-            if token == "SOL":
-                response = await self.client.get_balance(pubkey)
-                return response.value / 1e9  # Convert lamports to SOL
-            else:
-                # For SPL tokens, we need to get the token account balance
-                mint_address = self.TOKEN_MINTS.get(token)
-                if not mint_address:
-                    return 0.0
-                
-                # This is a simplified version - in production you'd need to find the token account
-                # and get its balance using the SPL token program
-                return 0.0  # Placeholder
+            # Only support USDC SPL token
+            mint_address = self.TOKEN_MINTS.get(token)
+            if not mint_address:
+                return 0.0
+            
+            # For USDC SPL token, we need to get the token account balance
+            # This is a simplified version - in production you'd need to find the token account
+            # and get its balance using the SPL token program
+            return 0.0  # Placeholder - implement SPL token balance checking
                 
         except Exception as e:
-            print(f"Error getting balance: {e}")
+            print(f"Error getting USDC balance: {e}")
             return 0.0
     
     async def transfer_token(self, to_address: str, amount: float, token: str, user_id: int) -> Dict[str, Any]:
-        """Transfer token (SOL, USDC, USDT) from treasury to recipient with security validation"""
+        """Transfer USDC SPL token from treasury to recipient with security validation"""
         if not self.treasury_keypair:
             return {
                 "success": False,
@@ -147,10 +142,15 @@ class SolanaService:
             }
         
         try:
-            if token == "SOL":
-                return await self._transfer_sol(to_address, amount, user_id)
-            else:
+            # Only support USDC SPL token
+            if token == "USDC":
                 return await self._transfer_spl_token(to_address, amount, token, user_id)
+            else:
+                return {
+                    "success": False,
+                    "error": f"Only USDC SPL token is supported, got: {token}",
+                    "signature": None
+                }
                 
         except Exception as e:
             print(f"Error transferring {token}: {e}")
@@ -160,66 +160,15 @@ class SolanaService:
                 "signature": None
             }
     
-    async def _transfer_sol(self, to_address: str, amount_sol: float, user_id: int) -> Dict[str, Any]:
-        """Transfer SOL from treasury to recipient"""
-        try:
-            # Convert SOL to lamports
-            amount_lamports = int(amount_sol * 1e9)
-            
-            # Create transfer instruction
-            transfer_instruction = transfer(
-                TransferParams(
-                    from_pubkey=self.treasury_keypair.public_key,
-                    to_pubkey=PublicKey(to_address),
-                    lamports=amount_lamports
-                )
-            )
-            
-            # Create and send transaction
-            transaction = Transaction().add(transfer_instruction)
-            
-            # Get recent blockhash
-            recent_blockhash = await self.client.get_latest_blockhash()
-            transaction.recent_blockhash = recent_blockhash.value.blockhash
-            
-            # Sign transaction
-            transaction.sign(self.treasury_keypair)
-            
-            # Send transaction
-            response = await self.client.send_transaction(transaction)
-            signature = response.value
-            
-            # Wait for confirmation
-            await self.client.confirm_transaction(signature, commitment=Commitment("confirmed"))
-            
-            # Log transfer for security
-            self._log_transfer(user_id, amount_sol, "SOL", to_address, signature)
-            
-            return {
-                "success": True,
-                "signature": signature,
-                "amount": amount_sol,
-                "token": "SOL",
-                "to_address": to_address,
-                "error": None
-            }
-            
-        except Exception as e:
-            print(f"Error transferring SOL: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "signature": None
-            }
     
     async def _transfer_spl_token(self, to_address: str, amount: float, token: str, user_id: int) -> Dict[str, Any]:
-        """Transfer SPL token (USDC, USDT) from treasury to recipient"""
+        """Transfer USDC SPL token from treasury to recipient"""
         try:
             mint_address = self.TOKEN_MINTS.get(token)
             if not mint_address:
                 return {
                     "success": False,
-                    "error": f"Token {token} not supported",
+                    "error": f"USDC token not found in configuration",
                     "signature": None
                 }
             
@@ -235,7 +184,7 @@ class SolanaService:
             # In a real implementation, you'd use the SPL token program
             return {
                 "success": False,
-                "error": f"SPL token transfers not yet implemented for {token}",
+                "error": f"USDC SPL token transfers not yet implemented",
                 "signature": None
             }
             
@@ -247,9 +196,9 @@ class SolanaService:
                 "signature": None
             }
     
-    async def transfer_sol(self, to_address: str, amount_sol: float) -> Dict[str, Any]:
-        """Legacy method for SOL transfers - use transfer_token instead"""
-        return await self.transfer_token(to_address, amount_sol, "SOL", 0)
+    async def transfer_usdc(self, to_address: str, amount_usdc: float) -> Dict[str, Any]:
+        """Legacy method for USDC transfers - use transfer_token instead"""
+        return await self.transfer_token(to_address, amount_usdc, "USDC", 0)
     
     async def verify_transaction(self, signature: str) -> bool:
         """Verify a transaction was successful"""

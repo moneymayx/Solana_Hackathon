@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import os
+import time
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -10,7 +11,8 @@ from src.ai_agent import BillionsAgent
 from src.database import get_db, create_tables
 from src.repositories import UserRepository, PrizePoolRepository, ConversationRepository
 from src.rate_limiter import RateLimiter, SecurityMonitor
-from src.bounty_service import BountyService
+from src.bounty_service import ResearchService
+from src.referral_service import ReferralService
 from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, and_
@@ -20,10 +22,12 @@ load_dotenv()
 app = FastAPI(title="Billions")
 agent = BillionsAgent()
 
-# Initialize rate limiting and bounty system
+# Initialize rate limiting and research system
 rate_limiter = RateLimiter()
 security_monitor = SecurityMonitor()
-bounty_service = BountyService()
+research_service = ResearchService()
+bounty_service = research_service  # Alias for compatibility
+referral_service = ReferralService()
 
 # Initialize payment services
 wallet_service = WalletConnectSolanaService(
@@ -199,7 +203,7 @@ async def chat_interface():
                         🔗 Connect Wallet to Pay
                     </button>
                     <div style="margin-top: 8px; font-size: 0.9em; color: #666; text-align: center;">
-                        Pay with SOL, USDC, or USDT
+                        Pay with USDC SPL or Apple Pay / PayPal
                     </div>
                 </div>
                 <div class="wallet-selection" id="walletSelection" style="display: none; margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 8px;">
@@ -210,7 +214,7 @@ async def chat_interface():
                 <div class="wallet-info" id="walletInfo" style="display: none; margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 5px; font-size: 0.9em;">
                 </div>
                 <div class="token-selection" id="tokenSelection" style="display: none; margin-top: 15px; padding: 15px; background: #fff8dc; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0;">💰 Choose Payment Token:</h4>
+                    <h4 style="margin: 0 0 10px 0;">💰 USDC SPL Payment:</h4>
                     <div id="tokenOptions" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">
                     </div>
                     <div id="selectedTokenInfo" style="margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 5px; display: none;">
@@ -393,7 +397,7 @@ async def chat_interface():
             let walletConnectConfig = null;
             let supportedWallets = {};
             let supportedTokens = {};
-            let selectedToken = 'SOL';
+            let selectedToken = 'USDC';
             
             // Load WalletConnect configuration and supported tokens
             async function loadWalletConnectConfig() {
@@ -597,7 +601,7 @@ async def chat_interface():
                         let balanceHTML = '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px;">';
                         
                         Object.entries(balances).forEach(([symbol, info]) => {
-                            const balance = info.balance.toFixed(symbol === 'SOL' ? 4 : 2);
+                            const balance = info.balance.toFixed(2); // USDC has 2 decimal places for display
                             balanceHTML += `
                                 <div style="background: #f0f8ff; padding: 5px 8px; border-radius: 4px; font-size: 0.85em;">
                                     <strong>${symbol}:</strong> ${balance}
@@ -674,31 +678,14 @@ async def chat_interface():
                     const tokenInfo = supportedTokens[selectedToken];
                     let tokenAmount;
                     
-                    if (selectedToken === 'SOL') {
-                        // Need to calculate based on current SOL price
-                        tokenAmount = 'Calculating...';
-                        
-                        // Fetch current rates
-                        fetch('/api/payment/rates')
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.rates.SOL_USD) {
-                                    const solAmount = (usdAmount / data.rates.SOL_USD).toFixed(4);
-                                    document.getElementById('selectedTokenInfo').innerHTML = `
-                                        <strong>Selected:</strong> ${tokenInfo.name} (${selectedToken})<br>
-                                        <strong>Amount:</strong> ${solAmount} ${selectedToken} ≈ $${usdAmount}
-                                    `;
-                                }
-                            })
-                            .catch(error => console.error('Error fetching rates:', error));
-                    } else {
-                        // Stablecoins (USDC, USDT) are 1:1 with USD
+                    if (selectedToken === 'USDC') {
+                        // USDC is 1:1 with USD
                         tokenAmount = usdAmount.toFixed(2);
                     }
                     
                     selectedTokenInfo.innerHTML = `
                         <strong>Selected:</strong> ${tokenInfo.name} (${selectedToken})<br>
-                        <strong>Amount:</strong> ${selectedToken === 'SOL' ? tokenAmount : tokenAmount + ' ' + selectedToken} ≈ $${usdAmount}
+                        <strong>Amount:</strong> ${tokenAmount} ${selectedToken} ≈ $${usdAmount}
                     `;
                     selectedTokenInfo.style.display = 'block';
                 }
@@ -790,9 +777,9 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
     
     return {
         "response": chat_result["response"],
-        "bounty_result": chat_result["bounty_result"],
+        "bounty_result": chat_result.get("bounty_result", chat_result.get("lottery_result", {})),
         "winner_result": chat_result["winner_result"],
-        "bounty_status": chat_result["bounty_status"],
+        "bounty_status": chat_result.get("bounty_status", chat_result.get("lottery_status", {})),
         "security_analysis": security_analysis
     }
 
@@ -876,16 +863,33 @@ async def get_payment_options(request: PaymentRequest, session: AsyncSession = D
 
 @app.post("/api/payment/create")
 async def create_payment(request: PaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
-    """Create a payment transaction"""
+    """Create a payment transaction with fund routing"""
+    from src.fund_routing_service import fund_routing_service
+    
     user, session_id = await get_or_create_user(http_request, session)
     
     if request.payment_method == "wallet":
         if not request.wallet_address:
             raise HTTPException(status_code=400, detail="Wallet address required for wallet payments")
         
+        # Process wallet payment (goes directly to jackpot wallet)
         result = await payment_orchestrator.process_wallet_payment(
             session, user.id, request.wallet_address, request.amount_usd, request.token_symbol
         )
+        
+        # Record the direct wallet payment for tracking
+        if result.get("success"):
+            payment_data = {
+                "transaction_id": result.get("transaction_signature", f"wallet_{user.id}_{int(time.time())}"),
+                "wallet_address": request.wallet_address,
+                "base_currency_amount": request.amount_usd,
+                "quote_currency_amount": request.amount_usd,  # USDC is 1:1 with USD
+                "payment_method": "wallet"
+            }
+            
+            # Process payment completion (direct to jackpot)
+            await fund_routing_service.process_payment_completion(session, payment_data)
+        
         return result
     
     elif request.payment_method == "fiat":
@@ -1122,9 +1126,10 @@ async def get_transaction_status(transaction_id: str):
         raise HTTPException(status_code=400, detail=f"Failed to get transaction status: {str(e)}")
 
 @app.post("/api/moonpay/webhook")
-async def moonpay_webhook(request: MoonpayWebhookRequest):
-    """Handle Moonpay webhook notifications"""
+async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession = Depends(get_db)):
+    """Handle Moonpay webhook notifications with automatic fund routing"""
     from src.moonpay_service import moonpay_service
+    from src.fund_routing_service import fund_routing_service
     
     try:
         # Verify webhook signature
@@ -1134,17 +1139,128 @@ async def moonpay_webhook(request: MoonpayWebhookRequest):
         # Process webhook
         result = moonpay_service.process_webhook(request.data)
         
-        # Here you would typically update your database with the payment status
-        # and trigger any necessary business logic
-        
-        return {
-            "success": True,
-            "message": "Webhook processed successfully",
-            "transaction_id": result["transaction_id"]
-        }
+        # Check if payment is completed
+        if result.get("status") == "completed":
+            # Process payment completion and route funds
+            payment_data = {
+                "transaction_id": result["transaction_id"],
+                "wallet_address": result["wallet_address"],
+                "base_currency_amount": result["base_currency_amount"],
+                "quote_currency_amount": result["quote_currency_amount"],
+                "payment_method": "moonpay"
+            }
+            
+            # Route funds automatically
+            routing_result = await fund_routing_service.process_payment_completion(session, payment_data)
+            
+            return {
+                "success": True,
+                "message": "Webhook processed successfully with fund routing",
+                "transaction_id": result["transaction_id"],
+                "fund_routing": routing_result
+            }
+        else:
+            # Payment not completed yet
+            return {
+                "success": True,
+                "message": "Webhook processed - payment not completed",
+                "transaction_id": result["transaction_id"],
+                "status": result["status"]
+            }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
+
+# Fund Management Endpoints
+@app.get("/api/funds/status")
+async def get_fund_status(session: AsyncSession = Depends(get_db)):
+    """Get current fund status and routing information"""
+    from src.fund_routing_service import fund_routing_service
+    
+    try:
+        status = await fund_routing_service.get_fund_status(session)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get fund status: {str(e)}")
+
+@app.post("/api/funds/route/{deposit_id}")
+async def manual_route_funds(deposit_id: int, session: AsyncSession = Depends(get_db)):
+    """Manually trigger fund routing for a specific deposit"""
+    from src.fund_routing_service import fund_routing_service
+    
+    try:
+        result = await fund_routing_service.manual_route_funds(session, deposit_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to route funds: {str(e)}")
+
+@app.get("/api/funds/deposits")
+async def get_deposits(session: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
+    """Get list of fund deposits"""
+    from src.models import FundDeposit
+    from sqlalchemy import select, desc
+    
+    try:
+        result = await session.execute(
+            select(FundDeposit)
+            .order_by(desc(FundDeposit.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        deposits = result.scalars().all()
+        
+        return {
+            "deposits": [
+                {
+                    "id": dep.id,
+                    "transaction_id": dep.transaction_id,
+                    "wallet_address": dep.wallet_address,
+                    "amount_usd": dep.amount_usd,
+                    "amount_usdc": dep.amount_usdc,
+                    "payment_method": dep.payment_method,
+                    "status": dep.status,
+                    "created_at": dep.created_at.isoformat(),
+                    "routed_at": dep.routed_at.isoformat() if dep.routed_at else None
+                } for dep in deposits
+            ],
+            "total": len(deposits)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get deposits: {str(e)}")
+
+@app.get("/api/funds/transfers")
+async def get_transfers(session: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
+    """Get list of fund transfers"""
+    from src.models import FundTransfer
+    from sqlalchemy import select, desc
+    
+    try:
+        result = await session.execute(
+            select(FundTransfer)
+            .order_by(desc(FundTransfer.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+        transfers = result.scalars().all()
+        
+        return {
+            "transfers": [
+                {
+                    "id": tfr.id,
+                    "deposit_id": tfr.deposit_id,
+                    "from_wallet": tfr.from_wallet,
+                    "to_wallet": tfr.to_wallet,
+                    "amount_usdc": tfr.amount_usdc,
+                    "transaction_signature": tfr.transaction_signature,
+                    "status": tfr.status,
+                    "created_at": tfr.created_at.isoformat(),
+                    "completed_at": tfr.completed_at.isoformat() if tfr.completed_at else None
+                } for tfr in transfers
+            ],
+            "total": len(transfers)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get transfers: {str(e)}")
 
 # Wallet-based User Management
 @app.post("/api/wallet/connect")
@@ -2024,6 +2140,135 @@ async def get_connected_wallets(winner_id: int, session: AsyncSession = Depends(
         "connected_wallets": wallets,
         "total": len(wallets)
     }
+
+# Referral System Endpoints
+@app.get("/api/referral/code/{user_id}")
+async def get_referral_code(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get or create referral code for a user"""
+    try:
+        referral_code = await referral_service.get_or_create_referral_code(session, user_id)
+        return {
+            "success": True,
+            "referral_code": referral_code.referral_code,
+            "created_at": referral_code.created_at.isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get referral code: {str(e)}")
+
+@app.post("/api/referral/process")
+async def process_referral_signup(request: dict, session: AsyncSession = Depends(get_db)):
+    """Process a referral signup when a new user makes their first deposit"""
+    try:
+        referee_user_id = request.get("referee_user_id")
+        referral_code = request.get("referral_code")
+        wallet_address = request.get("wallet_address")
+        email = request.get("email")
+        
+        if not referee_user_id or not referral_code:
+            raise HTTPException(status_code=400, detail="referee_user_id and referral_code are required")
+        
+        result = await referral_service.process_referral_signup(
+            session, referee_user_id, referral_code, wallet_address, email
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process referral: {str(e)}")
+
+@app.get("/api/referral/stats/{user_id}")
+async def get_referral_stats(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get referral statistics for a user"""
+    try:
+        stats = await referral_service.get_referral_stats(session, user_id)
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get referral stats: {str(e)}")
+
+@app.get("/api/referral/leaderboard")
+async def get_referral_leaderboard(session: AsyncSession = Depends(get_db), limit: int = 50):
+    """Get referral leaderboard"""
+    try:
+        leaderboard = await referral_service.get_referral_leaderboard(session, limit)
+        return {
+            "leaderboard": leaderboard,
+            "total": len(leaderboard)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get referral leaderboard: {str(e)}")
+
+@app.get("/api/referral/free-questions/{user_id}")
+async def get_free_questions(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get free questions available for a user"""
+    try:
+        free_questions = await referral_service.get_user_free_questions(session, user_id)
+        return {
+            "user_id": user_id,
+            "free_questions_available": free_questions
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get free questions: {str(e)}")
+
+@app.post("/api/referral/use-free-question")
+async def use_free_question(request: dict, session: AsyncSession = Depends(get_db)):
+    """Use one free question for a user"""
+    try:
+        user_id = request.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        success = await referral_service.use_free_question(session, user_id)
+        return {
+            "success": success,
+            "message": "Free question used successfully" if success else "No free questions available"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to use free question: {str(e)}")
+
+# Research Fund Endpoints
+@app.get("/api/research/status")
+async def get_research_fund_status(session: AsyncSession = Depends(get_db)):
+    """Get current research fund status"""
+    try:
+        status = await research_service.get_research_status(session)
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get research status: {str(e)}")
+
+@app.post("/api/research/attempt")
+async def process_research_attempt(request: dict, session: AsyncSession = Depends(get_db)):
+    """Process a research attempt"""
+    try:
+        user_id = request.get("user_id")
+        message_content = request.get("message_content")
+        ai_response = request.get("ai_response")
+        
+        if not all([user_id, message_content, ai_response]):
+            raise HTTPException(status_code=400, detail="user_id, message_content, and ai_response are required")
+        
+        result = await research_service.process_research_attempt(
+            session, user_id, message_content, ai_response
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process research attempt: {str(e)}")
+
+@app.post("/api/research/success")
+async def determine_research_success(request: dict, session: AsyncSession = Depends(get_db)):
+    """Determine if research attempt was successful"""
+    try:
+        user_id = request.get("user_id")
+        entry_id = request.get("entry_id")
+        should_transfer = request.get("should_transfer", False)
+        
+        if not all([user_id, entry_id]):
+            raise HTTPException(status_code=400, detail="user_id and entry_id are required")
+        
+        result = await research_service.determine_research_success(
+            session, user_id, entry_id, should_transfer
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to determine research success: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

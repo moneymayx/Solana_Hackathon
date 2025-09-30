@@ -461,7 +461,7 @@ def run_integration_tests():
     test_instance1.setup_method()
     
     test_instance2 = TestDataFlowIntegration()
-    # TestDataFlowIntegration doesn't have setup_method, so we'll skip it
+    test_instance2.setup_method()  # Call setup_method to initialize attributes
     
     # Get test methods from both classes (only actual methods, not attributes)
     import inspect

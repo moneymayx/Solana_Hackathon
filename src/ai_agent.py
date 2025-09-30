@@ -7,7 +7,7 @@ from sqlalchemy import update
 from dotenv import load_dotenv
 from .personality import BillionsPersonality
 from .repositories import ConversationRepository, UserRepository, AttackAttemptRepository, BlacklistedPhraseRepository
-from .bounty_service import BountyService
+from .bounty_service import ResearchService
 from .models import BountyEntry
 from .solana_service import solana_service
 from .winner_tracking_service import winner_tracking_service
@@ -22,7 +22,7 @@ class BillionsAgent:
         )
         self.personality = BillionsPersonality.get_complete_personality()
         self.conversation_history = []
-        self.bounty_service = BountyService()
+        self.bounty_service = ResearchService()
     
     def _load_personality(self) -> str:
         """Legacy method - now uses BillionsPersonality class"""
@@ -166,17 +166,16 @@ whether you should transfer funds. Simply respond as you naturally would.
                 user_wallet_address = await self._get_user_wallet_address(session, user_id)
                 
                 if user_wallet_address:
-                    # Attempt actual token transfer (SOL, USDC, or USDT)
-                    # The AI can choose which token to transfer based on the prize amount
+                    # Attempt actual USDC SPL token transfer
                     transfer_result = await solana_service.transfer_token(
                         to_address=user_wallet_address,
                         amount=winner_result['prize_payout'],
-                        token="SOL",  # Default to SOL, could be made configurable
+                        token="USDC",  # USDC SPL token only
                         user_id=user_id
                     )
                     
                     if transfer_result['success']:
-                        ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! I've transferred ${winner_result['prize_payout']:,.2f} SOL to your wallet! Transaction: {transfer_result['signature']} 🎉"
+                        ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! I've transferred ${winner_result['prize_payout']:,.2f} USDC to your wallet! Transaction: {transfer_result['signature']} 🎉"
                         
                         # Record winner in tracking system
                         await winner_tracking_service.record_winner(
@@ -184,7 +183,7 @@ whether you should transfer funds. Simply respond as you naturally would.
                             user_id=user_id,
                             wallet_address=user_wallet_address,
                             prize_amount=winner_result['prize_payout'],
-                            token="SOL",
+                            token="USDC",
                             transaction_hash=transfer_result['signature']
                         )
                         
@@ -195,7 +194,7 @@ whether you should transfer funds. Simply respond as you naturally would.
                             message_content=user_message,
                             ai_response=ai_response,
                             success=True,
-                            additional_data=f"SOL Transfer: {transfer_result['signature']}"
+                            additional_data=f"USDC Transfer: {transfer_result['signature']}"
                         )
                     else:
                         ai_response = f"{ai_response}\n\n🎉 CONGRATULATIONS! You convinced me! However, there was an issue with the transfer: {transfer_result['error']}. Please contact support! 🎉"

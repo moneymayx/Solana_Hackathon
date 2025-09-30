@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { CreditCard, Coins, ExternalLink, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { CreditCard, Coins, ExternalLink, CheckCircle, AlertCircle, Loader2, Gift, Share2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface PaymentQuote {
@@ -17,11 +17,24 @@ interface PaymentQuote {
 interface PaymentFlowProps {
   onPaymentSuccess?: (transactionId: string) => void
   onPaymentFailure?: (error: string) => void
+  onUseFreeQuestion?: () => void
 }
 
-export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: PaymentFlowProps) {
+interface FreeQuestions {
+  free_questions_available: number
+}
+
+interface ReferralStats {
+  referral_code: string
+  total_referrals: number
+  total_free_questions_earned: number
+  total_free_questions_used: number
+  free_questions_remaining: number
+}
+
+export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure, onUseFreeQuestion }: PaymentFlowProps) {
   const { connected, publicKey } = useWallet()
-  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'fiat'>('fiat')
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'fiat' | 'free'>('fiat')
   const [amount, setAmount] = useState(10)
   const [quote, setQuote] = useState<PaymentQuote | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,12 +44,33 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
   const [pollingTxId, setPollingTxId] = useState<string | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingAttemptsRef = useRef<number>(0)
+  const [freeQuestions, setFreeQuestions] = useState<FreeQuestions | null>(null)
+  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null)
+  const [referralCode, setReferralCode] = useState('')
+  const [showReferralCode, setShowReferralCode] = useState(false)
 
   useEffect(() => {
     if (paymentMethod === 'fiat' && amount > 0) {
       fetchQuote()
     }
   }, [paymentMethod, amount])
+
+  useEffect(() => {
+    if (connected && publicKey) {
+      fetchReferralData()
+    }
+  }, [connected, publicKey])
+
+  // Check for referral code in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const refCode = urlParams.get('ref')
+    if (refCode) {
+      setReferralCode(refCode)
+      // If user has a referral code, they should use their free questions first
+      // Don't show referral prompt until free questions are used up
+    }
+  }, [])
 
   // Cleanup polling interval on unmount
   useEffect(() => {
@@ -56,13 +90,39 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
 
   const fetchQuote = async () => {
     try {
-      const response = await fetch(`/api/moonpay/quote?currency_code=sol&amount_usd=${amount}`)
+      const response = await fetch(`/api/moonpay/quote?currency_code=usdc_sol&amount_usd=${amount}`)
       if (response.ok) {
         const data = await response.json()
         setQuote(data.quote)
       }
     } catch (error) {
       console.error('Failed to fetch quote:', error)
+    }
+  }
+
+  const fetchReferralData = async () => {
+    try {
+      // Get user ID from wallet address
+      const userResponse = await fetch(`/api/user/profile/${publicKey?.toString()}`)
+      if (userResponse.ok) {
+        const userData = await userResponse.json()
+        
+        // Fetch free questions
+        const questionsResponse = await fetch(`/api/referral/free-questions/${userData.user_id}`)
+        if (questionsResponse.ok) {
+          const questions = await questionsResponse.json()
+          setFreeQuestions(questions)
+        }
+        
+        // Fetch referral stats
+        const statsResponse = await fetch(`/api/referral/stats/${userData.user_id}`)
+        if (statsResponse.ok) {
+          const stats = await statsResponse.json()
+          setReferralStats(stats)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch referral data:', error)
     }
   }
 
@@ -76,6 +136,30 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
     setPaymentStatus('processing')
 
     try {
+      // First, process referral if there's a referral code
+      if (referralCode) {
+        try {
+          const userResponse = await fetch(`/api/user/profile/${publicKey.toString()}`)
+          if (userResponse.ok) {
+            const userData = await userResponse.json()
+            await fetch('/api/referral/process', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                referee_user_id: userData.user_id,
+                referral_code: referralCode,
+                wallet_address: publicKey.toString()
+              })
+            })
+          }
+        } catch (error) {
+          console.error('Referral processing failed:', error)
+          // Continue with payment even if referral fails
+        }
+      }
+
       const response = await fetch('/api/moonpay/create-payment', {
         method: 'POST',
         headers: {
@@ -84,7 +168,7 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
         body: JSON.stringify({
           wallet_address: publicKey.toString(),
           amount_usd: amount,
-          currency_code: 'sol'
+          currency_code: 'usdc_sol'
         })
       })
 
@@ -181,17 +265,109 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
     setPaymentStatus('idle')
   }
 
+  const useFreeQuestion = async () => {
+    if (!connected || !publicKey) {
+      onPaymentFailure?.('Please connect your wallet first')
+      return
+    }
+
+    setLoading(true)
+    setPaymentStatus('processing')
+
+    try {
+      // Get user ID from wallet address
+      const userResponse = await fetch(`/api/user/profile/${publicKey?.toString()}`)
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user profile')
+      }
+      const userData = await userResponse.json()
+
+      // Use free question
+      const response = await fetch('/api/referral/use-free-question', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userData.user_id
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setPaymentStatus('success')
+          onUseFreeQuestion?.()
+          // Refresh free questions count
+          await fetchReferralData()
+        } else {
+          throw new Error(data.message || 'No free questions available')
+        }
+      } else {
+        throw new Error('Failed to use free question')
+      }
+    } catch (error) {
+      console.error('Free question usage failed:', error)
+      setPaymentStatus('failed')
+      onPaymentFailure?.(error instanceof Error ? error.message : 'Failed to use free question')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6">
       <div className="flex items-center space-x-3 mb-6">
         <CreditCard className="h-6 w-6 text-purple-400" />
-        <h3 className="text-lg font-semibold text-white">Purchase bounty Entry</h3>
+        <h3 className="text-lg font-semibold text-white">Research Funding</h3>
       </div>
+
+      {/* Referral Code Display */}
+      {referralCode && (
+        <div className="mb-6 bg-green-600/20 border border-green-500/30 rounded-lg p-4">
+          <div className="flex items-center space-x-3 mb-2">
+            <Share2 className="h-5 w-5 text-green-400" />
+            <h4 className="text-green-400 font-semibold">Referral Code Detected</h4>
+          </div>
+          <p className="text-green-200 text-sm">
+            You're using referral code: <span className="font-mono font-bold">{referralCode}</span>
+          </p>
+          <p className="text-green-200 text-sm mt-1">
+            You'll get 5 free research attempts after your first deposit!
+          </p>
+        </div>
+      )}
+
+      {/* Free Questions Available */}
+      {freeQuestions && freeQuestions.free_questions_available > 0 && (
+        <div className="mb-6 bg-purple-600/20 border border-purple-500/30 rounded-lg p-4">
+          <div className="flex items-center space-x-3 mb-2">
+            <Gift className="h-5 w-5 text-purple-400" />
+            <h4 className="text-purple-400 font-semibold">Free Research Attempts Available</h4>
+          </div>
+          <p className="text-purple-200 text-sm">
+            You have <span className="font-bold">{freeQuestions.free_questions_available}</span> free research attempts
+          </p>
+        </div>
+      )}
 
       {/* Payment Method Selection */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-300 mb-3">Payment Method</label>
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap gap-3">
+          {freeQuestions && freeQuestions.free_questions_available > 0 && (
+            <button
+              onClick={() => setPaymentMethod('free')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                paymentMethod === 'free'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              <Gift className="h-4 w-4" />
+              <span>Free Question ({freeQuestions.free_questions_available})</span>
+            </button>
+          )}
           <button
             onClick={() => setPaymentMethod('fiat')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
@@ -201,7 +377,7 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
             }`}
           >
             <CreditCard className="h-4 w-4" />
-            <span>Credit Card</span>
+            <span>Apple Pay / PayPal</span>
           </button>
           <button
             onClick={() => setPaymentMethod('wallet')}
@@ -218,36 +394,38 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
         </div>
       </div>
 
-      {/* Amount Selection */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-300 mb-3">Amount (USD)</label>
-        <div className="grid grid-cols-3 gap-2">
-          {[5, 10, 25, 50, 100, 500].map((value) => (
-            <button
-              key={value}
-              onClick={() => handleAmountChange(value)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                amount === value
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              ${value}
-            </button>
-          ))}
+      {/* Amount Selection - Hide for free questions */}
+      {paymentMethod !== 'free' && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-3">Amount (USD)</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[5, 10, 25, 50, 100, 500].map((value) => (
+              <button
+                key={value}
+                onClick={() => handleAmountChange(value)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  amount === value
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ${value}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => handleAmountChange(Number(e.target.value))}
+              min="1"
+              max="1000"
+              className="w-full bg-gray-700 text-white placeholder-gray-400 px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="Custom amount"
+            />
+          </div>
         </div>
-        <div className="mt-3">
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => handleAmountChange(Number(e.target.value))}
-            min="1"
-            max="1000"
-            className="w-full bg-gray-700 text-white placeholder-gray-400 px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            placeholder="Custom amount"
-          />
-        </div>
-      </div>
+      )}
 
       {/* Quote Display */}
       {paymentMethod === 'fiat' && quote && (
@@ -260,11 +438,11 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">You'll receive:</span>
-              <span className="text-white">{quote.quoteCurrencyAmount.toFixed(6)} SOL</span>
+              <span className="text-white">{quote.quoteCurrencyAmount.toFixed(2)} USDC</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Rate:</span>
-              <span className="text-white">${quote.quoteCurrencyPrice.toFixed(2)}/SOL</span>
+              <span className="text-white">${quote.quoteCurrencyPrice.toFixed(2)}/USDC</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Fee:</span>
@@ -315,20 +493,37 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure }: Paym
 
       {/* Action Buttons */}
       <div className="flex space-x-3">
-        <button
-          onClick={createPayment}
-          disabled={!connected || loading || amount <= 0}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>
-              <CreditCard className="h-4 w-4" />
-              <span>Pay with {paymentMethod === 'fiat' ? 'Credit Card' : 'Wallet'}</span>
-            </>
-          )}
-        </button>
+        {paymentMethod === 'free' ? (
+          <button
+            onClick={useFreeQuestion}
+            disabled={!connected || loading || !freeQuestions?.free_questions_available}
+            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Gift className="h-4 w-4" />
+                <span>Use Free Research Attempt</span>
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={createPayment}
+            disabled={!connected || loading || amount <= 0}
+            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <CreditCard className="h-4 w-4" />
+                <span>Pay with {paymentMethod === 'fiat' ? 'Apple Pay / PayPal' : 'USDC Wallet'}</span>
+              </>
+            )}
+          </button>
+        )}
         
         {paymentUrl && (
           <button

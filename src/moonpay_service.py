@@ -36,7 +36,7 @@ class MoonpayService:
                       redirect_url: str = "",
                       failure_redirect_url: str = "",
                       quote_currency_amount: Optional[float] = None) -> Dict[str, Any]:
-        """Create a Moonpay buy URL for fiat-to-crypto conversion"""
+        """Create a Moonpay buy URL for fiat-to-crypto conversion with Apple Pay and PayPal support"""
         
         if not self.api_key:
             raise ValueError("Moonpay API key not configured")
@@ -52,6 +52,12 @@ class MoonpayService:
             "externalTransactionId": external_transaction_id,
             "redirectURL": redirect_url,
             "failureRedirectURL": failure_redirect_url,
+            # Enable Apple Pay and PayPal payment methods
+            "paymentMethod": "apple_pay,paypal",
+            "enableApplePay": "true",
+            "enablePayPal": "true",
+            # Disable credit card manual entry
+            "enableCreditCard": "false"
         }
         
         # Add optional parameters
@@ -76,7 +82,8 @@ class MoonpayService:
             "transaction_id": external_transaction_id,
             "currency_code": currency_code,
             "amount": base_currency_amount,
-            "wallet_address": wallet_address
+            "wallet_address": wallet_address,
+            "payment_methods": ["apple_pay", "paypal"]
         }
     
     def get_quote(self, 
@@ -170,17 +177,20 @@ class MoonpayService:
                                        wallet_address: str,
                                        user_id: int,
                                        amount_usd: float = 10.0) -> Dict[str, Any]:
-        """Create a Moonpay payment for bounty entry"""
+        """Create a Moonpay payment for bounty entry - USDC with Apple Pay and PayPal support"""
         
         # Generate unique transaction ID
         transaction_id = f"bounty_{user_id}_{int(time.time())}"
         
-        # Create buy URL for SOL
+        # Get deposit wallet address for MoonPay to send USDC to
+        deposit_wallet = os.getenv("DEPOSIT_WALLET_ADDRESS", wallet_address)
+        
+        # Create buy URL for USDC with Apple Pay and PayPal support
         result = self.create_buy_url(
-            currency_code="sol",
+            currency_code="usdc_sol",  # USDC on Solana
             base_currency_amount=amount_usd,
             base_currency_code="usd",
-            wallet_address=wallet_address,
+            wallet_address=deposit_wallet,  # Send to deposit wallet for automatic routing
             external_customer_id=str(user_id),
             external_transaction_id=transaction_id,
             redirect_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/payment/success",
