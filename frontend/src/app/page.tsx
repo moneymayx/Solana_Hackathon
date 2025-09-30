@@ -11,11 +11,12 @@ import ReferralPrompt from '@/components/ReferralPrompt'
 import ReferralSystem from '@/components/ReferralSystem'
 import Header from '@/components/Header'
 import AgeVerification from '@/components/AgeVerification'
+import RegulatoryCompliance from '@/components/RegulatoryCompliance'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
   const { connected } = useWallet()
-  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'payment' | 'referrals'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'payment' | 'referrals' | 'regulatory'>('chat')
   const [showReferralPrompt, setShowReferralPrompt] = useState(false)
   const [hasCheckedReferralPrompt, setHasCheckedReferralPrompt] = useState(false)
   const [showAgeVerification, setShowAgeVerification] = useState(true)
@@ -192,6 +193,17 @@ export default function Home() {
             >
               Admin
             </button>
+            <button
+              onClick={() => setActiveTab('regulatory')}
+              className={cn(
+                "px-4 py-2 rounded-md font-medium transition-all duration-200 text-sm",
+                activeTab === 'regulatory'
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+                  : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+              )}
+            >
+              Compliance
+            </button>
           </div>
         </div>
 
@@ -204,6 +216,7 @@ export default function Home() {
               {activeTab === 'referrals' && <ReferralSystem />}
               {activeTab === 'admin' && <AdminDashboard />}
               {activeTab === 'payment' && <PaymentFlow />}
+              {activeTab === 'regulatory' && <RegulatoryCompliance />}
             </>
           ) : (
             <div className="text-center py-12">

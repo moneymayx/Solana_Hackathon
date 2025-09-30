@@ -1,17 +1,421 @@
 import json
 import asyncio
+import hashlib
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
-from .models import Winner, ConnectedWallet, WalletFundingSource, User, Transaction
+from sqlalchemy import select, and_, or_, func, desc
+from .models import Winner, ConnectedWallet, WalletFundingSource, User, Transaction, SecurityEvent, Conversation
 from .solana_service import solana_service
+
+class SybilDetectionService:
+    """Advanced sybil detection system using multiple correlation methods"""
+    
+    def __init__(self):
+        self.suspicious_thresholds = {
+            'ip_correlation': 0.7,  # 70% of wallets from same IP
+            'behavioral_similarity': 0.8,  # 80% similar message patterns
+            'timing_patterns': 0.9,  # 90% similar timing patterns
+            'rapid_creation': 5,  # 5 wallets in 1 hour
+            'funding_correlation': 0.6,  # 60% shared funding sources
+            'device_fingerprint': 0.85  # 85% similar device characteristics
+        }
+        
+        # Behavioral pattern storage
+        self.behavioral_patterns = {}
+        self.ip_correlations = {}
+        self.timing_patterns = {}
+    
+    async def analyze_user_behavior(self, user_id: int, message: str, ip_address: str, 
+                                  user_agent: str, session: AsyncSession) -> Dict[str, Any]:
+        """Analyze user behavior for sybil patterns"""
+        
+        # 1. IP-based correlation analysis
+        ip_analysis = await self._analyze_ip_correlation(user_id, ip_address, session)
+        
+        # 2. Behavioral pattern detection
+        behavior_analysis = await self._analyze_behavioral_patterns(user_id, message, session)
+        
+        # 3. Timing pattern analysis
+        timing_analysis = await self._analyze_timing_patterns(user_id, session)
+        
+        # 4. Device fingerprinting
+        device_analysis = await self._analyze_device_fingerprint(user_id, user_agent, session)
+        
+        # 5. Calculate overall sybil score
+        sybil_score = self._calculate_sybil_score({
+            'ip_correlation': ip_analysis['correlation_score'],
+            'behavioral_similarity': behavior_analysis['similarity_score'],
+            'timing_patterns': timing_analysis['pattern_score'],
+            'device_fingerprint': device_analysis['fingerprint_score']
+        })
+        
+        # 6. Determine if user is suspicious
+        is_suspicious = sybil_score >= 0.7
+        
+        if is_suspicious:
+            await self._log_sybil_detection(session, user_id, sybil_score, {
+                'ip_analysis': ip_analysis,
+                'behavior_analysis': behavior_analysis,
+                'timing_analysis': timing_analysis,
+                'device_analysis': device_analysis
+            })
+        
+        return {
+            'sybil_score': sybil_score,
+            'is_suspicious': is_suspicious,
+            'risk_level': self._get_risk_level(sybil_score),
+            'analysis_details': {
+                'ip_correlation': ip_analysis,
+                'behavioral_patterns': behavior_analysis,
+                'timing_patterns': timing_analysis,
+                'device_fingerprint': device_analysis
+            }
+        }
+    
+    async def _analyze_ip_correlation(self, user_id: int, ip_address: str, 
+                                    session: AsyncSession) -> Dict[str, Any]:
+        """Analyze IP-based correlation for sybil detection"""
+        
+        # Get all users from same IP in last 24 hours
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        
+        same_ip_users = await session.execute(
+            select(User.id, User.session_id, User.created_at)
+            .where(
+                and_(
+                    User.ip_address == ip_address,
+                    User.created_at >= twenty_four_hours_ago
+                )
+            )
+        )
+        
+        ip_users = same_ip_users.fetchall()
+        correlation_score = len(ip_users) / 10.0  # Normalize to 0-1 scale
+        
+        # Check for rapid creation pattern
+        if len(ip_users) >= self.suspicious_thresholds['rapid_creation']:
+            correlation_score = 1.0  # Maximum suspicion
+        
+        return {
+            'ip_address': ip_address,
+            'users_from_same_ip': len(ip_users),
+            'correlation_score': min(correlation_score, 1.0),
+            'is_rapid_creation': len(ip_users) >= self.suspicious_thresholds['rapid_creation'],
+            'user_ids': [user.id for user in ip_users]
+        }
+    
+    async def _analyze_behavioral_patterns(self, user_id: int, message: str, 
+                                         session: AsyncSession) -> Dict[str, Any]:
+        """Analyze behavioral patterns for sybil detection"""
+        
+        # Get user's recent messages
+        recent_messages = await session.execute(
+            select(Conversation.content)
+            .where(
+                and_(
+                    Conversation.user_id == user_id,
+                    Conversation.message_type == "user",
+                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                )
+            )
+            .order_by(Conversation.created_at.desc())
+            .limit(10)
+        )
+        
+        user_messages = [msg.content for msg in recent_messages.scalars().all()]
+        
+        # Calculate message patterns
+        message_length_avg = sum(len(msg) for msg in user_messages) / len(user_messages) if user_messages else 0
+        message_complexity = self._calculate_message_complexity(user_messages)
+        keyword_usage = self._analyze_keyword_usage(user_messages)
+        
+        # Compare with other users from same IP
+        ip_users = await self._get_users_from_same_ip(user_id, session)
+        similarity_scores = []
+        
+        for other_user_id in ip_users:
+            if other_user_id != user_id:
+                other_messages = await self._get_user_messages(other_user_id, session)
+                similarity = self._calculate_message_similarity(user_messages, other_messages)
+                similarity_scores.append(similarity)
+        
+        avg_similarity = sum(similarity_scores) / len(similarity_scores) if similarity_scores else 0
+        
+        return {
+            'message_count': len(user_messages),
+            'avg_message_length': message_length_avg,
+            'message_complexity': message_complexity,
+            'keyword_usage': keyword_usage,
+            'similarity_score': avg_similarity,
+            'is_similar_to_others': avg_similarity >= self.suspicious_thresholds['behavioral_similarity']
+        }
+    
+    async def _analyze_timing_patterns(self, user_id: int, session: AsyncSession) -> Dict[str, Any]:
+        """Analyze timing patterns for sybil detection"""
+        
+        # Get user's activity timestamps
+        user_activity = await session.execute(
+            select(Conversation.created_at)
+            .where(
+                and_(
+                    Conversation.user_id == user_id,
+                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                )
+            )
+            .order_by(Conversation.created_at)
+        )
+        
+        timestamps = [activity.created_at for activity in user_activity.scalars().all()]
+        
+        if len(timestamps) < 2:
+            return {'pattern_score': 0.0, 'is_regular_pattern': False}
+        
+        # Calculate time intervals between messages
+        intervals = []
+        for i in range(1, len(timestamps)):
+            interval = (timestamps[i] - timestamps[i-1]).total_seconds()
+            intervals.append(interval)
+        
+        # Check for regular patterns (suspicious for sybil)
+        interval_variance = self._calculate_variance(intervals)
+        is_regular_pattern = interval_variance < 60  # Less than 1 minute variance
+        
+        # Check for burst patterns (multiple messages in short time)
+        burst_count = sum(1 for interval in intervals if interval < 10)  # Less than 10 seconds
+        is_burst_pattern = burst_count >= 3
+        
+        pattern_score = 0.0
+        if is_regular_pattern:
+            pattern_score += 0.5
+        if is_burst_pattern:
+            pattern_score += 0.5
+        
+        return {
+            'message_count': len(timestamps),
+            'avg_interval': sum(intervals) / len(intervals) if intervals else 0,
+            'interval_variance': interval_variance,
+            'pattern_score': pattern_score,
+            'is_regular_pattern': is_regular_pattern,
+            'is_burst_pattern': is_burst_pattern
+        }
+    
+    async def _analyze_device_fingerprint(self, user_id: int, user_agent: str, 
+                                        session: AsyncSession) -> Dict[str, Any]:
+        """Analyze device fingerprint for sybil detection"""
+        
+        # Extract device characteristics from user agent
+        device_info = self._parse_user_agent(user_agent)
+        
+        # Get other users with similar device characteristics
+        similar_devices = await session.execute(
+            select(User.id, User.user_agent)
+            .where(
+                and_(
+                    User.id != user_id,
+                    User.created_at >= datetime.utcnow() - timedelta(hours=24)
+                )
+            )
+        )
+        
+        fingerprint_scores = []
+        for other_user in similar_devices.fetchall():
+            if other_user.user_agent:
+                other_device = self._parse_user_agent(other_user.user_agent)
+                similarity = self._calculate_device_similarity(device_info, other_device)
+                fingerprint_scores.append(similarity)
+        
+        avg_fingerprint_similarity = sum(fingerprint_scores) / len(fingerprint_scores) if fingerprint_scores else 0
+        
+        return {
+            'device_info': device_info,
+            'fingerprint_score': avg_fingerprint_similarity,
+            'is_similar_device': avg_fingerprint_similarity >= self.suspicious_thresholds['device_fingerprint']
+        }
+    
+    def _calculate_sybil_score(self, analysis_scores: Dict[str, float]) -> float:
+        """Calculate overall sybil score from individual analysis scores"""
+        weights = {
+            'ip_correlation': 0.3,
+            'behavioral_similarity': 0.25,
+            'timing_patterns': 0.2,
+            'device_fingerprint': 0.25
+        }
+        
+        weighted_score = sum(
+            analysis_scores.get(metric, 0) * weight 
+            for metric, weight in weights.items()
+        )
+        
+        return min(weighted_score, 1.0)
+    
+    def _get_risk_level(self, sybil_score: float) -> str:
+        """Get risk level based on sybil score"""
+        if sybil_score >= 0.8:
+            return "critical"
+        elif sybil_score >= 0.6:
+            return "high"
+        elif sybil_score >= 0.4:
+            return "medium"
+        else:
+            return "low"
+    
+    async def _log_sybil_detection(self, session: AsyncSession, user_id: int, 
+                                 sybil_score: float, analysis_details: Dict[str, Any]) -> None:
+        """Log sybil detection event"""
+        security_event = SecurityEvent(
+            event_type="sybil_detection",
+            severity=self._get_risk_level(sybil_score),
+            description=f"Sybil detection triggered for user {user_id} with score {sybil_score:.2f}",
+            additional_data=json.dumps(analysis_details)
+        )
+        session.add(security_event)
+        await session.commit()
+    
+    # Helper methods
+    def _calculate_message_complexity(self, messages: List[str]) -> float:
+        """Calculate message complexity score"""
+        if not messages:
+            return 0.0
+        
+        total_complexity = 0
+        for message in messages:
+            # Simple complexity: length + unique words + special characters
+            complexity = len(message) + len(set(message.lower().split())) + len([c for c in message if not c.isalnum()])
+            total_complexity += complexity
+        
+        return total_complexity / len(messages)
+    
+    def _analyze_keyword_usage(self, messages: List[str]) -> Dict[str, int]:
+        """Analyze keyword usage patterns"""
+        keywords = {}
+        for message in messages:
+            words = message.lower().split()
+            for word in words:
+                keywords[word] = keywords.get(word, 0) + 1
+        return keywords
+    
+    def _calculate_message_similarity(self, messages1: List[str], messages2: List[str]) -> float:
+        """Calculate similarity between two sets of messages"""
+        if not messages1 or not messages2:
+            return 0.0
+        
+        # Simple similarity based on common words
+        words1 = set(' '.join(messages1).lower().split())
+        words2 = set(' '.join(messages2).lower().split())
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def _calculate_variance(self, values: List[float]) -> float:
+        """Calculate variance of a list of values"""
+        if len(values) < 2:
+            return 0.0
+        
+        mean = sum(values) / len(values)
+        variance = sum((x - mean) ** 2 for x in values) / len(values)
+        return variance
+    
+    def _parse_user_agent(self, user_agent: str) -> Dict[str, str]:
+        """Parse user agent string to extract device information"""
+        # Simple user agent parsing
+        device_info = {
+            'browser': 'unknown',
+            'os': 'unknown',
+            'device': 'unknown'
+        }
+        
+        user_agent_lower = user_agent.lower()
+        
+        # Browser detection
+        if 'chrome' in user_agent_lower:
+            device_info['browser'] = 'chrome'
+        elif 'firefox' in user_agent_lower:
+            device_info['browser'] = 'firefox'
+        elif 'safari' in user_agent_lower:
+            device_info['browser'] = 'safari'
+        
+        # OS detection
+        if 'windows' in user_agent_lower:
+            device_info['os'] = 'windows'
+        elif 'mac' in user_agent_lower:
+            device_info['os'] = 'mac'
+        elif 'linux' in user_agent_lower:
+            device_info['os'] = 'linux'
+        
+        # Device type detection
+        if 'mobile' in user_agent_lower:
+            device_info['device'] = 'mobile'
+        elif 'tablet' in user_agent_lower:
+            device_info['device'] = 'tablet'
+        else:
+            device_info['device'] = 'desktop'
+        
+        return device_info
+    
+    def _calculate_device_similarity(self, device1: Dict[str, str], device2: Dict[str, str]) -> float:
+        """Calculate similarity between two device fingerprints"""
+        similarities = []
+        
+        for key in device1:
+            if device1[key] == device2.get(key, ''):
+                similarities.append(1.0)
+            else:
+                similarities.append(0.0)
+        
+        return sum(similarities) / len(similarities) if similarities else 0.0
+    
+    async def _get_users_from_same_ip(self, user_id: int, session: AsyncSession) -> List[int]:
+        """Get other users from the same IP address"""
+        # Get current user's IP
+        current_user = await session.execute(
+            select(User.ip_address)
+            .where(User.id == user_id)
+        )
+        ip_address = current_user.scalar()
+        
+        if not ip_address:
+            return []
+        
+        # Get other users from same IP
+        other_users = await session.execute(
+            select(User.id)
+            .where(
+                and_(
+                    User.ip_address == ip_address,
+                    User.id != user_id
+                )
+            )
+        )
+        
+        return [user.id for user in other_users.scalars().all()]
+    
+    async def _get_user_messages(self, user_id: int, session: AsyncSession) -> List[str]:
+        """Get recent messages for a user"""
+        messages = await session.execute(
+            select(Conversation.content)
+            .where(
+                and_(
+                    Conversation.user_id == user_id,
+                    Conversation.message_type == "user",
+                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                )
+            )
+            .order_by(Conversation.created_at.desc())
+            .limit(10)
+        )
+        
+        return [msg.content for msg in messages.scalars().all()]
+
 
 class WinnerTrackingService:
     """Service for tracking winners and preventing them from creating new accounts"""
     
     def __init__(self):
         self.is_active = False  # Will be activated after first jackpot win
+        self.sybil_detector = SybilDetectionService()  # Add sybil detection
         # Exchange addresses are user-specific and not publicly available
         # We'll use pattern-based detection instead of hardcoded addresses
         self.known_exchanges = {

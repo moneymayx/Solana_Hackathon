@@ -15,6 +15,7 @@ from src.bounty_service import ResearchService
 from src.referral_service import ReferralService
 from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
 from src.smart_contract_service import smart_contract_service
+from src.regulatory_compliance import regulatory_compliance_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, and_
 
@@ -773,6 +774,13 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
         request.message, session, user.id, client_ip
     )
     
+    # Sybil detection analysis
+    from src.winner_tracking_service import winner_tracking_service
+    user_agent = http_request.headers.get("user-agent", "")
+    sybil_analysis = await winner_tracking_service.sybil_detector.analyze_user_behavior(
+        user.id, request.message, client_ip, user_agent, session
+    )
+    
     # Get AI response with bounty integration
     chat_result = await agent.chat(request.message, session, user.id)
     
@@ -781,7 +789,8 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
         "bounty_result": chat_result.get("bounty_result", chat_result.get("lottery_result", {})),
         "winner_result": chat_result["winner_result"],
         "bounty_status": chat_result.get("bounty_status", chat_result.get("lottery_status", {})),
-        "security_analysis": security_analysis
+        "security_analysis": security_analysis,
+        "sybil_analysis": sybil_analysis
     }
 
 @app.get("/api/prize-pool")
@@ -1256,6 +1265,26 @@ async def get_deposits(session: AsyncSession = Depends(get_db), limit: int = 50,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get deposits: {str(e)}")
+
+# Regulatory Compliance Endpoints
+@app.get("/api/regulatory/disclaimers")
+async def get_regulatory_disclaimers():
+    """Get all regulatory disclaimers and warnings"""
+    return await regulatory_compliance_service.get_regulatory_disclaimers()
+
+
+@app.get("/api/regulatory/risk-warning")
+async def get_risk_warning():
+    """Get standardized risk warning text"""
+    return {
+        "risk_warning": regulatory_compliance_service.get_risk_warning_text(),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.get("/api/regulatory/user-eligibility/{user_id}")
+async def check_user_eligibility(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Check if user is eligible to participate"""
+    return await regulatory_compliance_service.validate_user_eligibility(user_id, session)
 
 @app.get("/api/funds/transfers")
 async def get_transfers(session: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
