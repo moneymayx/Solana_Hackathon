@@ -146,9 +146,11 @@ Don't trust our claims—verify them yourself!
 
 ### Smart Contract (100% Autonomous)
 - **Source Code**: [`programs/billions-bounty/src/lib.rs`](programs/billions-bounty/src/lib.rs)
-- **Program ID**: `DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh`
+- **Program ID**: `4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK`
+- **Lottery PDA**: `9nrqftRQVcZUvrRpFJaVgqv49D8ffAEWw3ggUqfomNiJ`
 - **Network**: Solana Devnet  
-- **Explorer**: [View on Solana Explorer](https://explorer.solana.com/address/DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh?cluster=devnet)
+- **Explorer**: [View on Solana Explorer](https://explorer.solana.com/address/4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK?cluster=devnet)
+- **Lottery Explorer**: [View Lottery PDA](https://explorer.solana.com/address/9nrqftRQVcZUvrRpFJaVgqv49D8ffAEWw3ggUqfomNiJ?cluster=devnet)
 
 ### Backend Integration (No Private Keys)
 - **Smart Contract Service**: [`src/smart_contract_service.py`](src/smart_contract_service.py)

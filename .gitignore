@@ -115,6 +115,9 @@ anime_demo.py
 # BUILD ARTIFACTS: Optional
 # ============================================
 
+# Rust build artifacts
+programs/billions-bounty/target/
+
 # Compiled smart contract binary (363KB - users can verify on-chain instead)
 # Note: The SOURCE CODE (lib.rs) is public, just hiding the large binary
 programs/billions-bounty/target/deploy/*.so

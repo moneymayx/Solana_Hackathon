@@ -17,7 +17,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROGRAM_ID="DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
+PROGRAM_ID="4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 LOTTERY_PDA=""  # Will be derived from seeds
 NETWORK="${1:-devnet}"  # Default to devnet, accept mainnet as arg
 

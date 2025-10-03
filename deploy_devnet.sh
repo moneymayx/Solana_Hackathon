@@ -16,7 +16,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROGRAM_ID="DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
+PROGRAM_ID="4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 PROGRAM_KEYPAIR="target/deploy/billions_bounty-keypair.json"
 PROGRAM_SO="programs/billions-bounty/target/deploy/billions_bounty.so"
 NETWORK="devnet"

@@ -3,13 +3,13 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
+billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 
 [programs.devnet]
-billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
+billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 
 [programs.mainnet]
-billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
+billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 
 [registry]
 url = "https://api.apr.dev"

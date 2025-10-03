@@ -17,7 +17,6 @@ from solders.pubkey import Pubkey
 from solders.keypair import Keypair
 from solders.transaction import Transaction
 from solders.instruction import Instruction, AccountMeta
-from solders.system_program import SYS_PROGRAM_ID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
 from .models import FundDeposit, FundTransfer, PaymentTransaction
@@ -38,7 +37,7 @@ class SmartContractService:
         # Smart contract configuration - UPDATED WITH DEPLOYED PROGRAM
         self.program_id = Pubkey.from_string(os.getenv(
             "LOTTERY_PROGRAM_ID",
-            "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"  # Devnet deployment
+            "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # Devnet deployment
         ))
         self.rpc_endpoint = os.getenv("SOLANA_RPC_ENDPOINT", "https://api.devnet.solana.com")  # Default to devnet
         

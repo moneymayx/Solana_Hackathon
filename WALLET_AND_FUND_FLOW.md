@@ -18,7 +18,7 @@ This document explains the new streamlined payment architecture that eliminates 
 ### 1. **Lottery PDA (Program Derived Address)** 📦
 
 ```
-Address: GXJ8MvC683r6WXcijEtnKNypGgWH5FFyshd3uciK1LSv
+Address: 9nrqftRQVcZUvrRpFJaVgqv49D8ffAEWw3ggUqfomNiJ
 Type: Program Derived Address (PDA)
 Seeds: ["lottery"]
 Private Key: NONE - Doesn't exist!
@@ -48,7 +48,7 @@ Controlled by: Smart contract code
 ```
 Address: [Derived from: USDC Mint + Lottery PDA]
 Type: SPL Token Account (Associated Token Account)
-Owner: Lottery PDA
+Owner: 9nrqftRQVcZUvrRpFJaVgqv49D8ffAEWw3ggUqfomNiJ
 Contains: All USDC jackpot funds
 Controlled by: Lottery PDA (via smart contract)
 ```
