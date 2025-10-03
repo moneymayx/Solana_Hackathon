@@ -182,15 +182,13 @@ class MoonpayService:
         # Generate unique transaction ID
         transaction_id = f"bounty_{user_id}_{int(time.time())}"
         
-        # Get deposit wallet address for MoonPay to send USDC to
-        deposit_wallet = os.getenv("DEPOSIT_WALLET_ADDRESS", wallet_address)
-        
-        # Create buy URL for USDC with Apple Pay and PayPal support
+        # Send USDC directly to user's wallet (they'll pay to smart contract themselves)
+        # This eliminates the need for fund routing and private key management
         result = self.create_buy_url(
             currency_code="usdc_sol",  # USDC on Solana
             base_currency_amount=amount_usd,
             base_currency_code="usd",
-            wallet_address=deposit_wallet,  # Send to deposit wallet for automatic routing
+            wallet_address=wallet_address,  # Send directly to user's wallet
             external_customer_id=str(user_id),
             external_transaction_id=transaction_id,
             redirect_url=f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/payment/success",

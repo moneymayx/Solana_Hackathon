@@ -3,16 +3,19 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-billions_bounty = "B1LL10N5B0UNTY1111111111111111111111111111111111"
+billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
 
 [programs.devnet]
-billions_bounty = "B1LL10N5B0UNTY1111111111111111111111111111111111"
+billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
 
 [programs.mainnet]
-billions_bounty = "B1LL10N5B0UNTY1111111111111111111111111111111111"
+billions_bounty = "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"
 
 [registry]
 url = "https://api.apr.dev"
+
+[toolchain]
+
 
 [provider]
 cluster = "Localnet"

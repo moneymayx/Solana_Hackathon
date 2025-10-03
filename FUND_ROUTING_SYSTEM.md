@@ -1,8 +1,24 @@
 # Fund Routing System Documentation
 
-## 🎯 Overview
+## ⚠️ **DEPRECATED - DO NOT USE**
 
-The Billions project includes a comprehensive automated fund routing system that handles both MoonPay payments and direct wallet payments, ensuring proper fund segregation and automated processing.
+**This system has been replaced with the new Payment Flow System. See [PAYMENT_FLOW_SYSTEM.md](PAYMENT_FLOW_SYSTEM.md) for the current architecture.**
+
+## 🎯 Overview (Legacy)
+
+The Billions project previously included a comprehensive automated fund routing system that handled both MoonPay payments and direct wallet payments, ensuring proper fund segregation and automated processing.
+
+**Why Deprecated:**
+- ❌ Required private key storage (security risk)
+- ❌ Complex fund routing logic
+- ❌ Multiple intermediate wallets
+- ❌ Higher attack surface
+
+**Replaced By:**
+- ✅ Direct payment flow (no private keys)
+- ✅ MoonPay → User Wallet → Smart Contract
+- ✅ Simplified architecture
+- ✅ Enhanced security
 
 ## 🏗️ Architecture
 
