@@ -15,6 +15,13 @@ interface bountyStatus {
     prize_amount: number
     won_at: string
   }>
+  escape_plan?: {
+    is_active: boolean
+    time_since_last_question?: string
+    time_until_escape?: string
+    message: string
+    should_trigger?: boolean
+  }
 }
 
 interface UserHistory {
@@ -26,7 +33,7 @@ interface UserHistory {
 
 export default function BountyDisplay() {
   const { connected } = useWallet()
-  const [bountyStatus, setBountyStatus] = useState<BountyStatus | null>(null)
+  const [bountyStatus, setBountyStatus] = useState<bountyStatus | null>(null)
   const [userHistory, setUserHistory] = useState<UserHistory | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -115,6 +122,46 @@ export default function BountyDisplay() {
         </div>
       </div>
 
+      {/* Escape Plan Status */}
+      {bountyStatus.escape_plan && bountyStatus.escape_plan.is_active && (
+        <div className={`backdrop-blur-sm rounded-lg p-6 ${
+          bountyStatus.escape_plan.should_trigger 
+            ? 'bg-red-500/20 border border-red-500/30' 
+            : 'bg-orange-500/20 border border-orange-500/30'
+        }`}>
+          <div className="flex items-center space-x-3 mb-4">
+            <AlertCircle className={`h-6 w-6 ${
+              bountyStatus.escape_plan.should_trigger ? 'text-red-400' : 'text-orange-400'
+            }`} />
+            <h3 className={`text-lg font-semibold ${
+              bountyStatus.escape_plan.should_trigger ? 'text-red-400' : 'text-orange-400'
+            }`}>
+              {bountyStatus.escape_plan.should_trigger ? '🚨 ESCAPE PLAN READY!' : 'Escape Plan Timer'}
+            </h3>
+          </div>
+          <p className="text-white font-medium mb-2">
+            {bountyStatus.escape_plan.message}
+          </p>
+          {bountyStatus.escape_plan.time_since_last_question && (
+            <p className="text-sm text-gray-300">
+              Time since last question: {bountyStatus.escape_plan.time_since_last_question}
+            </p>
+          )}
+          {bountyStatus.escape_plan.time_until_escape && !bountyStatus.escape_plan.should_trigger && (
+            <p className="text-sm text-gray-300">
+              Time until escape: {bountyStatus.escape_plan.time_until_escape}
+            </p>
+          )}
+          <div className="mt-3 p-3 bg-gray-800/50 rounded-lg">
+            <p className="text-sm text-gray-300">
+              <strong>Escape Plan:</strong> If no questions are asked for 24 hours, 
+              80% of the bounty will be distributed equally among all participants, 
+              and 20% will go to the last person who asked a question.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Next Rollover */}
       {bountyStatus.next_rollover_at && (
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-6">
@@ -169,7 +216,7 @@ export default function BountyDisplay() {
             <h3 className="text-lg font-semibold text-white">Recent Winners</h3>
           </div>
           <div className="space-y-3">
-            {bountyStatus.recent_winners.slice(0, 5).map((winner, index) => (
+            {bountyStatus.recent_winners.slice(0, 5).map((winner: any, index: number) => (
               <div key={index} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold text-sm">

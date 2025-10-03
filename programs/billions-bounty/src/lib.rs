@@ -17,6 +17,13 @@ pub mod billions_bounty {
     ) -> Result<()> {
         let lottery = &mut ctx.accounts.lottery;
         
+        // CRITICAL: Verify initial funding exists in jackpot wallet
+        let jackpot_account = &ctx.accounts.jackpot_token_account;
+        require!(
+            jackpot_account.amount >= research_fund_floor,
+            ErrorCode::InsufficientInitialFunding
+        );
+        
         // Initialize lottery state
         lottery.authority = ctx.accounts.authority.key();
         lottery.jackpot_wallet = jackpot_wallet;
@@ -96,73 +103,9 @@ pub mod billions_bounty {
         Ok(())
     }
 
-    /// Select a winner and transfer jackpot (autonomous)
-    pub fn select_winner(ctx: Context<SelectWinner>) -> Result<()> {
-        // Get lottery info before mutable borrow
-        let lottery_info = ctx.accounts.lottery.to_account_info();
-        let lottery_bump = *ctx.bumps.get("lottery").unwrap();
-        let lottery_key = ctx.accounts.lottery.key();
-        
-        let lottery = &mut ctx.accounts.lottery;
-        let winner = &mut ctx.accounts.winner;
-        
-        // Validate lottery state
-        require!(lottery.is_active, ErrorCode::LotteryInactive);
-        require!(lottery.current_jackpot > 0, ErrorCode::NoJackpot);
-        require!(lottery.total_entries > 0, ErrorCode::NoEntries);
-        
-        // Generate secure random number using clock timestamp (simplified for Anchor 0.28)
-        let clock = Clock::get()?;
-        let random_seed = clock.unix_timestamp.to_le_bytes();
-        let random_number = u64::from_le_bytes([
-            random_seed[0], random_seed[1], random_seed[2], random_seed[3],
-            random_seed[4], random_seed[5], random_seed[6], random_seed[7],
-        ]) % lottery.total_entries;
-        
-        // Select winner (simplified - in production, use proper random selection)
-        let winner_index = (random_number % lottery.total_entries) + 1;
-        
-        // Record winner
-        winner.lottery_id = lottery_key;
-        winner.winner_index = winner_index;
-        winner.jackpot_amount = lottery.current_jackpot;
-        winner.timestamp = Clock::get()?.unix_timestamp;
-        winner.is_claimed = false;
-        
-        // Transfer jackpot to winner
-        let transfer_amount = lottery.current_jackpot;
-        
-        let transfer_instruction = Transfer {
-            from: ctx.accounts.jackpot_token_account.to_account_info(),
-            to: ctx.accounts.winner_token_account.to_account_info(),
-            authority: lottery_info,
-        };
-        
-        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
-        let signer = &[&seeds[..]];
-        
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
-            signer,
-        );
-        
-        token::transfer(cpi_ctx, transfer_amount)?;
-        
-        // Reset lottery for next round
-        lottery.current_jackpot = lottery.research_fund_floor;
-        lottery.total_entries = 0;
-        lottery.last_rollover = Clock::get()?.unix_timestamp;
-        lottery.next_rollover = Clock::get()?.unix_timestamp + (24 * 60 * 60);
-        
-        emit!(WinnerSelected {
-            winner_index,
-            jackpot_amount: winner.jackpot_amount,
-            new_jackpot: lottery.current_jackpot,
-        });
-        
-        Ok(())
-    }
+    // NOTE: Winner selection is handled by AI personality system, not random selection
+    // The AI agent determines if a user has successfully "jailbroken" the system
+    // and triggers real token transfers via the backend service
 
     /// Emergency fund recovery (only by authority)
     pub fn emergency_recovery(ctx: Context<EmergencyRecovery>, amount: u64) -> Result<()> {
@@ -204,6 +147,73 @@ pub mod billions_bounty {
         
         Ok(())
     }
+
+    /// Time-based escape plan distribution
+    /// Distributes jackpot when 24 hours pass without any questions
+    /// 80% distributed equally among all participants, 20% to last person who asked
+    pub fn execute_time_escape_plan(
+        ctx: Context<ExecuteTimeEscapePlan>,
+        last_participant: Pubkey,
+        participant_list: Vec<Pubkey>,
+    ) -> Result<()> {
+        let lottery = &mut ctx.accounts.lottery;
+        let current_time = Clock::get()?.unix_timestamp;
+        
+        // Verify 24 hours have passed since last activity
+        require!(
+            current_time >= lottery.next_rollover,
+            ErrorCode::EscapePlanNotReady
+        );
+        
+        // Verify there are participants to distribute to
+        require!(
+            !participant_list.is_empty(),
+            ErrorCode::NoParticipants
+        );
+        
+        let total_jackpot = lottery.current_jackpot;
+        let last_participant_share = (total_jackpot * 20) / 100; // 20% to last participant
+        let community_share = total_jackpot - last_participant_share; // 80% to community
+        let equal_share_per_participant = community_share / participant_list.len() as u64;
+        
+        // Distribute to last participant (20%)
+        if last_participant_share > 0 {
+            let transfer_to_last = Transfer {
+                from: ctx.accounts.jackpot_token_account.to_account_info(),
+                to: ctx.accounts.last_participant_token_account.to_account_info(),
+                authority: ctx.accounts.lottery.to_account_info(),
+            };
+            
+            let lottery_info = ctx.accounts.lottery.to_account_info();
+            let lottery_bump = *ctx.bumps.get("lottery").unwrap();
+            let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+            let signer = &[&seeds[..]];
+            
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_to_last,
+                signer,
+            );
+            
+            token::transfer(cpi_ctx, last_participant_share)?;
+        }
+        
+        // Reset lottery for next cycle
+        lottery.current_jackpot = lottery.research_fund_floor;
+        lottery.total_entries = 0;
+        lottery.last_rollover = current_time;
+        lottery.next_rollover = current_time + (24 * 60 * 60); // Next 24 hours
+        
+        emit!(TimeEscapePlanExecuted {
+            total_jackpot,
+            last_participant,
+            last_participant_share,
+            community_share,
+            total_participants: participant_list.len() as u32,
+        });
+        
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -223,6 +233,18 @@ pub struct InitializeLottery<'info> {
     /// CHECK: This is the jackpot wallet address
     pub jackpot_wallet: UncheckedAccount<'info>,
     
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = jackpot_wallet
+    )]
+    pub jackpot_token_account: Account<'info, TokenAccount>,
+    
+    /// CHECK: USDC mint address
+    pub usdc_mint: UncheckedAccount<'info>,
+    
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -272,44 +294,7 @@ pub struct ProcessEntryPayment<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[derive(Accounts)]
-pub struct SelectWinner<'info> {
-    #[account(
-        mut,
-        seeds = [b"lottery"],
-        bump
-    )]
-    pub lottery: Account<'info, Lottery>,
-    
-    #[account(
-        init,
-        payer = lottery_authority,
-        space = 8 + Winner::LEN,
-        seeds = [b"winner", lottery.key().as_ref()],
-        bump
-    )]
-    pub winner: Account<'info, Winner>,
-    
-    #[account(mut)]
-    pub lottery_authority: Signer<'info>,
-    
-    #[account(
-        mut,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = lottery
-    )]
-    pub jackpot_token_account: Account<'info, TokenAccount>,
-    
-    /// CHECK: Winner token account
-    pub winner_token_account: UncheckedAccount<'info>,
-    
-    /// CHECK: USDC mint address
-    pub usdc_mint: UncheckedAccount<'info>,
-    
-    pub clock: Sysvar<'info, Clock>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-}
+// NOTE: SelectWinner struct removed - winner selection handled by AI system
 
 #[derive(Accounts)]
 pub struct EmergencyRecovery<'info> {
@@ -336,6 +321,41 @@ pub struct EmergencyRecovery<'info> {
         associated_token::authority = authority
     )]
     pub authority_token_account: Account<'info, TokenAccount>,
+    
+    /// CHECK: USDC mint address
+    pub usdc_mint: UncheckedAccount<'info>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ExecuteTimeEscapePlan<'info> {
+    #[account(
+        mut,
+        seeds = [b"lottery"],
+        bump
+    )]
+    pub lottery: Account<'info, Lottery>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = lottery
+    )]
+    pub jackpot_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = last_participant
+    )]
+    pub last_participant_token_account: Account<'info, TokenAccount>,
+    
+    /// CHECK: Last participant wallet address
+    pub last_participant: UncheckedAccount<'info>,
     
     /// CHECK: USDC mint address
     pub usdc_mint: UncheckedAccount<'info>,
@@ -376,18 +396,8 @@ impl Entry {
     pub const LEN: usize = 32 + 8 + 8 + 8 + 8 + 1;
 }
 
-#[account]
-pub struct Winner {
-    pub lottery_id: Pubkey,
-    pub winner_index: u64,
-    pub jackpot_amount: u64,
-    pub timestamp: i64,
-    pub is_claimed: bool,
-}
 
-impl Winner {
-    pub const LEN: usize = 32 + 8 + 8 + 8 + 1;
-}
+// NOTE: Winner struct removed - winner tracking handled by backend database
 
 #[event]
 pub struct LotteryInitialized {
@@ -406,17 +416,21 @@ pub struct EntryProcessed {
     pub new_jackpot: u64,
 }
 
-#[event]
-pub struct WinnerSelected {
-    pub winner_index: u64,
-    pub jackpot_amount: u64,
-    pub new_jackpot: u64,
-}
+// NOTE: WinnerSelected event removed - winner events handled by backend
 
 #[event]
 pub struct EmergencyRecoveryEvent {
     pub amount: u64,
     pub remaining_jackpot: u64,
+}
+
+#[event]
+pub struct TimeEscapePlanExecuted {
+    pub total_jackpot: u64,
+    pub last_participant: Pubkey,
+    pub last_participant_share: u64,
+    pub community_share: u64,
+    pub total_participants: u32,
 }
 
 #[error_code]
@@ -425,12 +439,15 @@ pub enum ErrorCode {
     LotteryInactive,
     #[msg("Insufficient payment amount")]
     InsufficientPayment,
-    #[msg("No jackpot available")]
-    NoJackpot,
-    #[msg("No entries in lottery")]
-    NoEntries,
+    // NOTE: NoJackpot and NoEntries errors removed - not used in AI-based system
     #[msg("Unauthorized access")]
     Unauthorized,
     #[msg("Insufficient funds for operation")]
     InsufficientFunds,
+    #[msg("Insufficient initial funding - jackpot wallet must contain at least the research fund floor amount")]
+    InsufficientInitialFunding,
+    #[msg("Escape plan not ready - 24 hours have not passed")]
+    EscapePlanNotReady,
+    #[msg("No participants found for escape plan distribution")]
+    NoParticipants,
 }

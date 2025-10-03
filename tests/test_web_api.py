@@ -61,8 +61,8 @@ class TestWebAPI:
         # Mock rate limiting
         mock_rate_limit.return_value = (True, "OK")
         
-        # Mock user creation
-        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session")
+        # Mock user creation - return 3 values to match actual function signature
+        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session", {"eligible": True, "type": "authenticated"})
         
         # Mock security analysis
         mock_security.return_value = {
@@ -141,7 +141,7 @@ class TestWebAPI:
     @patch('main.wallet_service.connect_wallet')
     def test_wallet_connect_endpoint(self, mock_connect, mock_user):
         """Test wallet connection endpoint"""
-        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session")
+        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session", {"eligible": True, "type": "authenticated"})
         mock_connect.return_value = {
             "success": True,
             "message": "Wallet connected successfully",
@@ -220,11 +220,11 @@ class TestWebAPI:
         assert "wallet_options" in data
         assert "fiat_options" in data
     
-    @patch('main.payment_orchestrator.process_wallet_payment')
+    @patch('main.payment_flow_service.process_lottery_entry_payment')
     @patch('main.get_or_create_user')
     def test_payment_create_wallet(self, mock_user, mock_payment):
         """Test wallet payment creation"""
-        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session")
+        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session", {"eligible": True, "type": "authenticated"})
         mock_payment.return_value = {
             "success": True,
             "transaction_id": "tx-123",
@@ -338,7 +338,7 @@ class TestWebAPI:
     @patch('main.ConversationRepository')
     def test_conversation_history_endpoint(self, mock_repo_class, mock_user):
         """Test conversation history endpoint"""
-        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session")
+        mock_user.return_value = (User(id=1, session_id="test-session"), "test-session", {"eligible": True, "type": "authenticated"})
         
         # Mock conversation repository
         mock_repo = AsyncMock()

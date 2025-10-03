@@ -70,6 +70,125 @@ class SmartContractService:
         logger.info(f"   Network: {'Devnet' if 'devnet' in self.rpc_endpoint else 'Mainnet'}")
         logger.info(f"   Autonomous fund management enabled")
     
+    async def get_lottery_status(self) -> Dict[str, Any]:
+        """Get current lottery status and fund verification"""
+        try:
+            # Get lottery account data
+            lottery_account = await self.client.get_account_info(self.lottery_pda)
+            
+            if not lottery_account.value:
+                return {
+                    "success": False,
+                    "error": "Lottery not initialized",
+                    "fund_verified": False
+                }
+            
+            # Parse lottery data
+            lottery_data = lottery_account.value.data
+            # Assuming 8-byte header + lottery struct
+            # This is a simplified parser - in production, use proper deserialization
+            current_jackpot = int.from_bytes(lottery_data[8+32+32+8+8+8+8:8+32+32+8+8+8+8+8], 'little')
+            total_entries = int.from_bytes(lottery_data[8+32+32+8+8+8+8+8+8:8+32+32+8+8+8+8+8+8+8], 'little')
+            is_active = bool(lottery_data[8+32+32+8+8+8+8+8+8+8+1])
+            
+            # Get jackpot token account balance
+            jackpot_balance = await self.get_jackpot_balance()
+            
+            return {
+                "success": True,
+                "current_jackpot_usdc": current_jackpot / 1_000_000,  # Convert from lamports
+                "total_entries": total_entries,
+                "is_active": is_active,
+                "jackpot_balance_usdc": jackpot_balance.get("balance_usdc", 0),
+                "fund_verified": jackpot_balance.get("balance_usdc", 0) >= (current_jackpot / 1_000_000),
+                "lottery_pda": str(self.lottery_pda),
+                "program_id": str(self.program_id)
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting lottery status: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "fund_verified": False
+            }
+    
+    async def get_jackpot_balance(self) -> Dict[str, Any]:
+        """Get real-time jackpot token account balance"""
+        try:
+            # Derive jackpot token account address
+            jackpot_token_account, _ = Pubkey.find_program_address(
+                [self.lottery_pda.to_bytes(), b"token", self.usdc_mint.to_bytes()],
+                Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")  # Associated Token Program
+            )
+            
+            # Get token account info
+            token_account = await self.client.get_account_info(jackpot_token_account)
+            
+            if not token_account.value:
+                return {
+                    "success": False,
+                    "error": "Jackpot token account not found",
+                    "balance_usdc": 0
+                }
+            
+            # Parse token account data (simplified)
+            # In production, use proper SPL token account parsing
+            token_data = token_account.value.data
+            balance = int.from_bytes(token_data[64:72], 'little')
+            
+            return {
+                "success": True,
+                "balance_usdc": balance / 1_000_000,  # Convert from lamports
+                "token_account": str(jackpot_token_account),
+                "mint": str(self.usdc_mint)
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting jackpot balance: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "balance_usdc": 0
+            }
+    
+    async def verify_fund_guarantee(self) -> Dict[str, Any]:
+        """Verify that sufficient funds exist for payouts"""
+        try:
+            lottery_status = await self.get_lottery_status()
+            jackpot_balance = await self.get_jackpot_balance()
+            
+            if not lottery_status.get("success") or not jackpot_balance.get("success"):
+                return {
+                    "success": False,
+                    "error": "Failed to retrieve fund information",
+                    "guarantee_verified": False
+                }
+            
+            current_jackpot = lottery_status.get("current_jackpot_usdc", 0)
+            available_balance = jackpot_balance.get("balance_usdc", 0)
+            
+            # Check if we have sufficient funds for current jackpot
+            sufficient_funds = available_balance >= current_jackpot
+            
+            return {
+                "success": True,
+                "guarantee_verified": sufficient_funds,
+                "current_jackpot_usdc": current_jackpot,
+                "available_balance_usdc": available_balance,
+                "funding_ratio": available_balance / current_jackpot if current_jackpot > 0 else 0,
+                "shortfall_usdc": max(0, current_jackpot - available_balance),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error verifying fund guarantee: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "guarantee_verified": False
+            }
+    
     async def initialize_lottery(self, authority_keypair: str, jackpot_wallet: str) -> Dict[str, Any]:
         """
         Initialize the lottery smart contract.

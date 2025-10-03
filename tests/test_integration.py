@@ -44,7 +44,7 @@ class TestFrontendBackendIntegration:
         mock_rate_limit.return_value = (True, "OK")
         
         # Mock user creation
-        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session")
+        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session", {"eligible": True, "type": "authenticated"})
         
         # Mock security analysis
         mock_security.return_value = {
@@ -125,7 +125,7 @@ class TestFrontendBackendIntegration:
     @patch('main.wallet_service.connect_wallet')
     def test_wallet_connection_integration(self, mock_connect, mock_user):
         """Test wallet connection integration"""
-        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session")
+        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session", {"eligible": True, "type": "authenticated"})
         mock_connect.return_value = {
             "success": True,
             "message": "Wallet connected successfully",
@@ -185,11 +185,11 @@ class TestFrontendBackendIntegration:
         assert isinstance(balances["USDC"]["balance"], (int, float))
         assert isinstance(balances["USDT"]["balance"], (int, float))
     
-    @patch('main.payment_orchestrator.process_wallet_payment')
+    @patch('main.payment_flow_service.process_lottery_entry_payment')
     @patch('main.get_or_create_user')
     def test_payment_flow_integration(self, mock_user, mock_payment):
         """Test payment flow integration"""
-        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session")
+        mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session", {"eligible": True, "type": "authenticated"})
         mock_payment.return_value = {
             "success": True,
             "transaction_id": "tx-123456789",
@@ -365,7 +365,7 @@ class TestDataFlowIntegration:
              patch('main.security_monitor.analyze_message') as mock_security:
             
             mock_rate_limit.return_value = (True, "OK")
-            mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session")
+            mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session", {"eligible": True, "type": "authenticated"})
             mock_security.return_value = {"is_suspicious": False, "severity": "low", "reasons": []}
             mock_chat.return_value = {
                 "response": "Hello! I'm the AI guardian.",
@@ -423,7 +423,7 @@ class TestDataFlowIntegration:
         with patch('main.get_or_create_user') as mock_user, \
              patch('main.wallet_service.connect_wallet') as mock_connect:
             
-            mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session")
+            mock_user.return_value = (type('User', (), {'id': 1, 'session_id': 'test-session'})(), "test-session", {"eligible": True, "type": "authenticated"})
             mock_connect.return_value = {
                 "success": True,
                 "message": "Wallet connected successfully",

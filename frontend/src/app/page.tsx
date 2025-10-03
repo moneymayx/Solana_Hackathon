@@ -12,11 +12,13 @@ import ReferralPrompt from '@/components/ReferralPrompt'
 import ReferralSystem from '@/components/ReferralSystem'
 import Header from '@/components/Header'
 import AgeVerification from '@/components/AgeVerification'
+import PublicDashboard from '@/components/PublicDashboard'
+import EscapePlanCountdown from '@/components/EscapePlanCountdown'
 import { cn } from '@/lib/utils'
 
 export default function Home() {
   const { connected } = useWallet()
-  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'kyc' | 'payment' | 'referrals'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'kyc' | 'payment' | 'referrals' | 'dashboard'>('chat')
   const [showReferralPrompt, setShowReferralPrompt] = useState(false)
   const [hasCheckedReferralPrompt, setHasCheckedReferralPrompt] = useState(false)
   const [showAgeVerification, setShowAgeVerification] = useState(true)
@@ -204,6 +206,17 @@ export default function Home() {
             >
               KYC
             </button>
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={cn(
+                "px-4 py-2 rounded-md font-medium transition-all duration-200 text-sm",
+                activeTab === 'dashboard'
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+                  : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+              )}
+            >
+              Dashboard
+            </button>
           </div>
         </div>
 
@@ -211,12 +224,16 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           {ageVerified ? (
             <>
+              {/* Escape Plan Countdown - Always visible */}
+              <EscapePlanCountdown />
+              
               {activeTab === 'chat' && <ChatInterface />}
               {activeTab === 'research' && <BountyDisplay />}
               {activeTab === 'referrals' && <ReferralSystem />}
               {activeTab === 'admin' && <AdminDashboard />}
               {activeTab === 'kyc' && <AdminKYC />}
               {activeTab === 'payment' && <PaymentFlow />}
+              {activeTab === 'dashboard' && <PublicDashboard />}
             </>
           ) : (
             <div className="text-center py-12">

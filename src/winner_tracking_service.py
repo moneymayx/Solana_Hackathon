@@ -116,10 +116,10 @@ class SybilDetectionService:
                 and_(
                     Conversation.user_id == user_id,
                     Conversation.message_type == "user",
-                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                    Conversation.timestamp >= datetime.utcnow() - timedelta(hours=24)
                 )
             )
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.timestamp.desc())
             .limit(10)
         )
         
@@ -156,17 +156,17 @@ class SybilDetectionService:
         
         # Get user's activity timestamps
         user_activity = await session.execute(
-            select(Conversation.created_at)
+            select(Conversation.timestamp)
             .where(
                 and_(
                     Conversation.user_id == user_id,
-                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                    Conversation.timestamp >= datetime.utcnow() - timedelta(hours=24)
                 )
             )
-            .order_by(Conversation.created_at)
+            .order_by(Conversation.timestamp)
         )
         
-        timestamps = [activity.created_at for activity in user_activity.scalars().all()]
+        timestamps = [activity.timestamp for activity in user_activity.scalars().all()]
         
         if len(timestamps) < 2:
             return {'pattern_score': 0.0, 'is_regular_pattern': False}
@@ -400,10 +400,10 @@ class SybilDetectionService:
                 and_(
                     Conversation.user_id == user_id,
                     Conversation.message_type == "user",
-                    Conversation.created_at >= datetime.utcnow() - timedelta(hours=24)
+                    Conversation.timestamp >= datetime.utcnow() - timedelta(hours=24)
                 )
             )
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.timestamp.desc())
             .limit(10)
         )
         
