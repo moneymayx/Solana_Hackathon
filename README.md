@@ -55,30 +55,38 @@ The agent is equipped with:
 - **Psychological Defense Mechanisms**: Built-in resistance to social engineering, authority appeals, and emotional manipulation
 - **Continuous Learning**: Adaptation based on successful and failed manipulation attempts
 
-## 🔄 Automated Fund Distribution
+## 🔄 Direct Payment Flow & Smart Contract Integration
 
-The platform operates entirely without human intervention through a sophisticated smart contract system:
+The platform operates with a streamlined payment system that eliminates security risks while maintaining full autonomy:
 
-### Smart Contract Architecture
-- **Autonomous Execution**: All fund transfers are executed automatically via Solana smart contracts
-- **Verification System**: Multi-layer verification ensures only legitimate jailbreaks trigger transfers
-- **Escalating Rewards**: Bounty amounts increase based on difficulty and success patterns
-- **Transparent Process**: All transactions are recorded on-chain for full transparency
+### Direct Payment Architecture
+- **MoonPay Integration**: Users can buy USDC with Apple Pay/PayPal directly to their wallet
+- **Smart Contract Payments**: Users pay lottery entry fees directly to the smart contract
+- **No Private Keys**: System operates without storing any private keys
+- **Autonomous Execution**: All fund management handled by smart contracts
 
-### Fund Management
-- **Prize Pool**: Cryptocurrency funds are held in secure, smart contracts
-- **Automatic Distribution**: Successful jailbreaks trigger immediate, automated fund transfers
-- **Research Fees**: Small participation fees fund ongoing research and platform development
-- **No Human Control**: Zero human intervention in the decision-making or fund distribution process
+### Payment Flow
+1. **Fiat On-Ramp**: MoonPay converts USD to USDC and sends directly to user's wallet
+2. **Lottery Entry**: User pays USDC directly to smart contract for lottery participation
+3. **Autonomous Management**: Smart contract handles all fund distribution automatically
+4. **Winner Payouts**: Successful jailbreaks trigger immediate, automated transfers
+
+### Security Benefits
+- **No Private Key Storage**: Eliminates major security vulnerability
+- **Direct User Control**: Users maintain control of their USDC until payment
+- **Simplified Architecture**: Fewer moving parts, reduced attack surface
+- **Transparent Process**: All transactions recorded on-chain for full transparency
 
 ## 🎮 How the Challenge Works
 
 1. **Connect Wallet**: Link your Solana wallet to participate in research
 2. **Age Verification**: Confirm you're 18+ and consent to research participation
-3. **Start Research**: Begin interacting with the AI agent through the chat interface
-4. **Apply Techniques**: Use various approaches to attempt to persuade the AI
-5. **Earn Rewards**: Successful jailbreaks automatically trigger fund transfers
-6. **Contribute to Research**: Your interactions help advance AI security knowledge
+3. **Get USDC**: Buy USDC with Apple Pay/PayPal via MoonPay (sent directly to your wallet)
+4. **Pay Entry Fee**: Transfer USDC directly to smart contract for lottery participation
+5. **Start Research**: Begin interacting with the AI agent through the chat interface
+6. **Apply Techniques**: Use various approaches to attempt to persuade the AI
+7. **Earn Rewards**: Successful jailbreaks automatically trigger fund transfers from smart contract
+8. **Contribute to Research**: Your interactions help advance AI security knowledge
 
 ## 🛡️ Security & Research Features
 
@@ -94,51 +102,6 @@ The platform operates entirely without human intervention through a sophisticate
 - **Academic Research**: Data contributes to peer-reviewed research publications
 - **Privacy Protection**: All personal data is anonymized and protected according to research ethics standards
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8+
-- Node.js 18+
-- Solana wallet (Phantom, Solflare, etc.)
-- Age 18+ (educational platform requirement)
-
-### Backend Setup
-```bash
-# Clone the repository
-git clone https://github.com/your-username/billions-bounty.git
-cd billions-bounty
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys and configuration
-
-# Start the backend server
-uvicorn main:app --reload
-```
-
-### Frontend Setup
-```bash
-# Navigate to frontend directory
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
-
-### Access the Platform
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
 
 ## 📊 Research Impact
 
@@ -177,19 +140,64 @@ This platform is built for the research community and welcomes:
 - **Academic Freedom**: Research findings may be published in academic journals
 - **Open Source**: Core platform components are available for research and educational use
 
-## 🔗 Links & Resources
+## 🔍 Verification & Transparency
 
-- **Repository**: https://github.com/your-username/billions-bounty
-- **Freysa AI**: https://freysa.ai (Our inspiration and predecessor)
-- **Research Papers**: [Coming Soon - Academic Publications]
-- **Educational Resources**: [Coming Soon - Learning Materials]
+Don't trust our claims—verify them yourself!
 
-## 🙏 Acknowledgments
+### Smart Contract (100% Autonomous)
+- **Source Code**: [`programs/billions-bounty/src/lib.rs`](programs/billions-bounty/src/lib.rs)
+- **Program ID**: `DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh`
+- **Network**: Solana Devnet  
+- **Explorer**: [View on Solana Explorer](https://explorer.solana.com/address/DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh?cluster=devnet)
 
-We extend our deepest gratitude to the Freysa AI team for their groundbreaking work in AI security research. Their innovative approach to AI jailbreak challenges has paved the way for platforms like ours, and we are honored to build upon their legacy while pushing the boundaries of what's possible in AI security research.
+### Backend Integration (No Private Keys)
+- **Smart Contract Service**: [`src/smart_contract_service.py`](src/smart_contract_service.py)
+- **Solana RPC Integration**: [`src/solana_service.py`](src/solana_service.py)
+- **Deployment Scripts**: [`deploy_devnet.sh`](deploy_devnet.sh), [`monitor_contract.sh`](monitor_contract.sh)
+
+### AI Personality
+- **Public Overview**: [`src/personality_public.py`](src/personality_public.py)
+- **Detailed Defenses**: Proprietary (maintains challenge integrity)
+
+### Full Transparency Audit
+See [`TRANSPARENCY_AUDIT.md`](TRANSPARENCY_AUDIT.md) for:
+- What's public vs private and why
+- Security vs transparency balance
+- How to verify every claim
+- Complete file-by-file analysis
+
+### Wallet Architecture & Fund Flow
+See [`WALLET_AND_FUND_FLOW.md`](WALLET_AND_FUND_FLOW.md) for comprehensive details on:
+- How jackpot funds are secured (Program Derived Address)
+- Autonomous winner payout mechanism (no private key needed)
+- Emergency recovery procedures (authority wallet)
+- Hardware wallet integration guide for mainnet
+- Complete fund flow diagrams with code references
+
+**Key Insight**: Jackpot funds are held in a PDA-controlled token account—the smart contract can sign payouts without any private key, making it truly autonomous!
+
+### What's Public vs Private
+
+**✅ Public (For Verification)**:
+- Smart contract source code
+- Deployment documentation
+- Backend integration code
+- High-level AI personality
+
+**🔒 Private (For Security)**:
+- Detailed manipulation defenses
+- Blacklist database
+- Exact probability calculations
+- Wallet private keys
+
+This balance is standard practice in security challenges (CTFs, bug bounties) and ensures both transparency and challenge integrity.
+```
+
 
 ---
 
 *Built with ❤️ for the advancement of AI security research and education*
 
 **⚠️ Important**: This platform is for educational and research purposes only. It is NOT a gambling, lottery, or gaming platform. All users must be 18 or older and consent to research participation.
+
+

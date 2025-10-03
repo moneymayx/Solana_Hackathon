@@ -62,22 +62,62 @@ logs/
 # FastAPI
 .pytest_cache/
 
-# Documentation files (keep locally but don't push to GitHub)
+# ============================================
+# SECURITY CRITICAL: NEVER COMMIT
+# ============================================
+
+# Wallet keypairs and seed phrases (ABSOLUTE SECURITY)
+lottery-authority-devnet.json
+lottery-authority-mainnet.json
+WALLET_INFO.md
+*.keypair.json
+*-keypair.json
+target/deploy/*-keypair.json
+
+# Full AI personality with manipulation defenses (SECURITY)
+src/personality.py
+
+# Security monitoring patterns (SECURITY)
+src/rate_limiter.py
+
+# Databases containing blacklist and user data (PRIVACY + SECURITY)
+*.db
+*.sqlite
+*.sqlite3
+benita_agent.db
+billions.db
+*.db.backup*
+
+# ============================================
+# DEVELOPMENT: Keep Locally
+# ============================================
+
+# Internal development documentation
+DEVELOPMENT_LOG.md
+DEVELOPMENT_NOTES.md
 SETUP_INSTRUCTIONS.md
 WINNER_TRACKING_SYSTEM.md
-DEVELOPMENT_LOG.md
-EXCHANGE_ADDRESSES_GUIDE.md
-DEVELOPMENT_NOTES.md
-README_TESTING.md
 DEVELOPMENT_CHECKLIST.md
+EXCHANGE_ADDRESSES_GUIDE.md
+README_TESTING.md
 
-# Odds and probability simulation files (keep locally but don't push to GitHub)
-natural_odds_simulation.py
+# Test files that reveal strategies and probabilities
+tests/natural_odds_simulation.py
+tests/test_difficulty.py
+tests/test_freysa_protection.py
+tests/test_probability.py
+tests/*simulation*
+tests/*odds*
+tests/*chance*
 anime_demo.py
-test_winner_tracking.py
-test_web_interface.py
-*odds*
-*probability*
-*chance*
-*simulation*
-*demo*
+
+# ============================================
+# BUILD ARTIFACTS: Optional
+# ============================================
+
+# Compiled smart contract binary (363KB - users can verify on-chain instead)
+# Note: The SOURCE CODE (lib.rs) is public, just hiding the large binary
+programs/billions-bounty/target/deploy/*.so
+
+# Note: Deployment scripts, documentation, and integration code are PUBLIC
+# for transparency and verification. See TRANSPARENCY_AUDIT.md for details.

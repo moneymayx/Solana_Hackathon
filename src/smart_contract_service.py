@@ -6,12 +6,23 @@ Replaces backend-controlled fund transfers with autonomous smart contract logic
 import os
 import asyncio
 import json
+import struct
+import hashlib
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from solana.rpc.async_api import AsyncClient
+from solana.rpc.commitment import Confirmed
+from solana.rpc.types import TxOpts
+from solders.pubkey import Pubkey
+from solders.keypair import Keypair
+from solders.transaction import Transaction
+from solders.instruction import Instruction, AccountMeta
+from solders.system_program import SYS_PROGRAM_ID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
 from .models import FundDeposit, FundTransfer, PaymentTransaction
 import logging
+import base58
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,22 +35,41 @@ class SmartContractService:
     """
     
     def __init__(self):
-        # Smart contract configuration
-        self.program_id = os.getenv("LOTTERY_PROGRAM_ID", "B1LL10N5B0UNTY1111111111111111111111111111111111")
-        self.rpc_endpoint = os.getenv("SOLANA_RPC_ENDPOINT", "https://api.mainnet-beta.solana.com")
+        # Smart contract configuration - UPDATED WITH DEPLOYED PROGRAM
+        self.program_id = Pubkey.from_string(os.getenv(
+            "LOTTERY_PROGRAM_ID",
+            "DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh"  # Devnet deployment
+        ))
+        self.rpc_endpoint = os.getenv("SOLANA_RPC_ENDPOINT", "https://api.devnet.solana.com")  # Default to devnet
         
-        # USDC mint address on Solana mainnet
-        self.usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        # USDC mint addresses (network-aware)
+        if "devnet" in self.rpc_endpoint:
+            self.usdc_mint = Pubkey.from_string("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr")  # Devnet USDC
+        else:
+            self.usdc_mint = Pubkey.from_string("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")  # Mainnet USDC
+        
+        # Initialize Solana client
+        self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
+        
+        # Derive lottery PDA
+        self.lottery_pda, self.lottery_bump = Pubkey.find_program_address(
+            [b"lottery"],
+            self.program_id
+        )
         
         # Research fund configuration
-        self.research_fund_floor = 10000  # $10,000 minimum jackpot
-        self.research_fee = 10  # $10 entry fee
+        self.research_fund_floor = 1_000_000_000  # 1000 USDC (with 6 decimals)
+        self.research_fee = 10_000_000  # 10 USDC (with 6 decimals)
         
         # Fund distribution rates
         self.research_fund_contribution_rate = 0.80  # 80% to research fund
         self.operational_fee_rate = 0.20  # 20% operational fee
         
-        logger.info("🔗 Smart Contract Service initialized - Autonomous fund management enabled")
+        logger.info(f"🔗 Smart Contract Service initialized")
+        logger.info(f"   Program ID: {self.program_id}")
+        logger.info(f"   Lottery PDA: {self.lottery_pda}")
+        logger.info(f"   Network: {'Devnet' if 'devnet' in self.rpc_endpoint else 'Mainnet'}")
+        logger.info(f"   Autonomous fund management enabled")
     
     async def initialize_lottery(self, authority_keypair: str, jackpot_wallet: str) -> Dict[str, Any]:
         """

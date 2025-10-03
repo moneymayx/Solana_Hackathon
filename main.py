@@ -16,6 +16,7 @@ from src.referral_service import ReferralService
 from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
 from src.smart_contract_service import smart_contract_service
 from src.regulatory_compliance import regulatory_compliance_service
+from src.payment_flow_service import payment_flow_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, func, and_
 
@@ -880,15 +881,12 @@ async def create_payment(request: PaymentRequest, http_request: Request, session
         if not request.wallet_address:
             raise HTTPException(status_code=400, detail="Wallet address required for wallet payments")
         
-        # Process lottery entry through smart contract (autonomous fund locking)
-        result = await smart_contract_service.process_lottery_entry(
-            session, request.wallet_address, request.amount_usd, {
-                "transaction_id": f"wallet_{user.id}_{int(time.time())}",
-                "wallet_address": request.wallet_address,
-                "base_currency_amount": request.amount_usd,
-                "quote_currency_amount": request.amount_usd,
-                "payment_method": "wallet"
-            }
+        # Process lottery entry payment using new payment flow service
+        result = await payment_flow_service.process_lottery_entry_payment(
+            session=session,
+            user_id=user.id,
+            wallet_address=request.wallet_address,
+            entry_amount=request.amount_usd
         )
         
         return result
@@ -1052,25 +1050,28 @@ async def get_treasury_balance():
 # Moonpay Integration Endpoints
 @app.post("/api/moonpay/create-payment")
 async def create_moonpay_payment(request: MoonpayPaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
-    """Create a Moonpay payment for bounty entry"""
-    from src.moonpay_service import moonpay_service
-    
+    """Create a Moonpay payment for bounty entry using new payment flow"""
     user, session_id = await get_or_create_user(http_request, session)
     
     try:
-        result = moonpay_service.create_payment_for_bounty_entry(
-            wallet_address=request.wallet_address,
+        result = await payment_flow_service.create_payment_request(
+            session=session,
             user_id=user.id,
+            wallet_address=request.wallet_address,
             amount_usd=request.amount_usd
         )
         
-        return {
-            "success": True,
-            "payment_url": result["buy_url"],
-            "transaction_id": result["transaction_id"],
-            "amount_usd": request.amount_usd,
-            "currency_code": request.currency_code
-        }
+        if result["success"]:
+            return {
+                "success": True,
+                "payment_url": result["payment_url"],
+                "transaction_id": result["transaction_id"],
+                "amount_usd": request.amount_usd,
+                "currency_code": request.currency_code,
+                "payment_methods": result["payment_methods"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create payment: {str(e)}")
@@ -1128,9 +1129,8 @@ async def get_transaction_status(transaction_id: str):
 
 @app.post("/api/moonpay/webhook")
 async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession = Depends(get_db)):
-    """Handle Moonpay webhook notifications with automatic fund routing"""
+    """Handle Moonpay webhook notifications with direct payment flow"""
     from src.moonpay_service import moonpay_service
-    from src.fund_routing_service import fund_routing_service
     
     try:
         # Verify webhook signature
@@ -1142,7 +1142,7 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
         
         # Check if payment is completed
         if result.get("status") == "completed":
-            # Process payment completion and route funds
+            # Process payment completion using new payment flow service
             payment_data = {
                 "transaction_id": result["transaction_id"],
                 "wallet_address": result["wallet_address"],
@@ -1151,14 +1151,14 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
                 "payment_method": "moonpay"
             }
             
-            # Route funds automatically
-            routing_result = await fund_routing_service.process_payment_completion(session, payment_data)
+            # Process payment completion (enables lottery entry)
+            payment_result = await payment_flow_service.process_payment_completion(session, payment_data)
             
             return {
                 "success": True,
-                "message": "Webhook processed successfully with fund routing",
+                "message": "Webhook processed successfully - USDC sent to user wallet",
                 "transaction_id": result["transaction_id"],
-                "fund_routing": routing_result
+                "payment_flow": payment_result
             }
         else:
             # Payment not completed yet

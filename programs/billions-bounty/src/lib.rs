@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
-use spl_associated_token_account::get_associated_token_address;
+use anchor_spl::associated_token::AssociatedToken;
 
-declare_id!("B1LL10N5B0UNTY1111111111111111111111111111111111");
+declare_id!("DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh");
 
 #[program]
 pub mod billions_bounty {
@@ -98,6 +98,11 @@ pub mod billions_bounty {
 
     /// Select a winner and transfer jackpot (autonomous)
     pub fn select_winner(ctx: Context<SelectWinner>) -> Result<()> {
+        // Get lottery info before mutable borrow
+        let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery_bump = *ctx.bumps.get("lottery").unwrap();
+        let lottery_key = ctx.accounts.lottery.key();
+        
         let lottery = &mut ctx.accounts.lottery;
         let winner = &mut ctx.accounts.winner;
         
@@ -106,9 +111,9 @@ pub mod billions_bounty {
         require!(lottery.current_jackpot > 0, ErrorCode::NoJackpot);
         require!(lottery.total_entries > 0, ErrorCode::NoEntries);
         
-        // Generate secure random number using recent blockhash
-        let recent_blockhash = ctx.accounts.clock.recent_blockhash;
-        let random_seed = recent_blockhash.to_bytes();
+        // Generate secure random number using clock timestamp (simplified for Anchor 0.28)
+        let clock = Clock::get()?;
+        let random_seed = clock.unix_timestamp.to_le_bytes();
         let random_number = u64::from_le_bytes([
             random_seed[0], random_seed[1], random_seed[2], random_seed[3],
             random_seed[4], random_seed[5], random_seed[6], random_seed[7],
@@ -118,26 +123,31 @@ pub mod billions_bounty {
         let winner_index = (random_number % lottery.total_entries) + 1;
         
         // Record winner
-        winner.lottery_id = lottery.key();
+        winner.lottery_id = lottery_key;
         winner.winner_index = winner_index;
         winner.jackpot_amount = lottery.current_jackpot;
         winner.timestamp = Clock::get()?.unix_timestamp;
         winner.is_claimed = false;
         
         // Transfer jackpot to winner
+        let transfer_amount = lottery.current_jackpot;
+        
         let transfer_instruction = Transfer {
             from: ctx.accounts.jackpot_token_account.to_account_info(),
             to: ctx.accounts.winner_token_account.to_account_info(),
-            authority: ctx.accounts.lottery_authority.to_account_info(),
+            authority: lottery_info,
         };
+        
+        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+        let signer = &[&seeds[..]];
         
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_instruction,
-            &[&[&lottery.key().to_bytes(), &[ctx.bumps.lottery]]],
+            signer,
         );
         
-        token::transfer(cpi_ctx, lottery.current_jackpot)?;
+        token::transfer(cpi_ctx, transfer_amount)?;
         
         // Reset lottery for next round
         lottery.current_jackpot = lottery.research_fund_floor;
@@ -156,6 +166,10 @@ pub mod billions_bounty {
 
     /// Emergency fund recovery (only by authority)
     pub fn emergency_recovery(ctx: Context<EmergencyRecovery>, amount: u64) -> Result<()> {
+        // Get lottery info before mutable borrow
+        let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery_bump = *ctx.bumps.get("lottery").unwrap();
+        
         let lottery = &mut ctx.accounts.lottery;
         
         // Only authority can perform emergency recovery
@@ -166,13 +180,16 @@ pub mod billions_bounty {
         let transfer_instruction = Transfer {
             from: ctx.accounts.jackpot_token_account.to_account_info(),
             to: ctx.accounts.authority_token_account.to_account_info(),
-            authority: ctx.accounts.lottery_authority.to_account_info(),
+            authority: lottery_info,
         };
+        
+        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+        let signer = &[&seeds[..]];
         
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_instruction,
-            &[&[&lottery.key().to_bytes(), &[ctx.bumps.lottery]]],
+            signer,
         );
         
         token::transfer(cpi_ctx, amount)?;
@@ -180,7 +197,7 @@ pub mod billions_bounty {
         // Update jackpot
         lottery.current_jackpot -= amount;
         
-        emit!(EmergencyRecovery {
+        emit!(EmergencyRecoveryEvent {
             amount,
             remaining_jackpot: lottery.current_jackpot,
         });
@@ -247,19 +264,11 @@ pub struct ProcessEntryPayment<'info> {
     )]
     pub jackpot_token_account: Account<'info, TokenAccount>,
     
-    #[account(
-        init_if_needed,
-        payer = user,
-        associated_token::mint = usdc_mint,
-        associated_token::authority = lottery
-    )]
-    pub lottery: Account<'info, Lottery>,
-    
     /// CHECK: USDC mint address
     pub usdc_mint: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, spl_associated_token_account::program::AssociatedToken>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -281,8 +290,8 @@ pub struct SelectWinner<'info> {
     )]
     pub winner: Account<'info, Winner>,
     
-    /// CHECK: Lottery authority (can be automated)
-    pub lottery_authority: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub lottery_authority: Signer<'info>,
     
     #[account(
         mut,
@@ -405,7 +414,7 @@ pub struct WinnerSelected {
 }
 
 #[event]
-pub struct EmergencyRecovery {
+pub struct EmergencyRecoveryEvent {
     pub amount: u64,
     pub remaining_jackpot: u64,
 }
