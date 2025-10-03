@@ -167,6 +167,8 @@ class BountyState(Base):
     current_jackpot_usd: Mapped[float] = mapped_column(Float, default=10000.0)  # PRIZE_FLOOR_USD
     total_entries_this_period: Mapped[int] = mapped_column(Integer, default=0)
     last_winner_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    last_participant_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)  # Last person who asked a question
+    last_question_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Timestamp of last question
     last_rollover_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     next_rollover_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -175,6 +177,7 @@ class BountyState(Base):
     
     # Relationships
     last_winner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[last_winner_id])
+    last_participant: Mapped[Optional["User"]] = relationship("User", foreign_keys=[last_participant_id])
 
 class BountyEntry(Base):
     """Model for tracking individual bounty entries"""

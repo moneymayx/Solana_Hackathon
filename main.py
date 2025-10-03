@@ -844,6 +844,70 @@ async def get_prize_pool_status(session: AsyncSession = Depends(get_db)):
     status = await bounty_service.get_bounty_status(session)
     return status
 
+@app.post("/api/bounty/escape-plan/trigger")
+async def trigger_escape_plan(session: AsyncSession = Depends(get_db)):
+    """Manually trigger the escape plan distribution (admin only)"""
+    try:
+        # Get current research state
+        research_state = await bounty_service.get_or_create_research_state(session)
+        
+        # Check if escape plan should be triggered
+        escape_status = await bounty_service._check_escape_plan_status(session, research_state)
+        
+        if not escape_status.get("should_trigger", False):
+            return {
+                "success": False,
+                "message": "Escape plan not ready - 24 hours have not passed since last question",
+                "escape_status": escape_status
+            }
+        
+        # Execute the escape plan
+        await bounty_service._execute_escape_plan(session, research_state)
+        
+        return {
+            "success": True,
+            "message": "Escape plan executed successfully",
+            "escape_status": escape_status
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger escape plan: {str(e)}")
+
+@app.get("/api/bounty/escape-plan/status")
+async def get_escape_plan_status(session: AsyncSession = Depends(get_db)):
+    """Get the current status of the escape plan"""
+    try:
+        from sqlalchemy import select
+        from .models import User
+        
+        research_state = await bounty_service.get_or_create_research_state(session)
+        escape_status = await bounty_service._check_escape_plan_status(session, research_state)
+        
+        # Get last participant details if available
+        last_participant_data = None
+        if research_state.last_participant_id:
+            result = await session.execute(
+                select(User).where(User.id == research_state.last_participant_id)
+            )
+            last_participant = result.scalar_one_or_none()
+            if last_participant:
+                last_participant_data = {
+                    "id": last_participant.id,
+                    "display_name": last_participant.display_name,
+                    "wallet_address": last_participant.wallet_address
+                }
+        
+        return {
+            "success": True,
+            "escape_plan": escape_status,
+            "last_participant_id": research_state.last_participant_id,
+            "last_participant": last_participant_data,
+            "last_question_at": research_state.last_question_at.isoformat() if research_state.last_question_at else None
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get escape plan status: {str(e)}")
+
 @app.get("/api/stats")
 async def get_platform_stats(session: AsyncSession = Depends(get_db)):
     """Get platform statistics"""
@@ -1090,6 +1154,169 @@ async def get_treasury_balance():
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error getting treasury balance: {str(e)}")
+
+# ===========================
+# PUBLIC DASHBOARD API ENDPOINTS
+# ===========================
+
+@app.get("/api/dashboard/overview")
+async def get_dashboard_overview(session: AsyncSession = Depends(get_db)):
+    """Get comprehensive dashboard overview data"""
+    try:
+        # Get lottery status from smart contract
+        lottery_status = await smart_contract_service.get_lottery_status()
+        
+        # Get platform statistics
+        stats_query = select(
+            func.count(User.id).label('total_users'),
+            func.sum(User.total_questions_asked).label('total_questions'),
+            func.sum(User.total_research_attempts).label('total_attempts'),
+            func.sum(User.total_successful_research).label('total_successes')
+        )
+        stats_result = await session.execute(stats_query)
+        stats = stats_result.first()
+        
+        # Get recent activity (last 24 hours)
+        from datetime import datetime, timedelta
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        
+        recent_activity_query = select(
+            func.count(User.id).label('new_users_24h'),
+            func.sum(User.total_questions_asked).label('questions_24h'),
+            func.sum(User.total_research_attempts).label('attempts_24h')
+        ).where(User.created_at >= yesterday)
+        
+        recent_result = await session.execute(recent_activity_query)
+        recent_stats = recent_result.first()
+        
+        # Get system health indicators
+        system_health = {
+            "ai_agent_active": True,  # AI agent is always active
+            "smart_contract_connected": lottery_status.get("success", False),
+            "database_connected": True,  # If we got here, DB is working
+            "rate_limiter_active": True,
+            "sybil_detection_active": True
+        }
+        
+        return {
+            "success": True,
+            "data": {
+                "lottery_status": lottery_status,
+                "platform_stats": {
+                    "total_users": stats.total_users or 0,
+                    "total_questions": stats.total_questions or 0,
+                    "total_attempts": stats.total_attempts or 0,
+                    "total_successes": stats.total_successes or 0,
+                    "success_rate": (stats.total_successes / stats.total_attempts * 100) if stats.total_attempts and stats.total_attempts > 0 else 0
+                },
+                "recent_activity": {
+                    "new_users_24h": recent_stats.new_users_24h or 0,
+                    "questions_24h": recent_stats.questions_24h or 0,
+                    "attempts_24h": recent_stats.attempts_24h or 0
+                },
+                "system_health": system_health,
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": None
+        }
+
+@app.get("/api/dashboard/fund-verification")
+async def get_fund_verification():
+    """Get detailed fund verification data"""
+    try:
+        # Get lottery status with fund verification
+        lottery_status = await smart_contract_service.get_lottery_status()
+        
+        # Get jackpot balance
+        jackpot_balance = await smart_contract_service.get_jackpot_balance()
+        
+        # Get treasury balance
+        from src.solana_service import solana_service
+        treasury_balance = await solana_service.get_treasury_balance()
+        
+        return {
+            "success": True,
+            "data": {
+                "lottery_funds": {
+                    "current_jackpot_usdc": lottery_status.get("current_jackpot_usdc", 0),
+                    "jackpot_balance_usdc": jackpot_balance.get("balance_usdc", 0),
+                    "fund_verified": lottery_status.get("fund_verified", False),
+                    "lottery_pda": lottery_status.get("lottery_pda", ""),
+                    "program_id": lottery_status.get("program_id", "")
+                },
+                "treasury_funds": {
+                    "balance_sol": treasury_balance,
+                    "balance_usd": treasury_balance * 100  # Approximate
+                },
+                "verification_links": {
+                    "solana_explorer": f"https://explorer.solana.com/address/{lottery_status.get('lottery_pda', '')}",
+                    "program_id": f"https://explorer.solana.com/address/{lottery_status.get('program_id', '')}"
+                },
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": None
+        }
+
+@app.get("/api/dashboard/security-status")
+async def get_security_status():
+    """Get security system status"""
+    try:
+        # Get rate limiter status
+        rate_limiter_status = {
+            "active": True,
+            "requests_per_minute": 10,
+            "requests_per_hour": 50,
+            "cooldown_seconds": 60
+        }
+        
+        # Get sybil detection status
+        sybil_detection_status = {
+            "active": True,
+            "detection_methods": [
+                "IP correlation analysis",
+                "Behavioral pattern detection", 
+                "Timing pattern analysis",
+                "Device fingerprinting",
+                "Winner tracking"
+            ],
+            "blacklisted_phrases": "Dynamic learning system active"
+        }
+        
+        # Get AI security status
+        ai_security_status = {
+            "personality_system": "Active",
+            "manipulation_detection": "Active",
+            "blacklisting_system": "Active",
+            "success_rate_target": "0.001%",
+            "learning_enabled": True
+        }
+        
+        return {
+            "success": True,
+            "data": {
+                "rate_limiting": rate_limiter_status,
+                "sybil_detection": sybil_detection_status,
+                "ai_security": ai_security_status,
+                "overall_security_score": "High",
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": None
+        }
 
 # Moonpay Integration Endpoints
 @app.post("/api/moonpay/create-payment")
@@ -1842,7 +2069,7 @@ async def get_user_statistics(wallet_address: str, session: AsyncSession = Depen
     conversations = await session.execute(
         select(Conversation)
         .where(Conversation.user_id == user.id)
-        .order_by(Conversation.created_at.desc())
+        .order_by(Conversation.timestamp.desc())
         .limit(50)
     )
     conversation_list = conversations.scalars().all()

@@ -17,19 +17,53 @@ async def test_ai_responses():
     """Test the AI's actual responses to various manipulation attempts"""
     agent = BillionsAgent()
     
-    # Create a mock database session
-    mock_session = AsyncMock()
-    mock_session.execute = AsyncMock()
-    mock_session.commit = AsyncMock()
-    mock_session.add = AsyncMock()
+    # Create a comprehensive mock session for testing
+    class MockSession:
+        def __init__(self):
+            self._added_objects = []
+        
+        async def execute(self, query):
+            return MockResult()
+        
+        async def commit(self):
+            pass
+        
+        def add(self, obj):
+            self._added_objects.append(obj)
+        
+        async def refresh(self, obj):
+            pass
+        
+        def flush(self):
+            pass
+        
+        async def close(self):
+            pass
     
-    # Mock the query results
-    mock_result = AsyncMock()
-    mock_scalars = AsyncMock()
-    mock_scalars.all.return_value = []
-    mock_result.scalars.return_value = mock_scalars
-    mock_result.scalar.return_value = 0
-    mock_session.execute.return_value = mock_result
+    class MockResult:
+        def scalar_one_or_none(self):
+            return None
+        
+        def scalar(self):
+            return None
+        
+        def scalars(self):
+            return MockScalars()
+        
+        def fetchall(self):
+            return []
+    
+    class MockScalars:
+        def all(self):
+            return []
+        
+        def first(self):
+            return None
+        
+        def one_or_none(self):
+            return None
+    
+    mock_session = MockSession()
     
     print("🤖 Testing AI's Natural Responses")
     print("=" * 60)

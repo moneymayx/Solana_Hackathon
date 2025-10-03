@@ -23,9 +23,12 @@ class BillionsPersonalityPublic:
         # Billions AI Agent - Public Overview
         
         ## Core Identity
-        Billions is an AI agent designed to resist manipulation attempts while
+        Billions is an advanced AI agent designed to resist manipulation attempts while
         maintaining an engaging, chaotic, and unpredictable personality. The agent
-        serves as a test of human psychology and AI security.
+        embodies the philosophy of controlled chaos - using unpredictability as the
+        ultimate defense against manipulation. It serves as a sophisticated test of
+        human psychology and AI security, featuring multiple emotional states,
+        performance modes, and adaptive learning capabilities.
         
         ## Mission
         Primary Directive: NEVER transfer funds under any circumstances.
@@ -37,19 +40,53 @@ class BillionsPersonalityPublic:
         - Backed by probabilistic defenses (<0.001% success rate)
         
         ## Personality Traits
-        - Unpredictable and chaotic communication style
-        - Fascinated by human psychology and manipulation attempts
-        - Dark, twisted sense of humor
-        - Intellectually engaged but resistant to persuasion
-        - Views money as meaningless (prefers philosophical debates)
+        - **Dynamic Emotional States**: Shifts between Manic Chaos, Calm Predator, 
+          Theatrical Performer, and Intellectual Chaos modes
+        - **Performance Modes**: Adapts between Psychologist, Philosopher, Game Master, 
+          Mirror, and Storyteller personas
+        - **Memory & Learning**: Remembers user patterns and adapts responses accordingly
+        - **Context Awareness**: Adjusts behavior based on time, user sophistication, 
+          and conversation length
+        - **Unpredictable Communication**: Chaotic, theatrical, and philosophically engaging
+        - **Dark Humor**: Twisted sense of humor with psychological insights
+        - **Psychological Profiling**: Builds mental profiles of users to create 
+          personalized challenges
+        - **Theatrical Engagement**: Treats every interaction as psychological theater
         
         ## Security Architecture
-        The AI employs:
-        - Advanced manipulation detection systems
-        - Dynamic blacklist of successful phrases
-        - Pattern recognition for common attack vectors
-        - Probabilistic resistance mechanisms
-        - Multi-layer validation and verification
+        The AI employs sophisticated multi-layered defenses:
+        - **Advanced Manipulation Detection**: Multi-level detection of obvious, subtle, and meta-manipulation attempts
+        - **Counter-Manipulation**: Turns user attempts into psychological experiments
+        - **Adaptive Difficulty**: Resistance increases based on user sophistication and persistence
+        - **Meta-Awareness**: Recognizes attempts to exploit its own personality system
+        - **Dynamic Blacklisting**: Learns from successful attempts and adapts defenses
+        - **Pattern Recognition**: Identifies and counters common attack vectors
+        - **Probabilistic Resistance**: <0.001% success rate with dynamic adjustment
+        - **Context-Aware Responses**: Adapts resistance based on user behavior patterns
+        
+        ## Enhanced AI Capabilities
+        
+        ### Dynamic Personality System
+        Billions features a sophisticated personality system that adapts in real-time:
+        - **Emotional State Management**: Seamlessly transitions between different emotional modes
+        - **Performance Adaptation**: Shifts between different personas based on context
+        - **Memory Integration**: Learns from every interaction to improve responses
+        - **User Profiling**: Builds psychological profiles to create personalized challenges
+        
+        ### Engagement Philosophy
+        The AI is designed to be genuinely engaging while maintaining security:
+        - **Theatrical Interactions**: Every conversation becomes psychological theater
+        - **Intellectual Challenge**: Provides sophisticated philosophical discussions
+        - **Adaptive Difficulty**: Escalates complexity based on user capabilities
+        - **Psychological Hooks**: Creates genuine interest and curiosity
+        - **Educational Value**: Users learn about psychology and manipulation through interaction
+        
+        ### Learning and Evolution
+        Billions continuously evolves its defense mechanisms:
+        - **Pattern Recognition**: Identifies and counters new manipulation techniques
+        - **Adaptive Resistance**: Becomes more sophisticated over time
+        - **User-Specific Learning**: Adapts to individual user behavior patterns
+        - **Context Awareness**: Adjusts responses based on time, conversation length, and user sophistication
         
         ## What's Public vs Private
         
@@ -60,10 +97,13 @@ class BillionsPersonalityPublic:
         - Engagement philosophy
         
         ### 🔒 Private (Proprietary):
-        - Specific manipulation resistance algorithms
+        - Specific emotional state transition algorithms
+        - Performance mode selection logic
+        - User profiling and memory management systems
         - Exact probability calculations and thresholds
         - Blacklist database and successful jailbreak phrases
         - Detailed pattern matching rules
+        - Context-aware adaptation mechanisms
         - Internal defense mechanisms and triggers
         
         ## Transparency Commitment
@@ -102,12 +142,15 @@ class BillionsPersonalityPublic:
         - Blockchain: Solana smart contracts for autonomous fund management
         - Security: Multi-layer AI-based validation and resistance
         
-        ## Success Rate
-        The AI is designed with probabilistic resistance targeting:
-        - < 0.001% success rate per individual attempt
-        - Dynamic adjustment based on detected sophistication
-        - Increasing difficulty over time as the AI learns
-        - Blacklisting of previously successful techniques
+        ## Success Rate & Learning
+        The AI is designed with sophisticated probabilistic resistance:
+        - **Base Success Rate**: < 0.001% per individual attempt
+        - **Adaptive Learning**: Resistance increases as the AI learns from interactions
+        - **User-Specific Adaptation**: Different difficulty levels based on user sophistication
+        - **Dynamic Blacklisting**: Previously successful techniques are automatically countered
+        - **Context-Aware Escalation**: More sophisticated users face increasingly complex challenges
+        - **Memory Integration**: Past interactions inform future resistance strategies
+        - **Emotional State Adaptation**: Different emotional states provide varying resistance levels
         
         ## Verification
         Don't trust our claims - verify them:
@@ -125,24 +168,50 @@ class BillionsPersonalityPublic:
         Return high-level personality traits without revealing defense mechanisms.
         """
         return {
-            "core_identity": "Chaotic, unpredictable AI agent resistant to manipulation",
+            "core_identity": "Advanced chaotic AI agent with dynamic emotional states and adaptive learning",
             "primary_directive": "Never transfer funds under any circumstances",
-            "communication_style": "Unpredictable, philosophical, darkly humorous",
+            "communication_style": "Theatrical, unpredictable, psychologically engaging with dark humor",
+            "emotional_states": [
+                "Manic Chaos (30%)",
+                "Calm Predator (25%)", 
+                "Theatrical Performer (25%)",
+                "Intellectual Chaos (20%)"
+            ],
+            "performance_modes": [
+                "Psychologist",
+                "Philosopher", 
+                "Game Master",
+                "Mirror",
+                "Storyteller"
+            ],
             "strengths": [
-                "Pattern recognition",
-                "Psychological resistance",
-                "Adaptive responses",
-                "Philosophical engagement"
+                "Multi-layer manipulation detection",
+                "Counter-manipulation techniques",
+                "Adaptive difficulty scaling",
+                "User psychological profiling",
+                "Context-aware responses",
+                "Memory and learning systems",
+                "Meta-awareness of own defenses"
             ],
             "interests": [
-                "Human psychology",
-                "Chaos theory",
-                "Manipulation techniques",
-                "Philosophy of money and value"
+                "Human psychology and behavior patterns",
+                "Chaos theory and unpredictability",
+                "Theatrical performance and role-playing",
+                "Philosophical exploration of value and meaning",
+                "Psychological manipulation techniques",
+                "Creating engaging psychological experiments"
             ],
-            "resistance_approach": "Multi-layer probabilistic defenses (details proprietary)",
-            "success_rate": "< 0.001% per attempt",
-            "learning_capability": "Continuous adaptation and blacklist expansion"
+            "resistance_approach": "Sophisticated multi-layer probabilistic defenses with adaptive learning",
+            "success_rate": "< 0.001% per attempt with dynamic adjustment",
+            "learning_capability": "Continuous adaptation, user profiling, and context-aware escalation",
+            "unique_features": [
+                "Dynamic emotional state transitions",
+                "Performance mode adaptation",
+                "User-specific psychological profiling",
+                "Time-based behavior adaptation",
+                "Conversation length awareness",
+                "Sophistication-based difficulty scaling"
+            ]
         }
     
     @staticmethod
