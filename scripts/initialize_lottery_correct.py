@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Initialize Billions Bounty Lottery on Solana Devnet
-This script initializes the lottery PDA with initial configuration
+Initialize Billions Bounty Lottery on Solana Devnet - CORRECTED VERSION
+This script uses the correct authority that owns the deployed program
 """
 import os
 import sys
@@ -31,10 +31,11 @@ RESEARCH_FUND_FLOOR = 1_000_000_000  # 1000 USDC (with 6 decimals)
 RESEARCH_FEE = 10_000_000  # 10 USDC (with 6 decimals)
 
 
-def load_authority_keypair(keypair_path: str) -> Keypair:
-    """Load authority keypair from JSON file"""
-    print(f"📂 Loading authority keypair from: {keypair_path}")
+def load_default_keypair() -> Keypair:
+    """Load the default Solana keypair (ApmfsAisbiPys6v79hbhG6Bbipx1SmxBnaHqPLs7v7bC)"""
+    print(f"📂 Loading default keypair from: ~/.config/solana/id.json")
     
+    keypair_path = os.path.expanduser("~/.config/solana/id.json")
     with open(keypair_path, 'r') as f:
         keypair_data = json.load(f)
     
@@ -81,7 +82,7 @@ async def check_lottery_exists(client: AsyncClient, lottery_pda: Pubkey) -> bool
         return False
 
 
-def create_initialize_instruction(
+def create_initialize_instruction_v2(
     authority: Pubkey,
     lottery_pda: Pubkey,
     jackpot_wallet: Pubkey,
@@ -89,16 +90,11 @@ def create_initialize_instruction(
     research_fee: int
 ) -> Instruction:
     """
-    Create the initialize_lottery instruction
-    
-    Instruction format for Anchor programs:
-    - First 8 bytes: Instruction discriminator (hash of "global:initialize_lottery")
-    - Followed by: instruction parameters
+    Create the initialize_lottery instruction using correct Anchor format
     """
-    print("\n🏗️  Creating initialize_lottery instruction...")
+    print("\n🏗️  Creating initialize_lottery instruction (v2)...")
     
-    # Calculate instruction discriminator
-    # For Anchor, this is the first 8 bytes of sha256("global:initialize_lottery")
+    # Calculate instruction discriminator - Anchor uses namespace:method format
     import hashlib
     discriminator_str = "global:initialize_lottery"
     discriminator = hashlib.sha256(discriminator_str.encode()).digest()[:8]
@@ -106,12 +102,17 @@ def create_initialize_instruction(
     # Pack instruction data: discriminator + research_fund_floor (u64) + research_fee (u64) + jackpot_wallet (32 bytes)
     instruction_data = discriminator + struct.pack('<QQ', research_fund_floor, research_fee) + bytes(jackpot_wallet)
     
-    # Define accounts for initialize_lottery
-    # Order must match the Anchor program's InitializeLottery struct
+    # Define accounts for initialize_lottery - CORRECT ORDER for Anchor
+    # Based on the smart contract's InitializeLottery struct:
+    # 1. lottery (PDA, writable, not signer)
+    # 2. authority (signer, writable)
+    # 3. jackpot_wallet (unchecked account, not signer, not writable)
+    # 4. system_program (program, not signer, not writable)
     accounts = [
-        AccountMeta(pubkey=lottery_pda, is_signer=False, is_writable=True),
-        AccountMeta(pubkey=authority, is_signer=True, is_writable=True),
-        AccountMeta(pubkey=Pubkey.from_string("11111111111111111111111111111111"), is_signer=False, is_writable=False),  # System Program
+        AccountMeta(pubkey=lottery_pda, is_signer=False, is_writable=True),  # lottery
+        AccountMeta(pubkey=authority, is_signer=True, is_writable=True),      # authority
+        AccountMeta(pubkey=jackpot_wallet, is_signer=False, is_writable=False),  # jackpot_wallet
+        AccountMeta(pubkey=Pubkey.from_string("11111111111111111111111111111111"), is_signer=False, is_writable=False),  # system_program
     ]
     
     print(f"   Discriminator: {discriminator.hex()}")
@@ -119,6 +120,8 @@ def create_initialize_instruction(
     print(f"   Research Fee: {research_fee / 1_000_000} USDC")
     print(f"   Jackpot Wallet: {jackpot_wallet}")
     print(f"   Accounts: {len(accounts)}")
+    for i, acc in enumerate(accounts):
+        print(f"     {i}: {acc.pubkey} (signer={acc.is_signer}, writable={acc.is_writable})")
     
     return Instruction(
         program_id=PROGRAM_ID,
@@ -127,18 +130,18 @@ def create_initialize_instruction(
     )
 
 
-async def initialize_lottery(keypair_path: str, jackpot_wallet_address: str):
-    """Initialize the lottery on devnet"""
+async def initialize_lottery_correct():
+    """Initialize the lottery on devnet using the correct authority"""
     print("=" * 60)
-    print("Billions Bounty - Lottery Initialization")
+    print("Billions Bounty - Lottery Initialization (CORRECTED)")
     print("=" * 60)
     print(f"\nNetwork: Devnet")
     print(f"Program ID: {PROGRAM_ID}")
     print()
     
-    # Load authority keypair
-    authority = load_authority_keypair(keypair_path)
-    jackpot_wallet = Pubkey.from_string(jackpot_wallet_address)
+    # Load the correct authority (the one that owns the deployed program)
+    authority = load_default_keypair()
+    jackpot_wallet = derive_lottery_pda(PROGRAM_ID)[0]  # Use PDA as jackpot wallet
     
     # Connect to Solana
     print(f"\n🌐 Connecting to Solana devnet...")
@@ -165,7 +168,7 @@ async def initialize_lottery(keypair_path: str, jackpot_wallet_address: str):
             return
         
         # Create initialize instruction
-        initialize_ix = create_initialize_instruction(
+        initialize_ix = create_initialize_instruction_v2(
             authority=authority.pubkey(),
             lottery_pda=lottery_pda,
             jackpot_wallet=jackpot_wallet,
@@ -227,22 +230,5 @@ async def initialize_lottery(keypair_path: str, jackpot_wallet_address: str):
 
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Initialize Billions Bounty Lottery")
-    parser.add_argument(
-        "--keypair",
-        default="lottery-authority-devnet.json",
-        help="Path to authority keypair JSON file"
-    )
-    parser.add_argument(
-        "--jackpot-wallet",
-        required=True,
-        help="Jackpot wallet public key (where initial funds go)"
-    )
-    
-    args = parser.parse_args()
-    
     # Run initialization
-    asyncio.run(initialize_lottery(args.keypair, args.jackpot_wallet))
-
+    asyncio.run(initialize_lottery_correct())

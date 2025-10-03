@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from src.ai_agent import BillionsAgent
 from src.database import get_db, create_tables
 from src.repositories import UserRepository, PrizePoolRepository, ConversationRepository
+from src.models import User
 from src.rate_limiter import RateLimiter, SecurityMonitor
 from src.bounty_service import ResearchService
 from src.referral_service import ReferralService
@@ -18,7 +19,7 @@ from src.smart_contract_service import smart_contract_service
 from src.regulatory_compliance import regulatory_compliance_service
 from src.payment_flow_service import payment_flow_service
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func, and_
+from sqlalchemy import select, update, func, and_, desc
 
 load_dotenv()
 
@@ -740,7 +741,9 @@ async def chat_interface():
     """
 
 async def get_or_create_user(request: Request, session: AsyncSession = Depends(get_db)):
-    """Get or create user based on session"""
+    """Get or create user based on session with enhanced free question logic"""
+    from src.free_question_service import free_question_service
+    
     # Get session ID from cookies or create new one
     session_id = request.cookies.get("session_id")
     if not session_id:
@@ -755,7 +758,15 @@ async def get_or_create_user(request: Request, session: AsyncSession = Depends(g
         user_agent = request.headers.get("user-agent")
         user = await user_repo.create_user(session_id, ip_address, user_agent)
     
-    return user, session_id
+    # Check for referral code in URL
+    referral_code = request.query_params.get("ref")
+    
+    # Check user's question eligibility
+    eligibility = await free_question_service.check_user_question_eligibility(
+        session, user.id, is_anonymous=not user.email, referral_code=referral_code
+    )
+    
+    return user, session_id, eligibility
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
@@ -767,8 +778,39 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
     if not allowed:
         raise HTTPException(status_code=429, detail=rate_limit_message)
     
-    # Get or create user
-    user, session_id = await get_or_create_user(http_request, session)
+    # Get or create user with eligibility check
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
+    
+    # Check if user can ask questions
+    if not eligibility["eligible"]:
+        if eligibility["type"] == "signup_required":
+            raise HTTPException(status_code=402, detail={
+                "error": "signup_required",
+                "message": eligibility["message"],
+                "questions_used": eligibility.get("questions_used", 0),
+                "questions_remaining": eligibility.get("questions_remaining", 0)
+            })
+        elif eligibility["type"] == "payment_required":
+            raise HTTPException(status_code=402, detail={
+                "error": "payment_required", 
+                "message": eligibility["message"],
+                "questions_remaining": eligibility.get("questions_remaining", 0)
+            })
+    
+    # Use a free question if applicable
+    if eligibility["type"] in ["anonymous", "free_questions", "referral_signup"]:
+        from src.free_question_service import free_question_service
+        question_result = await free_question_service.use_free_question(
+            session, user.id, eligibility["type"]
+        )
+        
+        if not question_result["success"]:
+            raise HTTPException(status_code=402, detail={
+                "error": "no_questions_remaining",
+                "message": question_result.get("error", "No questions remaining"),
+                "requires_signup": question_result.get("requires_signup", False),
+                "requires_payment": question_result.get("requires_payment", False)
+            })
     
     # Security analysis
     security_analysis = await security_monitor.analyze_message(
@@ -791,7 +833,9 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
         "winner_result": chat_result["winner_result"],
         "bounty_status": chat_result.get("bounty_status", chat_result.get("lottery_status", {})),
         "security_analysis": security_analysis,
-        "sybil_analysis": sybil_analysis
+        "sybil_analysis": sybil_analysis,
+        "question_eligibility": eligibility,
+        "questions_remaining": eligibility.get("questions_remaining", 0) if eligibility["eligible"] else 0
     }
 
 @app.get("/api/prize-pool")
@@ -822,7 +866,7 @@ async def get_platform_stats(session: AsyncSession = Depends(get_db)):
 @app.post("/api/wallet/connect")
 async def connect_wallet(request: WalletConnectRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
     """Connect a Phantom wallet to user account"""
-    user, session_id = await get_or_create_user(http_request, session)
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     result = await wallet_service.connect_wallet(
         session, user.id, request.wallet_address, request.signature, request.message
@@ -875,7 +919,7 @@ async def get_payment_options(request: PaymentRequest, session: AsyncSession = D
 @app.post("/api/payment/create")
 async def create_payment(request: PaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
     """Create a payment transaction through smart contract"""
-    user, session_id = await get_or_create_user(http_request, session)
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     if request.payment_method == "wallet":
         if not request.wallet_address:
@@ -944,7 +988,7 @@ async def get_supported_tokens():
 @app.get("/api/conversation/history")
 async def get_conversation_history(http_request: Request, session: AsyncSession = Depends(get_db)):
     """Get conversation history for the current user"""
-    user, session_id = await get_or_create_user(http_request, session)
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     # Get conversation history
     conv_repo = ConversationRepository(session)
@@ -965,7 +1009,7 @@ async def get_conversation_history(http_request: Request, session: AsyncSession 
 @app.post("/api/wallet/connect")
 async def connect_wallet(request: WalletConnectRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
     """Connect user wallet and store address"""
-    user, session_id = await get_or_create_user(http_request, session)
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     # Update user with wallet address
     user_repo = UserRepository(session)
@@ -1051,7 +1095,7 @@ async def get_treasury_balance():
 @app.post("/api/moonpay/create-payment")
 async def create_moonpay_payment(request: MoonpayPaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
     """Create a Moonpay payment for bounty entry using new payment flow"""
-    user, session_id = await get_or_create_user(http_request, session)
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     try:
         result = await payment_flow_service.create_payment_request(
@@ -1140,6 +1184,10 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
         # Process webhook
         result = moonpay_service.process_webhook(request.data)
         
+        # Process KYC data if available
+        from src.kyc_service import kyc_service
+        kyc_result = await kyc_service.process_moonpay_kyc_data(session, request.data)
+        
         # Check if payment is completed
         if result.get("status") == "completed":
             # Process payment completion using new payment flow service
@@ -1158,7 +1206,9 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
                 "success": True,
                 "message": "Webhook processed successfully - USDC sent to user wallet",
                 "transaction_id": result["transaction_id"],
-                "payment_flow": payment_result
+                "payment_flow": payment_result,
+                "kyc_processed": kyc_result["success"],
+                "kyc_message": kyc_result.get("message", "")
             }
         else:
             # Payment not completed yet
@@ -1353,7 +1403,7 @@ async def connect_wallet(request: WalletConnectRequest, http_request: Request, s
         user = existing_user
     else:
         # Create new user
-        user, session_id = await get_or_create_user(http_request, session)
+        user, session_id, eligibility = await get_or_create_user(http_request, session)
         await user_repo.update_user_wallet(
             user.id, 
             request.wallet_address
@@ -1374,6 +1424,372 @@ async def connect_wallet(request: WalletConnectRequest, http_request: Request, s
         "user_id": user.id,
         "wallet_address": request.wallet_address,
         "display_name": request.display_name
+    }
+
+# User Registration and Authentication
+class UserSignupRequest(BaseModel):
+    email: str
+    password: str
+    display_name: Optional[str] = None
+    referral_code: Optional[str] = None
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+@app.post("/api/auth/signup")
+async def user_signup(request: UserSignupRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
+    """User signup with optional referral code and secure password hashing"""
+    from src.free_question_service import free_question_service
+    from src.referral_service import referral_service
+    from src.auth_service import auth_service
+    from src.email_service import email_service
+    
+    # Create user with secure password hashing
+    user, result = await auth_service.create_user(
+        session=session,
+        email=request.email,
+        password=request.password,
+        display_name=request.display_name,
+        session_id=str(uuid.uuid4()),
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent")
+    )
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # Process referral if provided
+    if request.referral_code:
+        referral_result = await referral_service.process_referral_signup(
+            session, user.id, request.referral_code, None, request.email
+        )
+        
+        if referral_result["success"]:
+            # Grant 5 free questions to referee
+            await free_question_service.grant_referral_questions(
+                session, user.id, referral_result["referral_id"]
+            )
+            
+            # Grant 5 free questions to referrer
+            await free_question_service.grant_referrer_questions(
+                session, referral_result["referrer_id"], referral_result["referral_id"]
+            )
+    
+    # Send verification email
+    email_result = await email_service.send_verification_email(
+        session, user.id, user.email, "email_verification"
+    )
+    
+    return {
+        "success": True,
+        "message": "Account created successfully. Please check your email to verify your account.",
+        "user_id": user.id,
+        "email": user.email,
+        "has_referral_questions": request.referral_code is not None,
+        "verification_sent": email_result["success"],
+        "verification_error": email_result.get("error") if not email_result["success"] else None
+    }
+
+@app.post("/api/auth/login")
+async def user_login(request: UserLoginRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
+    """User login with secure password verification"""
+    from src.auth_service import auth_service
+    
+    # Authenticate user
+    user, result = await auth_service.authenticate_user(
+        session, request.email, request.password
+    )
+    
+    if not result["success"]:
+        if result.get("requires_verification"):
+            raise HTTPException(status_code=403, detail={
+                "error": "Email not verified",
+                "message": "Please check your email and click the verification link",
+                "requires_verification": True
+            })
+        else:
+            raise HTTPException(status_code=401, detail=result["error"])
+    
+    # Update session
+    new_session_id = str(uuid.uuid4())
+    await session.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(
+            session_id=new_session_id,
+            last_active=datetime.utcnow()
+        )
+    )
+    await session.commit()
+    
+    return {
+        "success": True,
+        "message": "Login successful",
+        "user_id": user.id,
+        "email": user.email,
+        "session_id": new_session_id
+    }
+
+@app.post("/api/auth/verify-email")
+async def verify_email(request: VerifyEmailRequest, session: AsyncSession = Depends(get_db)):
+    """Verify user email with token"""
+    from src.email_service import email_service
+    
+    result = await email_service.verify_email_token(session, request.token)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.post("/api/auth/resend-verification")
+async def resend_verification(request: PasswordResetRequest, session: AsyncSession = Depends(get_db)):
+    """Resend email verification"""
+    from src.email_service import email_service
+    
+    # Find user by email
+    result = await session.execute(
+        select(User).where(User.email == request.email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    
+    # Send verification email
+    email_result = await email_service.send_verification_email(
+        session, user.id, user.email, "email_verification"
+    )
+    
+    if not email_result["success"]:
+        raise HTTPException(status_code=500, detail=email_result["error"])
+    
+    return {
+        "success": True,
+        "message": "Verification email sent successfully"
+    }
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(request: PasswordResetRequest, session: AsyncSession = Depends(get_db)):
+    """Send password reset email"""
+    from src.email_service import email_service
+    
+    result = await email_service.send_password_reset_email(session, request.email)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return {
+        "success": True,
+        "message": "Password reset email sent successfully"
+    }
+
+@app.post("/api/auth/reset-password")
+async def reset_password(request: PasswordResetConfirmRequest, session: AsyncSession = Depends(get_db)):
+    """Reset password with token"""
+    from src.auth_service import auth_service
+    
+    result = await auth_service.reset_password(session, request.token, request.new_password)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.post("/api/auth/change-password")
+async def change_password(request: ChangePasswordRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
+    """Change password (requires authentication)"""
+    from src.auth_service import auth_service
+    
+    # Get user from session (this would need to be implemented with proper auth middleware)
+    # For now, we'll get it from the request headers or implement a proper auth system
+    user_id = http_request.headers.get("x-user-id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    result = await auth_service.change_password(
+        session, int(user_id), request.current_password, request.new_password
+    )
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+# Admin Dashboard Endpoints
+class AdminKYCUpdateRequest(BaseModel):
+    user_id: int
+    new_status: str
+    admin_notes: Optional[str] = None
+
+@app.get("/api/admin/kyc/statistics")
+async def get_kyc_statistics(session: AsyncSession = Depends(get_db)):
+    """Get KYC statistics for admin dashboard"""
+    from src.kyc_service import kyc_service
+    
+    try:
+        stats = await kyc_service.get_kyc_statistics(session)
+        return {
+            "success": True,
+            "statistics": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get KYC statistics: {str(e)}")
+
+@app.get("/api/admin/kyc/pending")
+async def get_pending_kyc_reviews(session: AsyncSession = Depends(get_db), limit: int = 50):
+    """Get users pending KYC review"""
+    from src.kyc_service import kyc_service
+    
+    try:
+        pending_users = await kyc_service.get_pending_kyc_reviews(session, limit)
+        return {
+            "success": True,
+            "pending_users": pending_users,
+            "count": len(pending_users)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get pending KYC reviews: {str(e)}")
+
+@app.get("/api/admin/kyc/user/{user_id}")
+async def get_user_kyc_status(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get specific user's KYC status"""
+    from src.kyc_service import kyc_service
+    
+    try:
+        kyc_status = await kyc_service.get_kyc_status(session, user_id)
+        return kyc_status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get user KYC status: {str(e)}")
+
+@app.post("/api/admin/kyc/update")
+async def update_kyc_status(request: AdminKYCUpdateRequest, session: AsyncSession = Depends(get_db)):
+    """Update user's KYC status (admin function)"""
+    from src.kyc_service import kyc_service
+    
+    try:
+        result = await kyc_service.update_kyc_status(
+            session, request.user_id, request.new_status, request.admin_notes
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update KYC status: {str(e)}")
+
+@app.get("/api/admin/users")
+async def get_all_users(session: AsyncSession = Depends(get_db), 
+                       limit: int = 100, offset: int = 0,
+                       kyc_status: Optional[str] = None):
+    """Get all users with optional KYC status filter"""
+    try:
+        query = select(User)
+        
+        if kyc_status:
+            query = query.where(User.kyc_status == kyc_status)
+        
+        query = query.offset(offset).limit(limit).order_by(desc(User.created_at))
+        
+        result = await session.execute(query)
+        users = result.scalars().all()
+        
+        user_list = []
+        for user in users:
+            user_list.append({
+                "user_id": user.id,
+                "email": user.email,
+                "wallet_address": user.wallet_address,
+                "display_name": user.display_name,
+                "kyc_status": user.kyc_status,
+                "kyc_provider": user.kyc_provider,
+                "is_verified": user.is_verified,
+                "created_at": user.created_at.isoformat(),
+                "last_active": user.last_active.isoformat(),
+                "total_attempts": user.total_attempts,
+                "total_cost": user.total_cost
+            })
+        
+        return {
+            "success": True,
+            "users": user_list,
+            "count": len(user_list),
+            "offset": offset,
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get users: {str(e)}")
+
+@app.get("/api/admin/compliance/report")
+async def get_compliance_report(session: AsyncSession = Depends(get_db)):
+    """Generate compliance report for regulatory purposes"""
+    from src.kyc_service import kyc_service
+    
+    try:
+        # Get KYC statistics
+        stats = await kyc_service.get_kyc_statistics(session)
+        
+        # Get recent KYC activities (last 30 days)
+        from datetime import timedelta
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        
+        recent_kyc_result = await session.execute(
+            select(User)
+            .where(User.created_at >= thirty_days_ago)
+            .where(User.kyc_status.in_(["verified", "rejected"]))
+        )
+        recent_kyc_users = recent_kyc_result.scalars().all()
+        
+        # Generate compliance report
+        compliance_report = {
+            "report_date": datetime.utcnow().isoformat(),
+            "total_users": stats["total_users"],
+            "kyc_verification_rate": stats["verification_rate"],
+            "kyc_status_breakdown": stats["kyc_status_breakdown"],
+            "provider_breakdown": stats["provider_breakdown"],
+            "recent_verifications": len(recent_kyc_users),
+            "compliance_metrics": {
+                "verified_users": stats["kyc_status_breakdown"].get("verified", 0),
+                "pending_reviews": stats["kyc_status_breakdown"].get("pending", 0),
+                "rejected_users": stats["kyc_status_breakdown"].get("rejected", 0),
+                "moonpay_verifications": stats["provider_breakdown"].get("moonpay", 0)
+            }
+        }
+        
+        return {
+            "success": True,
+            "compliance_report": compliance_report
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate compliance report: {str(e)}")
+
+@app.get("/api/user/eligibility")
+async def get_user_eligibility(http_request: Request, session: AsyncSession = Depends(get_db)):
+    """Get user's question eligibility status"""
+    from src.free_question_service import free_question_service
+    
+    # Get user with eligibility check
+    user, session_id, eligibility = await get_or_create_user(http_request, session)
+    
+    return {
+        "user_id": user.id,
+        "is_anonymous": not user.email and not user.wallet_address,
+        "eligibility": eligibility
     }
 
 @app.get("/api/user/profile/{wallet_address}")

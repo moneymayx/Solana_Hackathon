@@ -21,11 +21,29 @@ class User(Base):
     total_cost: Mapped[float] = mapped_column(Float, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
+    # Authentication fields
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Free question tracking
+    anonymous_free_questions_used: Mapped[int] = mapped_column(Integer, default=0)  # 2 max for anonymous users
+    has_used_anonymous_questions: Mapped[bool] = mapped_column(Boolean, default=False)  # Track if user used anonymous questions
+    
     # Wallet integration fields (primary authentication method)
     wallet_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
     wallet_connected_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     wallet_signature: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Store wallet signature for verification
     display_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Optional display name
+    
+    # KYC fields
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    date_of_birth: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    kyc_status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, verified, rejected
+    kyc_provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # moonpay, manual
+    kyc_reference_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Relationships
     conversations: Mapped[list["Conversation"]] = relationship("Conversation", back_populates="user")
@@ -223,6 +241,23 @@ class ConnectedWallet(Base):
     # Relationships
     winner: Mapped["Winner"] = relationship("Winner", back_populates="connected_wallets")
 
+class EmailVerification(Base):
+    """Email verification tokens for user account verification"""
+    __tablename__ = "email_verifications"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    verification_token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    verification_type: Mapped[str] = mapped_column(String(50), default="email_verification")  # 'email_verification', 'password_reset'
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
 class WalletFundingSource(Base):
     """Wallet funding source model for tracking where wallets get their funds"""
     __tablename__ = "wallet_funding_sources"
@@ -326,12 +361,13 @@ class FreeQuestions(Base):
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    source: Mapped[str] = mapped_column(String(50))  # 'referral_bonus', 'referral_signup'
+    source: Mapped[str] = mapped_column(String(50))  # 'referral_bonus', 'referral_signup', 'anonymous'
     referral_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("referrals.id"), nullable=True)
-    questions_earned: Mapped[int] = mapped_column(Integer, default=5)  # 5 free questions per referral
+    questions_earned: Mapped[int] = mapped_column(Integer, default=5)  # 5 free questions per referral, 2 for anonymous
     questions_used: Mapped[int] = mapped_column(Integer, default=0)
     questions_remaining: Mapped[int] = mapped_column(Integer, default=5)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Optional expiration
     
     # Relationships

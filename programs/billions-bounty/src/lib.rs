@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
 
-declare_id!("DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh");
+declare_id!("4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK");
 
 #[program]
 pub mod billions_bounty {

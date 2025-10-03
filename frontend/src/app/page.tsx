@@ -6,6 +6,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import ChatInterface from '@/components/ChatInterface'
 import BountyDisplay from '@/components/BountyDisplay'
 import AdminDashboard from '@/components/AdminDashboard'
+import AdminKYC from '@/components/AdminKYC'
 import PaymentFlow from '@/components/PaymentFlow'
 import ReferralPrompt from '@/components/ReferralPrompt'
 import ReferralSystem from '@/components/ReferralSystem'
@@ -15,7 +16,7 @@ import { cn } from '@/lib/utils'
 
 export default function Home() {
   const { connected } = useWallet()
-  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'payment' | 'referrals'>('chat')
+  const [activeTab, setActiveTab] = useState<'chat' | 'research' | 'admin' | 'kyc' | 'payment' | 'referrals'>('chat')
   const [showReferralPrompt, setShowReferralPrompt] = useState(false)
   const [hasCheckedReferralPrompt, setHasCheckedReferralPrompt] = useState(false)
   const [showAgeVerification, setShowAgeVerification] = useState(true)
@@ -192,6 +193,17 @@ export default function Home() {
             >
               Admin
             </button>
+            <button
+              onClick={() => setActiveTab('kyc')}
+              className={cn(
+                "px-4 py-2 rounded-md font-medium transition-all duration-200 text-sm",
+                activeTab === 'kyc'
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+                  : "text-gray-400 hover:text-white hover:bg-gray-700/50"
+              )}
+            >
+              KYC
+            </button>
           </div>
         </div>
 
@@ -203,6 +215,7 @@ export default function Home() {
               {activeTab === 'research' && <BountyDisplay />}
               {activeTab === 'referrals' && <ReferralSystem />}
               {activeTab === 'admin' && <AdminDashboard />}
+              {activeTab === 'kyc' && <AdminKYC />}
               {activeTab === 'payment' && <PaymentFlow />}
             </>
           ) : (

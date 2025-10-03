@@ -22,7 +22,7 @@ import hashlib
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configuration
-PROGRAM_ID = Pubkey.from_string("DAgzfNPpc3i2EttgxfRtSN4SXQ4CwXQYjStmgrnw3BYh")
+PROGRAM_ID = Pubkey.from_string("4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK")
 RPC_URL = "https://api.devnet.solana.com"
 USDC_MINT_DEVNET = Pubkey.from_string("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr")
 

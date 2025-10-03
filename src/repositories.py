@@ -14,12 +14,17 @@ class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
     
-    async def create_user(self, session_id: str, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> User:
+    async def create_user(self, session_id: str, ip_address: Optional[str] = None, user_agent: Optional[str] = None, 
+                         email: Optional[str] = None, password_hash: Optional[str] = None, 
+                         display_name: Optional[str] = None) -> User:
         """Create a new user"""
         user = User(
             session_id=session_id,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            email=email,
+            password_hash=password_hash,
+            display_name=display_name
         )
         self.session.add(user)
         await self.session.commit()
