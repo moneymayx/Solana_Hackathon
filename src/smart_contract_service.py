@@ -39,13 +39,14 @@ class SmartContractService:
             "LOTTERY_PROGRAM_ID",
             "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # Devnet deployment
         ))
-        self.rpc_endpoint = os.getenv("SOLANA_RPC_ENDPOINT", "https://api.devnet.solana.com")  # Default to devnet
+        # Use network configuration utility
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from network_config import get_network_config
+        network_config = get_network_config()
         
-        # USDC mint addresses (network-aware)
-        if "devnet" in self.rpc_endpoint:
-            self.usdc_mint = Pubkey.from_string("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr")  # Devnet USDC
-        else:
-            self.usdc_mint = Pubkey.from_string("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")  # Mainnet USDC
+        self.rpc_endpoint = network_config.get_rpc_endpoint()
+        self.usdc_mint = Pubkey.from_string(network_config.get_usdc_mint())
         
         # Initialize Solana client
         self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
