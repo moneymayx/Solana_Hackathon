@@ -100,13 +100,24 @@ billions.db
 # ============================================
 
 # Internal development documentation
-DEVELOPMENT_LOG.md
-DEVELOPMENT_NOTES.md
-SETUP_INSTRUCTIONS.md
-WINNER_TRACKING_SYSTEM.md
-DEVELOPMENT_CHECKLIST.md
-EXCHANGE_ADDRESSES_GUIDE.md
-README_TESTING.md
+docs/development/DEVELOPMENT_LOG.md
+docs/development/DEVELOPMENT_NOTES.md
+docs/deployment/SETUP_INSTRUCTIONS.md
+docs/user-guides/WINNER_TRACKING_SYSTEM.md
+docs/development/DEVELOPMENT_CHECKLIST.md
+docs/user-guides/EXCHANGE_ADDRESSES_GUIDE.md
+docs/development/README_TESTING.md
+
+# ============================================
+# SIMULATORS AND ODDS: Security Risk
+# ============================================
+
+# Simulator scripts that reveal game mechanics
+tools/analysis/*simulator*
+tools/analysis/*demo*
+tools/analysis/simulation_log_viewer.py
+tools/analysis/anime_demo.py
+tools/analysis/demo_simulator.py
 
 # Test files that reveal strategies and probabilities
 tests/natural_odds_simulation.py
@@ -116,7 +127,13 @@ tests/test_probability.py
 tests/*simulation*
 tests/*odds*
 tests/*chance*
-anime_demo.py
+tests/*probability*
+
+# Analysis tools that could reveal game mechanics
+tools/analysis/*odds*
+tools/analysis/*chance*
+tools/analysis/*probability*
+tools/analysis/*simulation*
 
 # ============================================
 # BUILD ARTIFACTS: Optional
