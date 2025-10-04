@@ -26,7 +26,13 @@ class SolanaService:
     RATE_LIMIT_WINDOW = 60  # 1 minute cooldown between transfers per user
     
     def __init__(self):
-        self.rpc_endpoint = os.getenv("SOLANA_RPC_ENDPOINT", "https://api.mainnet-beta.solana.com")
+        # Use network configuration utility
+        import sys
+        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        from network_config import get_network_config
+        network_config = get_network_config()
+        
+        self.rpc_endpoint = network_config.get_rpc_endpoint()
         self.treasury_address = os.getenv("TREASURY_SOLANA_ADDRESS")
         self.client = AsyncClient(self.rpc_endpoint, commitment=Commitment("confirmed"))
         

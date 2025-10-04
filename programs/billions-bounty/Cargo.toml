@@ -16,6 +16,14 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
 
+[profile.release]
+opt-level = "z"        # Optimize for size instead of speed
+lto = true            # Link-time optimization
+codegen-units = 1     # Single codegen unit for better optimization
+panic = "abort"       # Smaller panic handling
+strip = true          # Remove debug symbols
+overflow-checks = false  # Disable overflow checks to reduce size
+
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-spl = "0.28.0"

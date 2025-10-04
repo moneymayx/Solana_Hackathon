@@ -15,6 +15,7 @@ billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 url = "https://api.apr.dev"
 
 [toolchain]
+anchor_version = "0.28.0"
 
 
 [provider]
