@@ -28,7 +28,7 @@ class SolanaService:
     def __init__(self):
         # Use network configuration utility
         import sys
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+        sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'monitoring'))
         from network_config import get_network_config
         network_config = get_network_config()
         
