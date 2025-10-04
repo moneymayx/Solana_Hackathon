@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-10-04T12:28:30.364144",
+  "server_available": false,
+  "gdpr_endpoints": {},
+  "consent_management": false,
+  "data_export": false,
+  "security_events": 0,
+  "rate_limiting": [],
+  "csp_headers": false,
+  "direct_service": true
+}

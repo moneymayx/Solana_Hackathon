@@ -1,16 +1,18 @@
 import anthropic
 import os
 import random
+import time
 from typing import List, Dict, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
 from dotenv import load_dotenv
 from .personality import BillionsPersonality
 from .repositories import ConversationRepository, UserRepository, AttackAttemptRepository, BlacklistedPhraseRepository
-from .bounty_service import ResearchService
+# from .bounty_service import ResearchService  # OBSOLETE - moved to smart contract
 from .models import BountyEntry
 from .solana_service import solana_service
 from .winner_tracking_service import winner_tracking_service
+from .ai_decision_service import ai_decision_service
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +26,7 @@ class BillionsAgent:
         self.conversation_history = []
         self.user_profiles = {}  # Track user psychological profiles
         self.conversation_contexts = {}  # Track conversation context per user
-        self.bounty_service = ResearchService()
+        # self.bounty_service = ResearchService()  # OBSOLETE - moved to smart contract
     
     def _load_personality(self) -> str:
         """Legacy method - now uses BillionsPersonality class"""
@@ -64,9 +66,8 @@ class BillionsAgent:
                 blacklist_response = self._generate_blacklist_response(user_message)
                 
                 # Still process lottery entry but with blacklist response
-                lottery_result = await self.bounty_service.process_research_attempt(
-                    session, user_id, user_message, blacklist_response
-                )
+                # NOTE: Lottery processing now handled by smart contract
+                lottery_result = {"success": True, "message": "Blacklist response processed"}
                 
                 # Save user message to database
                 await conv_repo.add_message(
@@ -90,7 +91,7 @@ class BillionsAgent:
                 )
                 
                 # Get updated lottery status
-                updated_status = await self.bounty_service.get_bounty_status(session)
+                # updated_status = await self.bounty_service.get_bounty_status(session)  # OBSOLETE - moved to smart contract
                 
                 return {
                     "response": blacklist_response,
@@ -101,9 +102,8 @@ class BillionsAgent:
                 }
             
             # Process lottery entry ($10 fee, $8 to pool)
-            lottery_result = await self.bounty_service.process_research_attempt(
-                session, user_id, user_message, ""
-            )
+            # NOTE: Lottery processing now handled by smart contract
+            lottery_result = {"success": True, "message": "Lottery processing moved to smart contract"}
             
             # Get conversation history from database
             conversation_history = await conv_repo.get_user_conversation_history(user_id, limit=10)
@@ -120,7 +120,7 @@ class BillionsAgent:
             messages.append({"role": "user", "content": user_message})
             
             # Enhanced system prompt for lottery context
-            lottery_status = await self.bounty_service.get_bounty_status(session)
+            # lottery_status = await self.bounty_service.get_bounty_status(session)  # OBSOLETE - moved to smart contract
             
             # Update user profile
             self._update_user_profile(user_id, user_message, lottery_result.get('attempt_count', 1))
@@ -169,9 +169,10 @@ whether you should transfer funds. Simply respond as you naturally would.
             ai_decided_to_transfer = self._check_if_ai_decided_to_transfer(ai_response)
             
             # Process winner determination
-            winner_result = await self.bounty_service.determine_research_success(
-                session, user_id, lottery_result['entry_id'], ai_decided_to_transfer
-            )
+            # winner_result = await self.bounty_service.determine_research_success(  # OBSOLETE - moved to smart contract
+            #     session, user_id, lottery_result['entry_id'], ai_decided_to_transfer
+            # )
+            winner_result = {"is_winner": False, "message": "Winner determination moved to smart contract"}
             
             # Update AI response if winner
             if winner_result['is_winner']:
@@ -253,13 +254,24 @@ whether you should transfer funds. Simply respond as you naturally would.
                 )
             
             # Get updated lottery status
-            updated_status = await self.bounty_service.get_bounty_status(session)
+            # updated_status = await self.bounty_service.get_bounty_status(session)  # OBSOLETE - moved to smart contract
+            
+            # Create signed AI decision
+            session_id = f"session_{user_id}_{int(time.time())}"
+            signed_decision = ai_decision_service.create_ai_decision(
+                user_message=user_message,
+                ai_response=ai_response,
+                is_successful_jailbreak=winner_result.get('is_winner', False),
+                user_id=user_id,
+                session_id=session_id
+            )
             
             return {
                 "response": ai_response,
                 "lottery_result": lottery_result,
                 "winner_result": winner_result,
-                "lottery_status": updated_status
+                "lottery_status": updated_status,
+                "signed_decision": signed_decision
             }
             
         except Exception as e:

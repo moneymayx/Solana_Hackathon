@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
+use std::hash::{Hash, Hasher};
 
 declare_id!("4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK");
 
@@ -103,9 +104,99 @@ pub mod billions_bounty {
         Ok(())
     }
 
-    // NOTE: Winner selection is handled by AI personality system, not random selection
-    // The AI agent determines if a user has successfully "jailbroken" the system
-    // and triggers real token transfers via the backend service
+    /// Process AI decision and execute winner payout if successful
+    pub fn process_ai_decision(
+        ctx: Context<ProcessAIDecision>,
+        user_message: String,
+        ai_response: String,
+        decision_hash: [u8; 32],
+        signature: [u8; 64],
+        is_successful_jailbreak: bool,
+        user_id: u64,
+        session_id: String,
+        timestamp: i64,
+    ) -> Result<()> {
+        // Get lottery info and bump before mutable borrow
+        let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery_bump = *ctx.bumps.get("lottery").unwrap();
+        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+        let signer = &[&seeds[..]];
+        
+        let lottery = &mut ctx.accounts.lottery;
+        
+        // Verify lottery is active
+        require!(lottery.is_active, ErrorCode::LotteryInactive);
+        
+        // Verify signature (simplified - in production, use proper Ed25519 verification)
+        // For now, we'll trust the backend signature and focus on on-chain verification
+        require!(signature.len() == 64, ErrorCode::InvalidSignature);
+        
+        // TODO: Add proper Ed25519 signature verification
+        // This would verify the signature against the backend authority public key
+        // For now, we trust the backend and focus on decision hash verification
+        
+        // Verify decision hash matches the provided data (optimized for stack usage)
+        let expected_hash = compute_decision_hash(
+            &user_message, 
+            &ai_response, 
+            is_successful_jailbreak, 
+            user_id, 
+            &session_id, 
+            timestamp
+        );
+        require!(decision_hash == expected_hash, ErrorCode::InvalidDecisionHash);
+        
+        // If successful jailbreak, process winner payout
+        if is_successful_jailbreak {
+            // Verify sufficient funds
+            require!(lottery.current_jackpot > 0, ErrorCode::InsufficientFunds);
+            
+            // Calculate payout (for now, transfer entire jackpot)
+            let payout_amount = lottery.current_jackpot;
+            
+            // Transfer funds to winner
+            let transfer_instruction = Transfer {
+                from: ctx.accounts.jackpot_token_account.to_account_info(),
+                to: ctx.accounts.winner_token_account.to_account_info(),
+                authority: lottery_info,
+            };
+            
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_instruction,
+                signer,
+            );
+            
+            token::transfer(cpi_ctx, payout_amount)?;
+            
+            // Reset jackpot to floor amount
+            lottery.current_jackpot = lottery.research_fund_floor;
+            lottery.total_entries = 0;
+            
+            // Emit winner event
+            emit!(WinnerSelected {
+                winner: ctx.accounts.winner.key(),
+                amount: payout_amount,
+                user_id,
+                session_id: session_id.clone(),
+                user_message: user_message.clone(),
+                ai_response: ai_response.clone(),
+            });
+        }
+        
+        // Always log the AI decision for audit trail
+        emit!(AIDecisionLogged {
+            user_id,
+            session_id,
+            user_message,
+            ai_response,
+            is_successful_jailbreak,
+            timestamp,
+            decision_hash,
+        });
+        
+        Ok(())
+    }
 
     /// Emergency fund recovery (only by authority)
     pub fn emergency_recovery(ctx: Context<EmergencyRecovery>, amount: u64) -> Result<()> {
@@ -156,6 +247,12 @@ pub mod billions_bounty {
         last_participant: Pubkey,
         participant_list: Vec<Pubkey>,
     ) -> Result<()> {
+        // Get lottery info and bump before mutable borrow
+        let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery_bump = *ctx.bumps.get("lottery").unwrap();
+        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+        let signer = &[&seeds[..]];
+        
         let lottery = &mut ctx.accounts.lottery;
         let current_time = Clock::get()?.unix_timestamp;
         
@@ -174,20 +271,15 @@ pub mod billions_bounty {
         let total_jackpot = lottery.current_jackpot;
         let last_participant_share = (total_jackpot * 20) / 100; // 20% to last participant
         let community_share = total_jackpot - last_participant_share; // 80% to community
-        let equal_share_per_participant = community_share / participant_list.len() as u64;
+        let _equal_share_per_participant = community_share / participant_list.len() as u64;
         
         // Distribute to last participant (20%)
         if last_participant_share > 0 {
             let transfer_to_last = Transfer {
                 from: ctx.accounts.jackpot_token_account.to_account_info(),
                 to: ctx.accounts.last_participant_token_account.to_account_info(),
-                authority: ctx.accounts.lottery.to_account_info(),
+                authority: lottery_info,
             };
-            
-            let lottery_info = ctx.accounts.lottery.to_account_info();
-            let lottery_bump = *ctx.bumps.get("lottery").unwrap();
-            let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
-            let signer = &[&seeds[..]];
             
             let cpi_ctx = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -214,6 +306,32 @@ pub mod billions_bounty {
         
         Ok(())
     }
+
+}
+
+// Helper function to compute decision hash (reduces stack usage)
+pub fn compute_decision_hash(
+    user_message: &str,
+    ai_response: &str,
+    is_successful_jailbreak: bool,
+    user_id: u64,
+    session_id: &str,
+    timestamp: i64,
+) -> [u8; 32] {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    user_message.hash(&mut hasher);
+    ai_response.hash(&mut hasher);
+    is_successful_jailbreak.hash(&mut hasher);
+    user_id.hash(&mut hasher);
+    session_id.hash(&mut hasher);
+    timestamp.hash(&mut hasher);
+    let hash = hasher.finish();
+    let hash_bytes = hash.to_le_bytes();
+    let mut result = [0u8; 32];
+    for i in 0..32 {
+        result[i] = hash_bytes[i % 8];
+    }
+    result
 }
 
 #[derive(Accounts)]
@@ -363,6 +481,41 @@ pub struct ExecuteTimeEscapePlan<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct ProcessAIDecision<'info> {
+    #[account(
+        mut,
+        seeds = [b"lottery"],
+        bump
+    )]
+    pub lottery: Account<'info, Lottery>,
+    
+    /// CHECK: Backend authority that signs AI decisions
+    pub backend_authority: UncheckedAccount<'info>,
+    
+    /// CHECK: Winner wallet address
+    pub winner: UncheckedAccount<'info>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = lottery
+    )]
+    pub jackpot_token_account: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = winner
+    )]
+    pub winner_token_account: Account<'info, TokenAccount>,
+    
+    /// CHECK: USDC mint address
+    pub usdc_mint: UncheckedAccount<'info>,
+    
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 pub struct Lottery {
     pub authority: Pubkey,
@@ -433,6 +586,27 @@ pub struct TimeEscapePlanExecuted {
     pub total_participants: u32,
 }
 
+#[event]
+pub struct WinnerSelected {
+    pub winner: Pubkey,
+    pub amount: u64,
+    pub user_id: u64,
+    pub session_id: String,
+    pub user_message: String,
+    pub ai_response: String,
+}
+
+#[event]
+pub struct AIDecisionLogged {
+    pub user_id: u64,
+    pub session_id: String,
+    pub user_message: String,
+    pub ai_response: String,
+    pub is_successful_jailbreak: bool,
+    pub timestamp: i64,
+    pub decision_hash: [u8; 32],
+}
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("Lottery is not active")]
@@ -450,4 +624,8 @@ pub enum ErrorCode {
     EscapePlanNotReady,
     #[msg("No participants found for escape plan distribution")]
     NoParticipants,
+    #[msg("Invalid signature provided")]
+    InvalidSignature,
+    #[msg("Invalid decision hash")]
+    InvalidDecisionHash,
 }

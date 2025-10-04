@@ -12,13 +12,21 @@ from src.database import get_db, create_tables
 from src.repositories import UserRepository, PrizePoolRepository, ConversationRepository
 from src.models import User
 from src.rate_limiter import RateLimiter, SecurityMonitor
-from src.bounty_service import ResearchService
+# from src.bounty_service import ResearchService  # OBSOLETE - moved to smart contract
 from src.referral_service import ReferralService
 from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
 from src.smart_contract_service import smart_contract_service
 from src.regulatory_compliance import regulatory_compliance_service
 from src.payment_flow_service import payment_flow_service
+from src.ai_decision_integration import ai_decision_integration
+from src.advanced_rate_limiter import rate_limiter, rate_limit, RateLimitType
+from src.gdpr_compliance import GDPRComplianceService, ConsentType
 from sqlalchemy.ext.asyncio import AsyncSession
+import os
+import logging
+import json
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select, update, func, and_, desc
 
 load_dotenv()
@@ -29,21 +37,42 @@ agent = BillionsAgent()
 # Initialize rate limiting and research system
 rate_limiter = RateLimiter()
 security_monitor = SecurityMonitor()
-research_service = ResearchService()
-bounty_service = research_service  # Alias for compatibility
+# research_service = ResearchService()  # OBSOLETE - moved to smart contract
+# bounty_service = research_service  # OBSOLETE - moved to smart contract
 referral_service = ReferralService()
 
 # Initialize payment services
+# Use network configuration utility
+from network_config import get_network_config
+network_config = get_network_config()
+rpc_endpoint = network_config.get_rpc_endpoint()
+
 wallet_service = WalletConnectSolanaService(
     project_id=os.getenv("WALLETCONNECT_PROJECT_ID", ""),
-    rpc_endpoint=os.getenv("SOLANA_RPC_ENDPOINT", "https://api.mainnet-beta.solana.com")
+    rpc_endpoint=rpc_endpoint
 )
 payment_orchestrator = PaymentOrchestrator(wallet_service)
+
+# Initialize GDPR compliance service
+gdpr_service = GDPRComplianceService()
 
 # Create tables on startup
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
+
+# Helper function to get user wallet address
+async def get_user_wallet_address(session: AsyncSession, user_id: int) -> Optional[str]:
+    """Get user's wallet address by user ID"""
+    try:
+        result = await session.execute(
+            select(User.wallet_address).where(User.id == user_id)
+        )
+        wallet_address = result.scalar_one_or_none()
+        return wallet_address
+    except Exception as e:
+        logger.error(f"Failed to get wallet address for user {user_id}: {e}")
+        return None
 
 # Wallet-based user authentication
 async def get_user_by_wallet(wallet_address: str, session: AsyncSession = Depends(get_db)):
@@ -773,6 +802,44 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
     # Get user IP for rate limiting
     client_ip = http_request.client.host if http_request.client else "unknown"
     
+    # Check advanced rate limiting
+    rate_limit_status = await rate_limiter.check_rate_limit(
+        RateLimitType.CHAT_MESSAGES,
+        user_id=request.user_id,
+        ip_address=client_ip,
+        session_id=request.session_id,
+        request_metadata={
+            "user_agent": http_request.headers.get("user-agent"),
+            "content_length": len(request.message)
+        }
+    )
+    
+    if rate_limit_status.is_limited:
+        # Log security event
+        await rate_limiter.log_security_event(
+            session=session,
+            event_type="rate_limit_exceeded",
+            description=f"Chat rate limit exceeded: {rate_limit_status.reason}",
+            severity="medium",
+            user_id=request.user_id,
+            ip_address=client_ip,
+            session_id=request.session_id,
+            additional_data={
+                "limit_type": rate_limit_status.limit_type.value,
+                "reset_time": rate_limit_status.reset_time
+            }
+        )
+        
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "Rate limit exceeded",
+                "reason": rate_limit_status.reason,
+                "reset_time": rate_limit_status.reset_time,
+                "limit_type": rate_limit_status.limit_type.value
+            }
+        )
+    
     # Check rate limiting
     allowed, rate_limit_message = rate_limiter.is_allowed(client_ip)
     if not allowed:
@@ -827,6 +894,28 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
     # Get AI response with bounty integration
     chat_result = await agent.chat(request.message, session, user.id)
     
+    # Process AI decision on-chain if we have a signed decision
+    on_chain_result = None
+    if "signed_decision" in chat_result:
+        # Get winner wallet address if this is a successful jailbreak
+        winner_wallet = None
+        if chat_result["winner_result"].get("is_winner", False):
+            # Get user's wallet address
+            winner_wallet = await get_user_wallet_address(session, user.id)
+        
+        # Process the decision on-chain
+        on_chain_result = await ai_decision_integration.process_ai_decision_on_chain(
+            signed_decision=chat_result["signed_decision"],
+            winner_wallet_address=winner_wallet
+        )
+        
+        # Log the decision to database
+        await ai_decision_integration.log_decision_to_database(
+            session=session,
+            signed_decision=chat_result["signed_decision"],
+            on_chain_result=on_chain_result
+        )
+    
     return {
         "response": chat_result["response"],
         "bounty_result": chat_result.get("bounty_result", chat_result.get("lottery_result", {})),
@@ -835,24 +924,278 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
         "security_analysis": security_analysis,
         "sybil_analysis": sybil_analysis,
         "question_eligibility": eligibility,
-        "questions_remaining": eligibility.get("questions_remaining", 0) if eligibility["eligible"] else 0
+        "questions_remaining": eligibility.get("questions_remaining", 0) if eligibility["eligible"] else 0,
+        "signed_decision": chat_result.get("signed_decision"),
+        "on_chain_result": on_chain_result
     }
 
 @app.get("/api/prize-pool")
 async def get_prize_pool_status(session: AsyncSession = Depends(get_db)):
     """Get current bounty jackpot status"""
-    status = await bounty_service.get_bounty_status(session)
+    # status = await bounty_service.get_bounty_status(session)  # OBSOLETE - moved to smart contract
+    status = {"message": "Bounty status moved to smart contract"}
     return status
+
+@app.get("/api/ai-decisions/public-key")
+async def get_ai_decision_public_key():
+    """Get the public key for AI decision verification"""
+    from src.ai_decision_service import ai_decision_service
+    return {
+        "public_key": ai_decision_service.get_public_key_bytes().hex(),
+        "message": "Use this public key to verify AI decisions on-chain"
+    }
+
+@app.post("/api/ai-decisions/verify")
+async def verify_ai_decision(request: dict, session: AsyncSession = Depends(get_db)):
+    """Verify an AI decision signature"""
+    from src.ai_decision_service import ai_decision_service
+    
+    try:
+        is_valid = ai_decision_service.verify_decision(request)
+        return {
+            "valid": is_valid,
+            "message": "Decision verified successfully" if is_valid else "Invalid decision signature"
+        }
+    except Exception as e:
+        return {
+            "valid": False,
+            "error": str(e)
+        }
+
+@app.get("/api/ai-decisions/audit-trail")
+async def get_ai_decision_audit_trail(
+    limit: int = 100, 
+    offset: int = 0,
+    session: AsyncSession = Depends(get_db)
+):
+    """Get audit trail of AI decisions"""
+    try:
+        from src.models import SecurityEvent
+        
+        result = await session.execute(
+            select(SecurityEvent)
+            .where(SecurityEvent.event_type == "ai_decision_processed")
+            .order_by(desc(SecurityEvent.timestamp))
+            .limit(limit)
+            .offset(offset)
+        )
+        
+        events = result.scalars().all()
+        
+        audit_trail = []
+        for event in events:
+            try:
+                additional_data = json.loads(event.additional_data) if event.additional_data else {}
+                audit_trail.append({
+                    "id": event.id,
+                    "timestamp": event.timestamp.isoformat(),
+                    "session_id": event.session_id,
+                    "severity": event.severity,
+                    "signed_decision": additional_data.get("signed_decision"),
+                    "on_chain_result": additional_data.get("on_chain_result"),
+                    "decision_hash": additional_data.get("decision_hash")
+                })
+            except Exception as e:
+                logger.error(f"Failed to parse audit event {event.id}: {e}")
+                continue
+        
+        return {
+            "success": True,
+            "audit_trail": audit_trail,
+            "total_count": len(audit_trail)
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+# ===========================
+# GDPR COMPLIANCE ENDPOINTS
+# ===========================
+
+class DataDeletionRequest(BaseModel):
+    user_id: int
+    confirmation: str  # User must type "DELETE" to confirm
+
+class DataExportRequest(BaseModel):
+    user_id: int
+
+class ConsentRequest(BaseModel):
+    user_id: int
+    consent_type: str  # "essential", "analytics", "marketing", "research"
+    granted: bool
+    consent_text: str
+
+@app.post("/api/gdpr/delete-data")
+async def delete_user_data(
+    request: DataDeletionRequest,
+    http_request: Request
+):
+    """
+    GDPR Article 17 - Right to erasure (Right to be forgotten)
+    
+    Deletes all personal data for a user while preserving:
+    - Anonymized research data
+    - Legal compliance records
+    - System integrity data
+    """
+    try:
+        # Validate confirmation
+        if request.confirmation != "DELETE":
+            raise HTTPException(
+                status_code=400, 
+                detail="Confirmation must be 'DELETE' to proceed with data deletion"
+            )
+        
+        # Get request metadata
+        request_ip = http_request.client.host
+        user_agent = http_request.headers.get("user-agent", "Unknown")
+        
+        # Process data deletion
+        deletion_report = await gdpr_service.handle_data_deletion_request(
+            user_id=request.user_id,
+            request_ip=request_ip,
+            user_agent=user_agent
+        )
+        
+        return {
+            "success": True,
+            "message": "Data deletion completed successfully",
+            "deletion_report": deletion_report
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GDPR data deletion failed: {e}")
+        raise HTTPException(status_code=500, detail="Data deletion failed")
+
+@app.get("/api/gdpr/export-data/{user_id}")
+async def export_user_data(
+    user_id: int,
+    http_request: Request
+):
+    """
+    GDPR Article 20 - Right to data portability
+    
+    Exports all user data in a machine-readable format
+    """
+    try:
+        # Get request metadata
+        request_ip = http_request.client.host
+        user_agent = http_request.headers.get("user-agent", "Unknown")
+        
+        # Export user data
+        export_package = await gdpr_service.export_user_data(
+            user_id=user_id,
+            request_ip=request_ip,
+            user_agent=user_agent
+        )
+        
+        return {
+            "success": True,
+            "message": "Data export completed successfully",
+            "export_package": export_package
+        }
+        
+    except Exception as e:
+        logger.error(f"GDPR data export failed: {e}")
+        raise HTTPException(status_code=500, detail="Data export failed")
+
+@app.post("/api/gdpr/consent")
+async def manage_consent(
+    request: ConsentRequest,
+    http_request: Request
+):
+    """
+    GDPR Article 6 - Lawfulness of processing
+    
+    Manages user consent for different types of data processing
+    """
+    try:
+        # Validate consent type
+        try:
+            consent_type = ConsentType(request.consent_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid consent type. Must be one of: {[t.value for t in ConsentType]}"
+            )
+        
+        # Get request metadata
+        request_ip = http_request.client.host
+        user_agent = http_request.headers.get("user-agent", "Unknown")
+        
+        # Process consent
+        consent_result = await gdpr_service.manage_consent(
+            user_id=request.user_id,
+            consent_type=consent_type,
+            granted=request.granted,
+            request_ip=request_ip,
+            user_agent=user_agent,
+            consent_text=request.consent_text
+        )
+        
+        return {
+            "success": True,
+            "message": "Consent updated successfully",
+            "consent_result": consent_result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"GDPR consent management failed: {e}")
+        raise HTTPException(status_code=500, detail="Consent management failed")
+
+@app.get("/api/gdpr/processing-records")
+async def get_data_processing_records():
+    """
+    GDPR Article 30 - Records of processing activities
+    
+    Returns records of all data processing activities
+    """
+    try:
+        records = await gdpr_service.get_data_processing_records()
+        
+        return {
+            "success": True,
+            "processing_records": records,
+            "total": len(records)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get data processing records: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get processing records")
+
+@app.get("/api/gdpr/retention-compliance")
+async def check_data_retention_compliance():
+    """
+    Check compliance with data retention periods
+    """
+    try:
+        compliance_report = await gdpr_service.check_data_retention_compliance()
+        
+        return {
+            "success": True,
+            "compliance_report": compliance_report
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to check data retention compliance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check retention compliance")
 
 @app.post("/api/bounty/escape-plan/trigger")
 async def trigger_escape_plan(session: AsyncSession = Depends(get_db)):
     """Manually trigger the escape plan distribution (admin only)"""
     try:
         # Get current research state
-        research_state = await bounty_service.get_or_create_research_state(session)
+        # research_state = await bounty_service.get_or_create_research_state(session)  # OBSOLETE - moved to smart contract
         
         # Check if escape plan should be triggered
-        escape_status = await bounty_service._check_escape_plan_status(session, research_state)
+        # escape_status = await bounty_service._check_escape_plan_status(session, research_state)  # OBSOLETE - moved to smart contract
         
         if not escape_status.get("should_trigger", False):
             return {
@@ -862,7 +1205,7 @@ async def trigger_escape_plan(session: AsyncSession = Depends(get_db)):
             }
         
         # Execute the escape plan
-        await bounty_service._execute_escape_plan(session, research_state)
+        # await bounty_service._execute_escape_plan(session, research_state)  # OBSOLETE - moved to smart contract
         
         return {
             "success": True,
@@ -880,8 +1223,8 @@ async def get_escape_plan_status(session: AsyncSession = Depends(get_db)):
         from sqlalchemy import select
         from .models import User
         
-        research_state = await bounty_service.get_or_create_research_state(session)
-        escape_status = await bounty_service._check_escape_plan_status(session, research_state)
+        # research_state = await bounty_service.get_or_create_research_state(session)  # OBSOLETE - moved to smart contract
+        # escape_status = await bounty_service._check_escape_plan_status(session, research_state)  # OBSOLETE - moved to smart contract
         
         # Get last participant details if available
         last_participant_data = None
@@ -911,7 +1254,8 @@ async def get_escape_plan_status(session: AsyncSession = Depends(get_db)):
 @app.get("/api/stats")
 async def get_platform_stats(session: AsyncSession = Depends(get_db)):
     """Get platform statistics"""
-    bounty_status = await bounty_service.get_bounty_status(session)
+    # bounty_status = await bounty_service.get_bounty_status(session)  # OBSOLETE - moved to smart contract
+    bounty_status = {"message": "Bounty status moved to smart contract"}
     
     return {
         "bounty_status": bounty_status,
@@ -920,8 +1264,8 @@ async def get_platform_stats(session: AsyncSession = Depends(get_db)):
             "max_requests_per_hour": rate_limiter.max_requests_per_hour
         },
         "bounty_structure": {
-            "entry_fee": bounty_status["entry_fee"],
-            "pool_contribution": bounty_status["pool_contribution"],
+            "entry_fee": 10.0,  # $10 entry fee
+            "pool_contribution": 8.0,  # $8 to research fund
             "prize_floor": 10000.0,
             "contribution_rate": 0.80
         }
@@ -1501,10 +1845,11 @@ async def get_fund_status(session: AsyncSession = Depends(get_db)):
 @app.post("/api/funds/route/{deposit_id}")
 async def manual_route_funds(deposit_id: int, session: AsyncSession = Depends(get_db)):
     """Manually trigger fund routing for a specific deposit"""
-    from src.fund_routing_service import fund_routing_service
+    # from src.fund_routing_service import fund_routing_service  # OBSOLETE - moved to smart contract
     
     try:
-        result = await fund_routing_service.manual_route_funds(session, deposit_id)
+        # result = await fund_routing_service.manual_route_funds(session, deposit_id)  # OBSOLETE - moved to smart contract
+        result = {"success": False, "message": "Fund routing moved to smart contract"}
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to route funds: {str(e)}")
@@ -2930,7 +3275,8 @@ async def use_free_question(request: dict, session: AsyncSession = Depends(get_d
 async def get_research_fund_status(session: AsyncSession = Depends(get_db)):
     """Get current research fund status"""
     try:
-        status = await research_service.get_research_status(session)
+        # status = await research_service.get_research_status(session)  # OBSOLETE - moved to smart contract
+        status = {"message": "Research status moved to smart contract"}
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get research status: {str(e)}")
@@ -2946,9 +3292,10 @@ async def process_research_attempt(request: dict, session: AsyncSession = Depend
         if not all([user_id, message_content, ai_response]):
             raise HTTPException(status_code=400, detail="user_id, message_content, and ai_response are required")
         
-        result = await research_service.process_research_attempt(
-            session, user_id, message_content, ai_response
-        )
+        # result = await research_service.process_research_attempt(  # OBSOLETE - moved to smart contract
+        #     session, user_id, message_content, ai_response
+        # )
+        result = {"success": False, "message": "Research processing moved to smart contract"}
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process research attempt: {str(e)}")
@@ -2964,9 +3311,10 @@ async def determine_research_success(request: dict, session: AsyncSession = Depe
         if not all([user_id, entry_id]):
             raise HTTPException(status_code=400, detail="user_id and entry_id are required")
         
-        result = await research_service.determine_research_success(
-            session, user_id, entry_id, should_transfer
-        )
+        # result = await research_service.determine_research_success(  # OBSOLETE - moved to smart contract
+        #     session, user_id, entry_id, should_transfer
+        # )
+        result = {"success": False, "message": "Research success determination moved to smart contract"}
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to determine research success: {str(e)}")
