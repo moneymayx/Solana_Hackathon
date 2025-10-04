@@ -66,6 +66,13 @@ logs/
 # SECURITY CRITICAL: NEVER COMMIT
 # ============================================
 
+# Private keys and certificates (ABSOLUTE SECURITY)
+config/keys/*.pem
+*.pem
+*.key
+*-key.pem
+*-private.pem
+
 # Wallet keypairs and seed phrases (ABSOLUTE SECURITY)
 lottery-authority-devnet.json
 lottery-authority-mainnet.json
