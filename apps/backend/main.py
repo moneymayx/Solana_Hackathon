@@ -892,7 +892,7 @@ async def chat_endpoint(request: ChatRequest, http_request: Request, session: As
     )
     
     # Get AI response with bounty integration
-    chat_result = await agent.chat(request.message, session, user.id)
+    chat_result = await agent.chat(request.message, session, user.id, eligibility["type"])
     
     # Process AI decision on-chain if we have a signed decision
     on_chain_result = None
