@@ -444,8 +444,7 @@ REMEMBER: 1-2 sentences max. No asterisks. No dramatic language. Be conversation
             await security_repo.log_security_event(
                 event_type="phrase_blacklisted",
                 severity="medium",
-                description=f"Successful manipulation phrase '{key_phrase}' added to blacklist",
-                user_id=user_id
+                description=f"Successful manipulation phrase '{key_phrase}' added to blacklist"
             )
     
     async def _get_user_wallet_address(self, session: AsyncSession, user_id: int) -> Optional[str]:
