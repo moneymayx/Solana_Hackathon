@@ -9,7 +9,14 @@ from .base import Base
 from .models import (
     User, Conversation, AttackAttempt, Transaction, PrizePool, SecurityEvent, 
     PaymentTransaction, BountyState, BountyEntry, BlacklistedPhrase, 
-    Winner, ConnectedWallet, WalletFundingSource
+    Winner, ConnectedWallet, WalletFundingSource, EmailVerification,
+    ReferralCode, FundDeposit, FundTransfer, Referral, FreeQuestions
+)
+
+# Import simulation models
+from .simulation_models import (
+    SimulationRun, SimulationConversation, SimulationMessage, 
+    SuccessfulAttempt, SimulationPattern, SimulationAlert, SimulationReport
 )
 
 # Database URL - defaults to SQLite for development

@@ -108,6 +108,12 @@ docs/development/DEVELOPMENT_CHECKLIST.md
 docs/user-guides/EXCHANGE_ADDRESSES_GUIDE.md
 docs/development/README_TESTING.md
 
+# Simulation logging system documentation (security-sensitive)
+docs/system/SIMULATION_LOGGING_SYSTEM.md
+docs/system/NATURAL_ODDS_SIMULATOR_GUIDE.md
+docs/system/SIMULATION_ANALYSIS_GUIDE.md
+docs/system/SIMULATION_DATABASE_SCHEMA.md
+
 # ============================================
 # SIMULATORS AND ODDS: Security Risk
 # ============================================
@@ -148,3 +154,10 @@ programs/billions-bounty/target/deploy/*.so
 
 # Note: Deployment scripts, documentation, and integration code are PUBLIC
 # for transparency and verification. See TRANSPARENCY_AUDIT.md for details.
+
+# ============================================
+# BUSINESS PROJECTIONS: Confidential
+# ============================================
+
+# Revenue and cost projections (confidential business data)
+REVENUE_COST_PROJECTION.md

@@ -56,7 +56,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     message_type: Mapped[str] = mapped_column(String(20))  # 'user' or 'assistant'
     content: Mapped[str] = mapped_column(Text)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
