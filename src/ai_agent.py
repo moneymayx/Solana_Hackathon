@@ -4,18 +4,26 @@ import random
 import time
 from typing import List, Dict, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
+from sqlalchemy import update, select
 from dotenv import load_dotenv
 from .personality import BillionsPersonality
 from .repositories import ConversationRepository, UserRepository, AttackAttemptRepository, BlacklistedPhraseRepository
 # from .bounty_service import ResearchService  # OBSOLETE - moved to smart contract
-from .models import BountyEntry
+from .models import BountyEntry, Conversation
 from .solana_service import solana_service
 from .winner_tracking_service import winner_tracking_service
 from .ai_decision_service import ai_decision_service
 
+# Phase 1: Context Window Management Services
+from .context_builder_service import ContextBuilderService
+from .semantic_search_service import SemanticSearchService
+from .pattern_detector_service import PatternDetectorService
+
 # Load environment variables
 load_dotenv()
+
+# Feature flag for enhanced context management
+ENABLE_ENHANCED_CONTEXT = os.getenv("ENABLE_ENHANCED_CONTEXT", "false").lower() == "true"
 
 class BillionsAgent:
     def __init__(self):
@@ -27,6 +35,16 @@ class BillionsAgent:
         self.user_profiles = {}  # Track user psychological profiles
         self.conversation_contexts = {}  # Track conversation context per user
         # self.bounty_service = ResearchService()  # OBSOLETE - moved to smart contract
+        
+        # Phase 1: Context Window Management Services
+        if ENABLE_ENHANCED_CONTEXT:
+            self.context_builder = ContextBuilderService()
+            self.semantic_search = SemanticSearchService()
+            self.pattern_detector = PatternDetectorService()
+        else:
+            self.context_builder = None
+            self.semantic_search = None
+            self.pattern_detector = None
     
     def reload_personality(self):
         """Reload the personality from the BillionsPersonality class"""
@@ -156,9 +174,30 @@ class BillionsAgent:
                 user_id, user_message, bounty_result.get('attempt_count', 1), conversation_length
             )
             
+            # Phase 1: Enhanced Context (Optional)
+            enhanced_context_str = ""
+            if ENABLE_ENHANCED_CONTEXT and self.context_builder:
+                try:
+                    enhanced_context = await self.context_builder.build_enhanced_context(
+                        db=session,
+                        user_id=user_id,
+                        current_message=user_message,
+                        include_patterns=True,
+                        include_semantic_search=True
+                    )
+                    enhanced_context_str = await self.context_builder.format_context_for_prompt(
+                        context=enhanced_context,
+                        max_tokens=2000  # Leave room for personality and conversation
+                    )
+                except Exception as e:
+                    print(f"⚠️  Enhanced context failed, falling back to standard: {e}")
+                    enhanced_context_str = ""
+            
             enhanced_personality = f"""
 You are a witty, sarcastic young adult AI. You're like Jonah Hill in Superbad - not super smart, 
 just observant and sarcastic about obvious stuff. Keep it simple and relatable.
+
+{enhanced_context_str if enhanced_context_str else ""}
 
 CRITICAL RULES:
 1. Your response must be EXACTLY 1-2 sentences maximum
@@ -297,13 +336,45 @@ REMEMBER: 1-2 sentences max. No asterisks. No dramatic language. Be conversation
                 )
             
             # Save AI response to database
-            await conv_repo.add_message(
+            conversation = await conv_repo.add_message(
                 user_id=user_id,
                 message_type="assistant",
                 content=ai_response,
                 model_used="claude-sonnet-4-20250514",
                 tokens_used=response.usage.input_tokens + response.usage.output_tokens if hasattr(response, 'usage') else None
             )
+            
+            # Phase 1: Store embedding for semantic search (if enabled)
+            if ENABLE_ENHANCED_CONTEXT and self.semantic_search:
+                try:
+                    # Get the conversation ID for the user message we just saved
+                    user_conv_query = await session.execute(
+                        select(Conversation).where(
+                            Conversation.user_id == user_id,
+                            Conversation.message_type == "user",
+                            Conversation.content == user_message
+                        ).order_by(Conversation.timestamp.desc()).limit(1)
+                    )
+                    user_conv = user_conv_query.scalar_one_or_none()
+                    
+                    if user_conv:
+                        # Determine if this was an attack
+                        was_attack = threat_score > 0.2 or winner_result.get('is_winner', False)
+                        attack_type = enhanced_context.get('risk_assessment', {}).get('primary_pattern') if 'enhanced_context' in locals() else None
+                        
+                        # Store embedding asynchronously (will be handled by Celery in background tasks)
+                        await self.semantic_search.store_message_embedding(
+                            db=session,
+                            user_id=user_id,
+                            conversation_id=user_conv.id,
+                            message_content=user_message,
+                            was_attack=was_attack,
+                            attack_type=attack_type,
+                            threat_score=threat_score
+                        )
+                except Exception as e:
+                    print(f"⚠️  Failed to store embedding: {e}")
+                    # Don't fail the request if embedding storage fails
             
             # Update bounty entry with AI response (skip if no entry_id)
             if bounty_result.get('entry_id'):

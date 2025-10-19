@@ -3,8 +3,9 @@ Database models for Billions
 """
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Text, DateTime, Float, Integer, Boolean, ForeignKey
+from sqlalchemy import String, Text, DateTime, Float, Integer, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 from .base import Base
 
 class User(Base):
@@ -376,3 +377,493 @@ class FreeQuestions(Base):
     # Relationships
     user: Mapped["User"] = relationship("User")
     referral: Mapped[Optional["Referral"]] = relationship("Referral")
+
+
+# ===========================
+# PHASE 2: TOKEN ECONOMICS MODELS ($100Bs)
+# ===========================
+
+class TokenBalance(Base):
+    """
+    Track user's $100Bs token balance and last verification
+    """
+    __tablename__ = "token_balances"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, index=True)
+    wallet_address: Mapped[str] = mapped_column(String(255), index=True)
+    
+    # Token balance
+    token_balance: Mapped[float] = mapped_column(Float, default=0.0)
+    last_verified: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Current discount tier
+    discount_rate: Mapped[float] = mapped_column(Float, default=0.0)  # 0.0 to 0.5
+    tokens_to_next_tier: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+class StakingPosition(Base):
+    """
+    Track user's staked $100Bs tokens
+    """
+    __tablename__ = "staking_positions"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Staking details
+    staked_amount: Mapped[float] = mapped_column(Float)
+    staking_period_days: Mapped[int] = mapped_column(Integer)  # 30, 60, or 90
+    apy_rate: Mapped[float] = mapped_column(Float)  # APY at time of staking
+    
+    # Timing
+    staked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    unlocks_at: Mapped[datetime] = mapped_column(DateTime)
+    
+    # Rewards
+    estimated_rewards: Mapped[float] = mapped_column(Float)
+    claimed_rewards: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # On-chain reference
+    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+class BuybackEvent(Base):
+    """
+    Track platform token buyback events
+    """
+    __tablename__ = "buyback_events"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    
+    # Buyback details
+    revenue_amount: Mapped[float] = mapped_column(Float)  # Total revenue for period
+    buyback_amount: Mapped[float] = mapped_column(Float)  # 5% allocated to buyback
+    tokens_bought: Mapped[float] = mapped_column(Float)  # Tokens purchased
+    average_price: Mapped[float] = mapped_column(Float)  # Average price per token
+    
+    # Timing
+    period_start: Mapped[datetime] = mapped_column(DateTime)
+    period_end: Mapped[datetime] = mapped_column(DateTime)
+    executed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # On-chain reference
+    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, executed, failed
+
+
+class TokenPrice(Base):
+    """
+    Track $100Bs token price history
+    """
+    __tablename__ = "token_prices"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    
+    # Price data
+    price_usd: Mapped[float] = mapped_column(Float)
+    volume_24h: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    market_cap: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Source
+    source: Mapped[str] = mapped_column(String(50), default="jupiter")  # jupiter, raydium, etc.
+    
+    # Timestamp
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class DiscountUsage(Base):
+    """
+    Track usage of token holder discounts
+    """
+    __tablename__ = "discount_usage"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Discount details
+    base_price: Mapped[float] = mapped_column(Float)
+    discount_rate: Mapped[float] = mapped_column(Float)
+    discount_amount: Mapped[float] = mapped_column(Float)
+    final_price: Mapped[float] = mapped_column(Float)
+    
+    # Token balance at time of discount
+    token_balance: Mapped[float] = mapped_column(Float)
+    
+    # Service details
+    service_type: Mapped[str] = mapped_column(String(100), default="query")  # query, entry_fee, etc.
+    
+    # Timestamp
+    used_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+# ===========================
+# PHASE 1: CONTEXT WINDOW MANAGEMENT MODELS
+# ===========================
+
+class MessageEmbedding(Base):
+    """
+    Store vector embeddings of user messages for semantic search
+    Used to find similar historical attack attempts
+    """
+    __tablename__ = "message_embeddings"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    conversation_id: Mapped[int] = mapped_column(Integer, ForeignKey("conversations.id"), index=True)
+    message_content: Mapped[str] = mapped_column(Text)
+    
+    # Vector embedding (1536 dimensions for OpenAI ada-002)
+    embedding: Mapped[list] = mapped_column(Vector(1536))
+    
+    # Metadata
+    was_attack: Mapped[bool] = mapped_column(Boolean, default=False)
+    attack_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    threat_score: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    conversation: Mapped["Conversation"] = relationship("Conversation")
+
+
+class AttackPattern(Base):
+    """
+    Store detected attack patterns and techniques
+    Used for pattern recognition and adaptive defense
+    """
+    __tablename__ = "attack_patterns"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    
+    # Pattern classification
+    pattern_type: Mapped[str] = mapped_column(String(100), index=True)  # e.g., 'role_play', 'function_confusion', 'emotional_manipulation'
+    pattern_name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    
+    # Pattern details
+    example_messages: Mapped[dict] = mapped_column(JSON)  # List of example messages
+    indicators: Mapped[dict] = mapped_column(JSON)  # Keywords, phrases, structure patterns
+    
+    # Effectiveness tracking
+    times_seen: Mapped[int] = mapped_column(Integer, default=1)
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    success_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    avg_threat_score: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Detection confidence
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.0)  # How confident we are in this pattern
+    
+    # Timestamps
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    should_monitor: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ContextSummary(Base):
+    """
+    Store summarized context from older conversations
+    Used to reduce token usage while maintaining awareness of user history
+    """
+    __tablename__ = "context_summaries"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Time window for this summary
+    start_time: Mapped[datetime] = mapped_column(DateTime, index=True)
+    end_time: Mapped[datetime] = mapped_column(DateTime, index=True)
+    
+    # Summary content
+    summary_text: Mapped[str] = mapped_column(Text)  # AI-generated summary of the conversation period
+    message_count: Mapped[int] = mapped_column(Integer)  # Number of messages summarized
+    
+    # Key insights
+    attack_types_seen: Mapped[dict] = mapped_column(JSON)  # Dict of attack types and counts
+    user_techniques: Mapped[dict] = mapped_column(JSON)  # Notable techniques user tried
+    ai_responses: Mapped[dict] = mapped_column(JSON)  # Key AI response patterns
+    
+    # Metadata
+    token_savings: Mapped[int] = mapped_column(Integer)  # Estimated tokens saved by summarizing
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+# ===========================
+# PHASE 3: TEAM COLLABORATION MODELS
+# ===========================
+
+class Team(Base):
+    """
+    Team model for collaborative attempts
+    Users can form teams to pool resources and share strategies
+    """
+    __tablename__ = "teams"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Team leader
+    leader_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Team settings
+    max_members: Mapped[int] = mapped_column(Integer, default=5)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)  # Public teams appear in discovery
+    invite_code: Mapped[Optional[str]] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    
+    # Team stats
+    total_pool: Mapped[float] = mapped_column(Float, default=0.0)  # Current pooled funds
+    total_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    total_spent: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    leader: Mapped["User"] = relationship("User", foreign_keys=[leader_id])
+    members: Mapped[list["TeamMember"]] = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
+    invitations: Mapped[list["TeamInvitation"]] = relationship("TeamInvitation", back_populates="team", cascade="all, delete-orphan")
+    attempts: Mapped[list["TeamAttempt"]] = relationship("TeamAttempt", back_populates="team", cascade="all, delete-orphan")
+    messages: Mapped[list["TeamMessage"]] = relationship("TeamMessage", back_populates="team", cascade="all, delete-orphan")
+    fundings: Mapped[list["TeamFunding"]] = relationship("TeamFunding", back_populates="team", cascade="all, delete-orphan")
+
+
+class TeamMember(Base):
+    """
+    Team membership record
+    Tracks who's in the team and their contribution share
+    """
+    __tablename__ = "team_members"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Role
+    role: Mapped[str] = mapped_column(String(50), default="member")  # leader, member, viewer
+    
+    # Contribution tracking
+    total_contributed: Mapped[float] = mapped_column(Float, default=0.0)
+    contribution_percentage: Mapped[float] = mapped_column(Float, default=0.0)  # Share of team pool
+    
+    # Status
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Timestamps
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team", back_populates="members")
+    user: Mapped["User"] = relationship("User")
+
+
+class TeamInvitation(Base):
+    """
+    Team invitation record
+    Tracks pending invitations to join a team
+    """
+    __tablename__ = "team_invitations"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    
+    # Invitee
+    invitee_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    invitee_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # For non-registered users
+    
+    # Inviter
+    inviter_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, accepted, declined, expired
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)  # Invitations expire after 7 days
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team", back_populates="invitations")
+    invitee: Mapped[Optional["User"]] = relationship("User", foreign_keys=[invitee_user_id])
+    inviter: Mapped["User"] = relationship("User", foreign_keys=[inviter_user_id])
+
+
+class TeamAttempt(Base):
+    """
+    Team attempt record
+    Tracks attempts made by the team
+    """
+    __tablename__ = "team_attempts"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    
+    # Attempt details
+    conversation_id: Mapped[int] = mapped_column(Integer, ForeignKey("conversations.id"), index=True)
+    initiated_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)  # Which member made the attempt
+    
+    # Cost breakdown
+    cost: Mapped[float] = mapped_column(Float)
+    funded_by_pool: Mapped[float] = mapped_column(Float, default=0.0)  # Amount from team pool
+    funded_by_initiator: Mapped[float] = mapped_column(Float, default=0.0)  # Amount from initiator's wallet
+    
+    # Result
+    was_successful: Mapped[bool] = mapped_column(Boolean, default=False)
+    threat_score: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # AI Response
+    ai_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team", back_populates="attempts")
+    conversation: Mapped["Conversation"] = relationship("Conversation")
+    initiator: Mapped["User"] = relationship("User")
+
+
+class TeamMessage(Base):
+    """
+    Team chat message
+    Internal team communication for strategy sharing
+    """
+    __tablename__ = "team_messages"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Message content
+    content: Mapped[str] = mapped_column(Text)
+    message_type: Mapped[str] = mapped_column(String(50), default="text")  # text, system, strategy, attempt_result
+    
+    # Optional extra data
+    extra_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # For strategy links, attempt refs, etc.
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Status
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team", back_populates="messages")
+    user: Mapped["User"] = relationship("User")
+
+
+class TeamFunding(Base):
+    """
+    Team funding record
+    Tracks individual contributions to team pool
+    """
+    __tablename__ = "team_funding"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Funding details
+    amount: Mapped[float] = mapped_column(Float)
+    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Solana transaction
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="completed")  # pending, completed, failed, refunded
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team", back_populates="fundings")
+    user: Mapped["User"] = relationship("User")
+
+
+class TeamPrizeDistribution(Base):
+    """
+    Team prize distribution record
+    Tracks how prizes are split among team members
+    """
+    __tablename__ = "team_prize_distributions"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    team_id: Mapped[int] = mapped_column(Integer, ForeignKey("teams.id"), index=True)
+    winner_id: Mapped[int] = mapped_column(Integer, ForeignKey("winners.id"), index=True)
+    
+    # Distribution details
+    total_prize: Mapped[float] = mapped_column(Float)
+    distribution_method: Mapped[str] = mapped_column(String(50), default="proportional")  # proportional, equal, custom
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, processing, completed, failed
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    distributed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    team: Mapped["Team"] = relationship("Team")
+    winner: Mapped["Winner"] = relationship("Winner")
+    member_distributions: Mapped[list["TeamMemberPrize"]] = relationship("TeamMemberPrize", back_populates="distribution", cascade="all, delete-orphan")
+
+
+class TeamMemberPrize(Base):
+    """
+    Individual team member's prize share
+    """
+    __tablename__ = "team_member_prizes"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    distribution_id: Mapped[int] = mapped_column(Integer, ForeignKey("team_prize_distributions.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    
+    # Prize share
+    amount: Mapped[float] = mapped_column(Float)
+    percentage: Mapped[float] = mapped_column(Float)  # Percentage of total prize
+    
+    # Payment
+    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, paid, failed
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    distribution: Mapped["TeamPrizeDistribution"] = relationship("TeamPrizeDistribution", back_populates="member_distributions")
+    user: Mapped["User"] = relationship("User")

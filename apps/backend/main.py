@@ -34,6 +34,18 @@ load_dotenv()
 app = FastAPI(title="Billions")
 agent = BillionsAgent()
 
+# ===========================
+# ENHANCEMENT API ROUTERS
+# ===========================
+# Import and include all enhancement API routers (Phase 1, 2, 3)
+try:
+    from src.api.app_integration import include_enhancement_routers
+    include_enhancement_routers(app)
+    logger.info("✅ Enhancement API routers registered successfully")
+except Exception as e:
+    logger.warning(f"⚠️  Could not load enhancement routers: {e}")
+# ===========================
+
 # Initialize rate limiting and research system
 rate_limiter = RateLimiter()
 security_monitor = SecurityMonitor()
