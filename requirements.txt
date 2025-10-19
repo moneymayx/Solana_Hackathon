@@ -1,0 +1,67 @@
+# Billions Bounty - Python Dependencies
+# Updated for Platform Enhancements Implementation
+
+# ===========================
+# CORE FRAMEWORK
+# ===========================
+anthropic>=0.7.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# ===========================
+# DATABASE
+# ===========================
+sqlalchemy>=2.0.0
+alembic>=1.8.0
+aiosqlite>=0.19.0  # Keep for backward compatibility
+# psycopg2-binary==2.9.9  # Removed: Not compatible with Python 3.14, use asyncpg instead
+asyncpg>=0.30.0  # NEW: Async PostgreSQL driver (this is all we need)
+
+# ===========================
+# CONTEXT WINDOW MANAGEMENT (NEW)
+# ===========================
+pgvector>=0.4.1  # NEW: Vector similarity search
+openai>=2.5.0  # NEW: Embeddings API (upgraded to latest)
+numpy>=2.3.4  # NEW: For vector operations
+
+# ===========================
+# BACKGROUND TASKS (NEW)
+# ===========================
+celery>=5.5.3  # NEW: Async task queue
+redis>=6.4.0  # Upgraded: For Celery broker
+
+# ===========================
+# BLOCKCHAIN & SOLANA
+# ===========================
+solana>=0.30.0
+anchorpy>=0.20.0
+base58>=2.1.0
+
+# ===========================
+# API & NETWORKING
+# ===========================
+requests>=2.31.0
+httpx>=0.24.0
+slowapi>=0.1.9  # Rate limiting
+
+# ===========================
+# SECURITY & ENCRYPTION
+# ===========================
+bcrypt>=4.0.0
+cryptography>=41.0.0
+
+# ===========================
+# UTILITIES
+# ===========================
+greenlet>=3.0.0
+pytz>=2023.3
+
+# ===========================
+# TESTING
+# ===========================
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+
