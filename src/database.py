@@ -10,7 +10,14 @@ from .models import (
     User, Conversation, AttackAttempt, Transaction, PrizePool, SecurityEvent, 
     PaymentTransaction, BountyState, BountyEntry, BlacklistedPhrase, 
     Winner, ConnectedWallet, WalletFundingSource, EmailVerification,
-    ReferralCode, FundDeposit, FundTransfer, Referral, FreeQuestions
+    ReferralCode, FundDeposit, FundTransfer, Referral, FreeQuestions,
+    # Phase 2: Token Economics ($100Bs)
+    TokenBalance, StakingPosition, BuybackEvent, TokenPrice, DiscountUsage,
+    # Phase 1: Context Window Management
+    MessageEmbedding, AttackPattern, ContextSummary,
+    # Phase 3: Team Collaboration
+    Team, TeamMember, TeamInvitation, TeamAttempt, TeamMessage, TeamFunding,
+    TeamPrizeDistribution, TeamMemberPrize
 )
 
 # Import simulation models
