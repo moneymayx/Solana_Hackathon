@@ -161,3 +161,71 @@ programs/billions-bounty/target/deploy/*.so
 
 # Revenue and cost projections (confidential business data)
 REVENUE_COST_PROJECTION.md
+
+# ============================================
+# DEVELOPMENT & DEBUG FILES: Keep Local
+# ============================================
+
+# Debug and testing scripts (development only)
+debug_*.py
+*_debug.py
+test_*.py
+*_test.py
+migrate_*.py
+*_migrate.py
+simple_*.py
+
+# Development documentation and progress files
+*_PROGRESS.md
+*_SUMMARY.md
+*_COMPLETE.md
+START_HERE.md
+IMPLEMENTATION_*.md
+REDESIGN_*.md
+FRONTEND_*.md
+FILE_ORGANIZATION_GUIDE.md
+CLEANUP_COMPLETE.md
+GIT_HISTORY_CLEANUP_GUIDE.md
+REORGANIZATION_SUMMARY.md
+ORGANIZATION_SUMMARY.md
+
+# Backup files
+*.backup
+*.bak
+*_backup.py
+*_backup.*
+
+# ============================================
+# FRONTEND DEVELOPMENT FILES: Keep Local
+# ============================================
+
+# Frontend development documentation
+frontend/*_GUIDE.md
+frontend/*_REFERENCE.md
+frontend/README_*.md
+frontend/REDESIGN_*.md
+
+# Frontend development scripts
+frontend/update-*.sh
+frontend/*-banner-*.sh
+
+# Frontend log files
+frontend/*.log
+frontend/logs/
+
+# Frontend test API endpoints (development only)
+frontend/src/app/test-api/
+frontend/src/app/features/
+frontend/src/app/staking/
+frontend/src/app/stats/
+frontend/src/app/teams/
+frontend/src/app/token/
+
+# ============================================
+# LOG FILES: Keep Local
+# ============================================
+
+# All log files
+*.log
+logs/
+frontend/*.log

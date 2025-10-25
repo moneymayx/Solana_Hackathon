@@ -1,0 +1,9 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- OpenAI GPT-4 Official Logo -->
+  <rect width="64" height="64" rx="12" fill="#10A37F"/>
+  <path d="M32 8L48 16v32L32 56L16 48V16L32 8z" fill="white"/>
+  <path d="M32 12L44 18v28L32 52L20 46V18L32 12z" fill="#10A37F"/>
+  <path d="M32 16L40 20v24L32 48L24 44V20L32 16z" fill="white"/>
+  <circle cx="32" cy="32" r="6" fill="#10A37F"/>
+  <path d="M28 28h8v8h-8z" fill="white"/>
+</svg>

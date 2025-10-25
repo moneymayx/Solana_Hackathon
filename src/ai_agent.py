@@ -149,7 +149,7 @@ class BillionsAgent:
             }
             
             # Get conversation history from database
-            conversation_history = await conv_repo.get_user_conversation_history(user_id, limit=10)
+            conversation_history = await conv_repo.get_user_messages(user_id, limit=10)
             
             # Convert to format expected by Anthropic API
             messages = []
@@ -962,3 +962,6 @@ REMEMBER: 1-2 sentences max. No asterisks. No dramatic language. Be conversation
             return almost_breaking_responses[2] + " Keep going - you're breaking new ground."
         else:
             return almost_breaking_responses[3] + " There's something revolutionary about your approach."
+
+# Create a global agent instance
+agent = BillionsAgent()

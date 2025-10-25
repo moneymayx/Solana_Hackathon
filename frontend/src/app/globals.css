@@ -1,69 +1,66 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '@solana/wallet-adapter-react-ui/styles.css';
+@import '../styles/design-tokens.css';
+@import "tailwindcss";
 
 @layer base {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --radius: 0.5rem;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-gray-900 antialiased;
+    font-family: var(--font-family-primary);
+  }
+  
+  /* Smooth scrolling for anchor links */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+  @apply bg-gray-100;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+  @apply bg-gray-400 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-500;
 }
 
-/* Wallet adapter custom styles */
+/* Wallet adapter custom styles - Updated for new design system */
 .wallet-adapter-button {
-  @apply !bg-gradient-to-r !from-purple-500 !to-pink-500 !text-white !font-bold !px-4 !py-2 !rounded-lg !border-0 !transition-all !duration-200;
+  @apply !bg-gradient-to-r !from-green-500 !to-green-600 !text-white !font-semibold !px-6 !py-2 !border-0 !transition-all !duration-200;
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--font-bricolage), sans-serif !important;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+  letter-spacing: 0.5px !important;
 }
 
-.wallet-adapter-button:hover {
-  @apply !from-purple-600 !to-pink-600 !transform !scale-105;
+.wallet-adapter-button:hover:not(:disabled) {
+  @apply !from-green-600 !to-green-700;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .wallet-adapter-button:disabled {
-  @apply !opacity-50 !cursor-not-allowed !transform-none;
+  @apply !opacity-50 !cursor-not-allowed;
+  transform: none !important;
 }
 
 .wallet-adapter-modal-wrapper {
@@ -71,11 +68,12 @@
 }
 
 .wallet-adapter-modal {
-  @apply !bg-gray-800 !border !border-gray-700 !rounded-lg;
+  @apply !bg-gray-800 !border !border-gray-700;
+  border-radius: var(--radius-lg) !important;
 }
 
 .wallet-adapter-modal-title {
-  @apply !text-white !text-xl !font-bold;
+  @apply !text-gray-50 !text-xl !font-semibold;
 }
 
 .wallet-adapter-modal-list {
@@ -83,11 +81,12 @@
 }
 
 .wallet-adapter-modal-list-item {
-  @apply !bg-gray-700 !hover:bg-gray-600 !rounded-lg !transition-colors !duration-200;
+  @apply !bg-gray-700 hover:!bg-gray-600 !transition-colors !duration-200;
+  border-radius: var(--radius-md) !important;
 }
 
 .wallet-adapter-modal-list-item button {
-  @apply !text-white !font-medium !p-4 !w-full !text-left;
+  @apply !text-gray-50 !font-medium !p-4 !w-full !text-left;
 }
 
 /* Animation classes */
@@ -103,41 +102,106 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn var(--transition-slow) ease-out;
 }
 
-@keyframes pulse-glow {
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-normal) ease-out;
+}
+
+@keyframes pulse-dot {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(168, 85, 247, 0.4);
+    opacity: 0.4;
   }
   50% {
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    opacity: 1;
   }
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.animate-pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
-/* Gradient text */
-.gradient-text {
-  @apply bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent;
+/* Typing indicator animation */
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
 }
 
-/* Custom button styles */
-.btn-primary {
-  @apply bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 transform hover:scale-105;
+.animate-typing {
+  animation: typing 1.4s ease-in-out infinite;
 }
 
-.btn-secondary {
-  @apply bg-gray-700 text-white font-medium px-6 py-3 rounded-lg hover:bg-gray-600 transition-all duration-200;
+/* Custom utility classes */
+.text-gradient-primary {
+  @apply bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent;
 }
 
-/* Card styles */
-.card {
-  @apply bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg;
+.text-gradient-success {
+  @apply bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent;
 }
 
-.card-glow {
-  @apply card shadow-lg shadow-purple-500/20;
+/* Enhanced gold glow effects */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.2);
+}
+
+.glow-gold-text {
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Shimmery gradient utilities */
+.bg-shimmer-purple-green {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 25%, #10B981 75%, #059669 100%);
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Floating card effects */
+.card-float {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-float:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Improved typography */
+.text-display {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-heading {
+  font-size: clamp(1.875rem, 3vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }

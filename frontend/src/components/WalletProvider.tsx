@@ -7,8 +7,7 @@ import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { clusterApiUrl } from '@solana/web3.js'
 
-// Default styles that can be overridden by your app
-require('@solana/wallet-adapter-react-ui/styles.css')
+// Wallet adapter styles are imported in globals.css
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
@@ -27,7 +26,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
+      <SolanaWalletProvider 
+        wallets={wallets} 
+        autoConnect={true}
+        onError={(error) => {
+          console.error('Wallet error:', error)
+        }}
+      >
         <WalletModalProvider>
           {children}
         </WalletModalProvider>

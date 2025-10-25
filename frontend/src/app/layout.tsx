@@ -1,9 +1,19 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Bricolage_Grotesque } from 'next/font/google'
 import './globals.css'
 import { WalletProvider } from '@/components/WalletProvider'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const bricolageGrotesque = Bricolage_Grotesque({ 
+  subsets: ['latin'],
+  variable: '--font-bricolage',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Billions Bounty - AI Security Research Platform',
@@ -23,12 +33,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.className} ${bricolageGrotesque.variable}`}>
         <WalletProvider>
-          <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-            {children}
-          </div>
+          {children}
         </WalletProvider>
       </body>
     </html>

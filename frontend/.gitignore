@@ -39,3 +39,45 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ============================================
+# DEVELOPMENT FILES: Keep Local
+# ============================================
+
+# Development documentation and guides
+*_GUIDE.md
+*_REFERENCE.md
+README_*.md
+REDESIGN_*.md
+
+# Development scripts
+update-*.sh
+*-banner-*.sh
+
+# Log files
+*.log
+logs/
+
+# Test API endpoints (development only)
+src/app/test-api/
+src/app/features/
+src/app/staking/
+src/app/stats/
+src/app/teams/
+src/app/token/
+
+# ============================================
+# BUILD ARTIFACTS: Keep Local
+# ============================================
+
+# Next.js build artifacts
+.next/
+out/
+build/
+
+# ============================================
+# ENVIRONMENT: Never Commit
+# ============================================
+
+# Environment files
+.env*

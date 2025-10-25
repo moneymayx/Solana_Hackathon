@@ -1,0 +1,17 @@
+# Winner Images Placeholder
+
+This directory should contain 4 AI-generated winner images:
+
+- winner-1.png: Person holding $10,000 check
+- winner-2.png: Person holding $10,000 check  
+- winner-3.png: Person holding $10,000 check
+- winner-4.png: Person holding $10,000 check
+
+For now, the WinnersSection component will show fallback emoji placeholders (🏆) 
+until these images are generated and added to this directory.
+
+The images should be:
+- 400x400 pixels minimum
+- Web-optimized (reasonable file size)
+- Show diverse people holding oversized checks
+- Professional looking

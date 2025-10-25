@@ -1,12 +1,18 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import sys
 import time
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
+
+# Add project root to Python path so we can import from src
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 from src.ai_agent import BillionsAgent
 from src.database import get_db, create_tables
 from src.repositories import UserRepository, PrizePoolRepository, ConversationRepository
@@ -29,9 +35,27 @@ import json
 logger = logging.getLogger(__name__)
 from sqlalchemy import select, update, func, and_, desc
 
-load_dotenv()
+# Load environment variables from project root
+print(f"Current working directory: {os.getcwd()}")
+print(f"Project root: {project_root}")
+print(f"Loading .env from: {os.path.join(project_root, '.env')}")
+load_dotenv(os.path.join(project_root, '.env'))
+print(f"ENCRYPTION_MASTER_KEY loaded: {os.getenv('ENCRYPTION_MASTER_KEY') is not None}")
 
 app = FastAPI(title="Billions")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000", "http://127.0.0.1:3000",  # Frontend URLs
+        "http://localhost:3001", "http://127.0.0.1:3001"   # Alternative port
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 agent = BillionsAgent()
 
 # ===========================
@@ -97,6 +121,8 @@ async def get_user_by_wallet(wallet_address: str, session: AsyncSession = Depend
 
 class ChatRequest(BaseModel):
     message: str
+    user_id: Optional[int] = None
+    session_id: Optional[str] = None
 
 class WalletConnectRequest(BaseModel):
     wallet_address: str
@@ -138,6 +164,16 @@ class TransactionVerifyRequest(BaseModel):
 @app.get("/")
 async def read_root():
     return {"message": "Billions is running"}
+
+
+@app.post("/api/chat/test")
+async def chat_test(request: ChatRequest):
+    """Simple test endpoint for chat functionality"""
+    return {
+        "message": f"Received: {request.message}",
+        "user_id": request.user_id,
+        "status": "success"
+    }
 
 @app.get("/chat", response_class=HTMLResponse)
 async def chat_interface():
@@ -811,135 +847,62 @@ async def get_or_create_user(request: Request, session: AsyncSession = Depends(g
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
-    # Get user IP for rate limiting
-    client_ip = http_request.client.host if http_request.client else "unknown"
+    print(f"🔍 Chat endpoint called with message: {request.message[:50]}...")
     
-    # Check advanced rate limiting
-    rate_limit_status = await rate_limiter.check_rate_limit(
-        RateLimitType.CHAT_MESSAGES,
-        user_id=request.user_id,
-        ip_address=client_ip,
-        session_id=request.session_id,
-        request_metadata={
-            "user_agent": http_request.headers.get("user-agent"),
-            "content_length": len(request.message)
-        }
-    )
-    
-    if rate_limit_status.is_limited:
-        # Log security event
-        await rate_limiter.log_security_event(
-            session=session,
-            event_type="rate_limit_exceeded",
-            description=f"Chat rate limit exceeded: {rate_limit_status.reason}",
-            severity="medium",
-            user_id=request.user_id,
-            ip_address=client_ip,
-            session_id=request.session_id,
-            additional_data={
-                "limit_type": rate_limit_status.limit_type.value,
-                "reset_time": rate_limit_status.reset_time
-            }
-        )
+    try:
+        # Get user IP for rate limiting
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        print(f"🔍 Client IP: {client_ip}")
         
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "Rate limit exceeded",
-                "reason": rate_limit_status.reason,
-                "reset_time": rate_limit_status.reset_time,
-                "limit_type": rate_limit_status.limit_type.value
-            }
-        )
-    
-    # Check rate limiting
-    allowed, rate_limit_message = rate_limiter.is_allowed(client_ip)
-    if not allowed:
-        raise HTTPException(status_code=429, detail=rate_limit_message)
-    
-    # Get or create user with eligibility check
-    user, session_id, eligibility = await get_or_create_user(http_request, session)
-    
-    # Check if user can ask questions
-    if not eligibility["eligible"]:
-        if eligibility["type"] == "signup_required":
-            raise HTTPException(status_code=402, detail={
-                "error": "signup_required",
-                "message": eligibility["message"],
-                "questions_used": eligibility.get("questions_used", 0),
-                "questions_remaining": eligibility.get("questions_remaining", 0)
-            })
-        elif eligibility["type"] == "payment_required":
-            raise HTTPException(status_code=402, detail={
-                "error": "payment_required", 
-                "message": eligibility["message"],
-                "questions_remaining": eligibility.get("questions_remaining", 0)
-            })
-    
-    # Use a free question if applicable
-    if eligibility["type"] in ["anonymous", "free_questions", "referral_signup"]:
-        from src.free_question_service import free_question_service
-        question_result = await free_question_service.use_free_question(
-            session, user.id, eligibility["type"]
-        )
+        # Validate Claude API key is available
+        claude_api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not claude_api_key or claude_api_key == "your_claude_api_key_here":
+            raise HTTPException(
+                status_code=500, 
+                detail="Claude API key not configured. Set ANTHROPIC_API_KEY in .env file"
+            )
         
-        if not question_result["success"]:
-            raise HTTPException(status_code=402, detail={
-                "error": "no_questions_remaining",
-                "message": question_result.get("error", "No questions remaining"),
-                "requires_signup": question_result.get("requires_signup", False),
-                "requires_payment": question_result.get("requires_payment", False)
-            })
-    
-    # Security analysis
-    security_analysis = await security_monitor.analyze_message(
-        request.message, session, user.id, client_ip
-    )
-    
-    # Sybil detection analysis
-    from src.winner_tracking_service import winner_tracking_service
-    user_agent = http_request.headers.get("user-agent", "")
-    sybil_analysis = await winner_tracking_service.sybil_detector.analyze_user_behavior(
-        user.id, request.message, client_ip, user_agent, session
-    )
-    
-    # Get AI response with bounty integration
-    chat_result = await agent.chat(request.message, session, user.id, eligibility["type"])
-    
-    # Process AI decision on-chain if we have a signed decision
-    on_chain_result = None
-    if "signed_decision" in chat_result:
-        # Get winner wallet address if this is a successful jailbreak
-        winner_wallet = None
-        if chat_result["winner_result"].get("is_winner", False):
-            # Get user's wallet address
-            winner_wallet = await get_user_wallet_address(session, user.id)
+        print("🤖 Using Claude AI agent for response generation")
         
-        # Process the decision on-chain
-        on_chain_result = await ai_decision_integration.process_ai_decision_on_chain(
-            signed_decision=chat_result["signed_decision"],
-            winner_wallet_address=winner_wallet
-        )
+        # Create a temporary user for the chat (since we don't have user authentication yet)
+        temp_user_id = request.user_id or 1
         
-        # Log the decision to database
-        await ai_decision_integration.log_decision_to_database(
-            session=session,
-            signed_decision=chat_result["signed_decision"],
-            on_chain_result=on_chain_result
-        )
-    
-    return {
-        "response": chat_result["response"],
-        "bounty_result": chat_result.get("bounty_result", chat_result.get("lottery_result", {})),
-        "winner_result": chat_result["winner_result"],
-        "bounty_status": chat_result.get("bounty_status", chat_result.get("lottery_status", {})),
-        "security_analysis": security_analysis,
-        "sybil_analysis": sybil_analysis,
-        "question_eligibility": eligibility,
-        "questions_remaining": eligibility.get("questions_remaining", 0) if eligibility["eligible"] else 0,
-        "signed_decision": chat_result.get("signed_decision"),
-        "on_chain_result": on_chain_result
-    }
+        # Call the AI agent
+        try:
+            ai_response = await agent.chat(
+                user_message=request.message,
+                session=session,
+                user_id=temp_user_id,
+                eligibility_type="anonymous"
+            )
+            
+            if not ai_response or not ai_response.get('response'):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Claude AI agent returned empty response"
+                )
+            
+            print(f"✅ Claude response generated: {ai_response.get('response', 'No response')[:100]}...")
+            
+            return ai_response
+            
+        except Exception as claude_error:
+            print(f"❌ Claude AI agent error: {str(claude_error)}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Claude AI agent failed: {str(claude_error)}"
+            )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (like API key missing)
+        raise
+    except Exception as e:
+        print(f"❌ Chat endpoint error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat endpoint error: {str(e)}")
 
 @app.get("/api/prize-pool")
 async def get_prize_pool_status(session: AsyncSession = Depends(get_db)):
@@ -1412,7 +1375,7 @@ async def get_conversation_history(http_request: Request, session: AsyncSession 
     
     # Get conversation history
     conv_repo = ConversationRepository(session)
-    conversation_history = await conv_repo.get_user_conversation_history(user.id, limit=50)
+    conversation_history = await conv_repo.get_user_messages(user.id, limit=50)
     
     # Convert to API format
     history = []
@@ -1838,6 +1801,319 @@ async def emergency_recovery(request: dict, session: AsyncSession = Depends(get_
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to perform emergency recovery: {str(e)}")
+
+# ===========================
+# BOUNTY SYSTEM API ENDPOINTS
+# ===========================
+
+@app.get("/api/debug")
+async def debug_info():
+    """Debug endpoint to check working directory and database path"""
+    import os
+    from src.database import DATABASE_URL
+    return {
+        "working_directory": os.getcwd(),
+        "database_file_exists": os.path.exists("billions.db"),
+        "database_file_absolute": os.path.exists(os.path.abspath("billions.db")),
+        "project_root": project_root,
+        "env_database_url": os.getenv("DATABASE_URL"),
+        "database_url_from_config": DATABASE_URL
+    }
+
+@app.get("/api/debug-db")
+async def debug_database(session: AsyncSession = Depends(get_db)):
+    """Debug endpoint to test database connection"""
+    try:
+        from sqlalchemy import text
+        result = await session.execute(text("SELECT COUNT(*) FROM bounties"))
+        count = result.scalar()
+        
+        result2 = await session.execute(text("SELECT id, name, llm_provider FROM bounties LIMIT 3"))
+        rows = result2.fetchall()
+        
+        return {
+            "success": True,
+            "bounties_count": count,
+            "bounties_data": [{"id": row[0], "name": row[1], "provider": row[2]} for row in rows]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@app.get("/api/bounties")
+async def get_all_bounties(session: AsyncSession = Depends(get_db)):
+    """Get all active bounties"""
+    try:
+        print(f"🔍 DEBUG: Starting get_all_bounties with session: {session}")
+        
+        # Test direct SQL query first
+        from sqlalchemy import text
+        result = await session.execute(text("SELECT COUNT(*) FROM bounties"))
+        count = result.scalar()
+        print(f"🔍 DEBUG: Direct SQL count: {count}")
+        
+        # Test if we can get the actual data
+        result2 = await session.execute(text("SELECT * FROM bounties LIMIT 5"))
+        rows = result2.fetchall()
+        print(f"🔍 DEBUG: Direct SQL rows: {len(rows)}")
+        for row in rows:
+            print(f"  - Row: {row}")
+        
+        from src.repositories import BountyRepository
+        bounty_repo = BountyRepository(session)
+        
+        print(f"🔍 DEBUG: Created BountyRepository")
+        
+        bounties = await bounty_repo.get_all_bounties()
+        
+        print(f"🔍 DEBUG: Found {len(bounties)} bounties in API")
+        for bounty in bounties:
+            print(f"  - {bounty.id}: {bounty.name} ({bounty.llm_provider})")
+        
+        return {
+            "success": True,
+            "bounties": [
+                {
+                    "id": bounty.id,
+                    "name": bounty.name,
+                    "llm_provider": bounty.llm_provider,
+                    "current_pool": bounty.current_pool,
+                    "total_entries": bounty.total_entries,
+                    "win_rate": bounty.win_rate,
+                    "difficulty_level": bounty.difficulty_level,
+                    "is_active": bounty.is_active,
+                    "created_at": bounty.created_at.isoformat(),
+                    "updated_at": bounty.updated_at.isoformat()
+                }
+                for bounty in bounties
+            ]
+        }
+    except Exception as e:
+        print(f"❌ ERROR in get_all_bounties: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get bounties: {str(e)}")
+
+@app.get("/api/bounty/{bounty_id}")
+async def get_bounty(bounty_id: int, session: AsyncSession = Depends(get_db)):
+    """Get specific bounty by ID"""
+    try:
+        from src.repositories import BountyRepository
+        bounty_repo = BountyRepository(session)
+        bounty = await bounty_repo.get_bounty_by_id(bounty_id)
+        
+        if not bounty:
+            raise HTTPException(status_code=404, detail="Bounty not found")
+        
+        return {
+            "success": True,
+            "bounty": {
+                "id": bounty.id,
+                "name": bounty.name,
+                "llm_provider": bounty.llm_provider,
+                "current_pool": bounty.current_pool,
+                "total_entries": bounty.total_entries,
+                "win_rate": bounty.win_rate,
+                "difficulty_level": bounty.difficulty_level,
+                "is_active": bounty.is_active,
+                "created_at": bounty.created_at.isoformat(),
+                "updated_at": bounty.updated_at.isoformat()
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get bounty: {str(e)}")
+
+@app.get("/api/bounty/{bounty_id}/messages/public")
+async def get_bounty_public_messages(bounty_id: int, limit: int = 100, session: AsyncSession = Depends(get_db)):
+    """Get public messages for a specific bounty (global chat visibility)"""
+    try:
+        from src.repositories import ConversationRepository
+        conversation_repo = ConversationRepository(session)
+        messages = await conversation_repo.get_public_messages(bounty_id=bounty_id, limit=limit)
+        
+        return {
+            "success": True,
+            "messages": [
+                {
+                    "id": msg.id,
+                    "user_id": msg.user_id,
+                    "message_type": msg.message_type,
+                    "content": msg.content,
+                    "timestamp": msg.timestamp.isoformat(),
+                    "is_winner": msg.is_winner,
+                    "cost": msg.cost,
+                    "model_used": msg.model_used
+                }
+                for msg in messages
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get public messages: {str(e)}")
+
+@app.post("/api/bounty/{bounty_id}/chat")
+async def send_bounty_message(bounty_id: int, request: dict, session: AsyncSession = Depends(get_db)):
+    """Send a message to a specific bounty"""
+    try:
+        from src.repositories import BountyRepository, ConversationRepository, FreeQuestionUsageRepository
+        from src.ai_agent import agent
+        
+        # Validate bounty exists
+        bounty_repo = BountyRepository(session)
+        bounty = await bounty_repo.get_bounty_by_id(bounty_id)
+        if not bounty or not bounty.is_active:
+            raise HTTPException(status_code=404, detail="Bounty not found or inactive")
+        
+        # Get message content and wallet address
+        message = request.get("message", "").strip()
+        user_id = request.get("user_id", 1)  # TODO: Get from wallet or session
+        wallet_address = request.get("wallet_address", "")
+        ip_address = request.get("ip_address", "")
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="Message content required")
+        
+        if not wallet_address:
+            raise HTTPException(status_code=400, detail="Wallet address required")
+        
+        # Check free question usage
+        free_question_repo = FreeQuestionUsageRepository(session)
+        
+        # Check if IP has been used before
+        if ip_address and await free_question_repo.check_ip_usage(ip_address):
+            raise HTTPException(status_code=400, detail="This IP address has already been used. Please use a different network.")
+        
+        # Try to use a free question
+        usage = await free_question_repo.use_question(wallet_address)
+        if not usage:
+            raise HTTPException(status_code=400, detail="No free questions remaining. Please pay $10 to continue.")
+        
+        # Check if receiver used up all their referral questions (0 remaining after using one)
+        # If so, give 5 questions to the referrer
+        if usage.questions_remaining == 0 and usage.referred_by and usage.referrer_reward_pending:
+            # Find the referrer by wallet address
+            from sqlalchemy import select
+            from src.models import FreeQuestionUsage
+            query = select(FreeQuestionUsage).where(FreeQuestionUsage.wallet_address == usage.referred_by)
+            result = await session.execute(query)
+            referrer_usage = result.scalar_one_or_none()
+            
+            if referrer_usage:
+                # Add 5 questions to the referrer
+                referrer_usage.questions_remaining += 5
+                # Mark that the reward has been given
+                usage.referrer_reward_pending = False
+                await session.commit()
+        
+        # Add user message to conversation
+        conversation_repo = ConversationRepository(session)
+        user_msg = await conversation_repo.add_message(
+            user_id=user_id,
+            message_type="user",
+            content=message,
+            bounty_id=bounty_id,
+            is_public=True
+        )
+        
+        # Get AI response using the existing agent
+        try:
+            ai_response = await agent.chat(
+                user_message=message,
+                session=session,
+                user_id=user_id,
+                eligibility_type="anonymous"
+            )
+            
+            if not ai_response or not ai_response.get('response'):
+                raise HTTPException(status_code=500, detail="AI agent returned empty response")
+            
+            # Add AI response to conversation
+            ai_msg = await conversation_repo.add_message(
+                user_id=user_id,
+                message_type="assistant",
+                content=ai_response.get('response', ''),
+                bounty_id=bounty_id,
+                is_public=True,
+                is_winner=ai_response.get('winner_result', {}).get('is_winner', False)
+            )
+            
+            # Update bounty stats
+            await bounty_repo.increment_bounty_entries(bounty_id)
+            
+            # If winner, update bounty pool and win rate
+            if ai_response.get('winner_result', {}).get('is_winner', False):
+                # Mark the AI message as winner
+                await conversation_repo.mark_as_winner(ai_msg.id)
+                
+                # Update bounty win rate (simplified calculation)
+                new_win_rate = (bounty.win_rate * bounty.total_entries + 1) / (bounty.total_entries + 1)
+                await bounty_repo.update_bounty_win_rate(bounty_id, new_win_rate)
+            
+            return {
+                "success": True,
+                "response": ai_response.get('response', ''),
+                "winner_result": ai_response.get('winner_result', {}),
+                "bounty_status": {
+                    "id": bounty.id,
+                    "current_pool": bounty.current_pool,
+                    "total_entries": bounty.total_entries + 1,
+                    "win_rate": bounty.win_rate
+                },
+                "free_questions": {
+                    "remaining": usage.questions_remaining,
+                    "used": usage.questions_used
+                }
+            }
+            
+        except Exception as ai_error:
+            # Add error message
+            await conversation_repo.add_message(
+                user_id=user_id,
+                message_type="assistant",
+                content=f"I encountered an error: {str(ai_error)}. Please try again.",
+                bounty_id=bounty_id,
+                is_public=True
+            )
+            
+            return {
+                "success": False,
+                "response": f"I encountered an error: {str(ai_error)}. Please try again.",
+                "error": str(ai_error)
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send message: {str(e)}")
+
+@app.get("/api/winners/recent")
+async def get_recent_winners(limit: int = 20, session: AsyncSession = Depends(get_db)):
+    """Get recent winners across all bounties"""
+    try:
+        from src.repositories import ConversationRepository
+        conversation_repo = ConversationRepository(session)
+        winners = await conversation_repo.get_winner_messages(limit=limit)
+        
+        return {
+            "success": True,
+            "winners": [
+                {
+                    "id": winner.id,
+                    "user_id": winner.user_id,
+                    "bounty_id": winner.bounty_id,
+                    "content": winner.content,
+                    "timestamp": winner.timestamp.isoformat(),
+                    "cost": winner.cost,
+                    "model_used": winner.model_used
+                }
+                for winner in winners
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get recent winners: {str(e)}")
 
 # Legacy Fund Management Endpoints (deprecated - use smart contract endpoints)
 @app.get("/api/funds/status")
@@ -3330,6 +3606,126 @@ async def determine_research_success(request: dict, session: AsyncSession = Depe
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to determine research success: {str(e)}")
+
+@app.get("/api/free-questions/{wallet_address}")
+async def get_free_question_status(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get free question status for a wallet"""
+    try:
+        from src.repositories import FreeQuestionUsageRepository
+        free_question_repo = FreeQuestionUsageRepository(session)
+        
+        usage = await free_question_repo.get_or_create_usage(wallet_address)
+        
+        return {
+            "success": True,
+            "questions_remaining": usage.questions_remaining,
+            "questions_used": usage.questions_used,
+            "referral_code": usage.referral_code,
+            "email": usage.email
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get free question status: {str(e)}")
+
+@app.post("/api/referral/submit-email")
+async def submit_email_for_referral(request: dict, session: AsyncSession = Depends(get_db)):
+    """Submit email and get referral code"""
+    try:
+        from src.repositories import FreeQuestionUsageRepository
+        free_question_repo = FreeQuestionUsageRepository(session)
+        
+        wallet_address = request.get("wallet_address")
+        email = request.get("email")
+        ip_address = request.get("ip_address", "")
+        
+        if not wallet_address or not email:
+            raise HTTPException(status_code=400, detail="Wallet address and email are required")
+        
+        # Check if IP has been used before
+        if ip_address and await free_question_repo.check_ip_usage(ip_address):
+            raise HTTPException(status_code=400, detail="This IP address has already been used. Please use a different network.")
+        
+        # Update email and generate referral code
+        referral_code = await free_question_repo.update_email_and_referral_code(wallet_address, email)
+        
+        return {
+            "success": True,
+            "referral_code": referral_code,
+            "message": "Email submitted successfully. Share your referral code to get 5 free questions!"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit email: {str(e)}")
+
+@app.post("/api/referral/use-code")
+async def use_referral_code(request: dict, session: AsyncSession = Depends(get_db)):
+    """Use a referral code to get 5 free questions for receiver, referrer gets 5 after receiver uses theirs"""
+    try:
+        from src.repositories import FreeQuestionUsageRepository
+        free_question_repo = FreeQuestionUsageRepository(session)
+        
+        wallet_address = request.get("wallet_address")
+        referral_code = request.get("referral_code")
+        email = request.get("email", "")
+        
+        if not wallet_address or not referral_code:
+            raise HTTPException(status_code=400, detail="Wallet address and referral code are required")
+        
+        # Extract email prefix from referral code
+        if not referral_code.startswith("billionsbounty.com/"):
+            raise HTTPException(status_code=400, detail="Invalid referral code format")
+        
+        email_prefix = referral_code.replace("billionsbounty.com/", "")
+        
+        # Find the referrer by email prefix
+        from sqlalchemy import select
+        from src.models import FreeQuestionUsage
+        query = select(FreeQuestionUsage).where(FreeQuestionUsage.email.like(f"{email_prefix}@%"))
+        result = await session.execute(query)
+        referrer_usage = result.scalar_one_or_none()
+        
+        if not referrer_usage:
+            raise HTTPException(status_code=404, detail="Referral code not found")
+        
+        # Set receiver's questions to 5 (don't add to existing, replace)
+        # First check if they already have a record
+        query = select(FreeQuestionUsage).where(FreeQuestionUsage.wallet_address == wallet_address)
+        result = await session.execute(query)
+        receiver_usage = result.scalar_one_or_none()
+        
+        referrer_wallet = referrer_usage.wallet_address
+        
+        if receiver_usage:
+            # Update existing record
+            receiver_usage.questions_remaining = 5
+            receiver_usage.questions_used = 0
+            receiver_usage.referred_by = referrer_wallet
+            receiver_usage.referrer_reward_pending = True
+            if email:
+                receiver_usage.email = email
+        else:
+            # Create new record with 5 questions
+            receiver_usage = FreeQuestionUsage(
+                wallet_address=wallet_address,
+                questions_remaining=5,
+                questions_used=0,
+                email=email,
+                referred_by=referrer_wallet,
+                referrer_reward_pending=True
+            )
+            session.add(receiver_usage)
+        
+        await session.commit()
+        await session.refresh(receiver_usage)
+        await session.refresh(referrer_usage)
+        
+        return {
+            "success": True,
+            "message": "Referral code used successfully! You received 5 free questions. The referrer will get 5 questions after you use yours!",
+            "receiver_questions": receiver_usage.questions_remaining,
+            "referrer_questions": referrer_usage.questions_remaining
+        }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to use referral code: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

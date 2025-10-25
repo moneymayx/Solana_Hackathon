@@ -40,9 +40,7 @@ class SmartContractService:
             "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # Devnet deployment
         ))
         # Use network configuration utility
-        import sys
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from network_config import get_network_config
+        from .network_config import get_network_config
         network_config = get_network_config()
         
         self.rpc_endpoint = network_config.get_rpc_endpoint()
@@ -326,7 +324,7 @@ class SmartContractService:
             # For now, return placeholder data
             return {
                 "success": True,
-                "program_id": self.program_id,
+                "program_id": str(self.program_id),  # Convert Pubkey to string
                 "current_jackpot": 10000.0,  # Would be fetched from contract
                 "total_entries": 0,  # Would be fetched from contract
                 "is_active": True,  # Would be fetched from contract

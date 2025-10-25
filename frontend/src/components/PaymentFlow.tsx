@@ -183,7 +183,8 @@ export default function PaymentFlow({ onPaymentSuccess, onPaymentFailure, onUseF
         // Start polling for payment status
         startPolling(data.transaction_id)
       } else {
-        throw new Error('Failed to create payment')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Failed to create payment')
       }
     } catch (error) {
       console.error('Payment creation failed:', error)

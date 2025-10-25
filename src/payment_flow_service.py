@@ -36,6 +36,11 @@ class PaymentFlowService:
         try:
             logger.info(f"💳 Creating payment request: User {user_id}, Wallet {wallet_address}, Amount ${amount_usd}")
             
+            # Check if Moonpay API key is configured
+            if not os.getenv("MOONPAY_API_KEY"):
+                logger.warning("⚠️ Moonpay API key not configured - using development mode")
+                return await self._create_development_payment(session, user_id, wallet_address, amount_usd)
+            
             # Create MoonPay payment URL
             payment_data = self.moonpay.create_payment_for_bounty_entry(
                 wallet_address=wallet_address,
@@ -244,6 +249,45 @@ class PaymentFlowService:
         except Exception as e:
             logger.error(f"❌ Error enabling lottery entry: {e}")
             await session.rollback()
+    
+    async def _create_development_payment(
+        self, 
+        session: AsyncSession, 
+        user_id: int, 
+        wallet_address: str, 
+        amount_usd: float
+    ) -> Dict[str, Any]:
+        """Create a development mode payment for testing"""
+        try:
+            logger.info(f"🔧 Creating development payment: User {user_id}, Wallet {wallet_address}, Amount ${amount_usd}")
+            
+            # Create a mock payment URL
+            payment_url = f"https://billionsbounty.com/dev-payment?wallet={wallet_address}&amount={amount_usd}&user={user_id}"
+            transaction_id = f"dev_{int(time.time())}_{user_id}"
+            
+            # Record payment transaction in database
+            transaction_record = await self._record_payment_transaction(
+                session, user_id, wallet_address, amount_usd, {
+                    "payment_url": payment_url,
+                    "transaction_id": transaction_id,
+                    "payment_methods": ["development_mode"]
+                }
+            )
+            
+            return {
+                "success": True,
+                "payment_url": payment_url,
+                "transaction_id": transaction_id,
+                "payment_methods": ["development_mode"],
+                "message": "Development mode payment created - no real payment required"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error creating development payment: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to create development payment: {str(e)}"
+            }
 
 # Global instance
 payment_flow_service = PaymentFlowService()
