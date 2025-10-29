@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import time
@@ -7,20 +8,23 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
-from src.ai_agent import BillionsAgent
-from src.database import get_db, create_tables
-from src.repositories import UserRepository, PrizePoolRepository, ConversationRepository
-from src.models import User
-from src.rate_limiter import RateLimiter, SecurityMonitor
-# from src.bounty_service import ResearchService  # OBSOLETE - moved to smart contract
-from src.referral_service import ReferralService
-from src.wallet_service import WalletConnectSolanaService, PaymentOrchestrator
-from src.smart_contract_service import smart_contract_service
-from src.regulatory_compliance import regulatory_compliance_service
-from src.payment_flow_service import payment_flow_service
-from src.ai_decision_integration import ai_decision_integration
-from src.advanced_rate_limiter import rate_limiter, rate_limit, RateLimitType
-from src.gdpr_compliance import GDPRComplianceService, ConsentType
+
+# Import from reorganized src package
+from src import (
+    BillionsAgent,
+    get_db, create_tables,
+    UserRepository, PrizePoolRepository, ConversationRepository,
+    User,
+    RateLimiter, SecurityMonitor,
+    ReferralService,
+    WalletConnectSolanaService, PaymentOrchestrator,
+    smart_contract_service,
+    regulatory_compliance_service,
+    payment_flow_service,
+    ai_decision_integration,
+    rate_limiter, rate_limit, RateLimitType,
+    GDPRComplianceService, ConsentType
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
 import logging
@@ -29,9 +33,31 @@ import json
 logger = logging.getLogger(__name__)
 from sqlalchemy import select, update, func, and_, desc
 
-load_dotenv()
+# Load .env from project root (not from apps/backend/)
+import pathlib
+project_root = pathlib.Path(__file__).parent.parent.parent
+env_path = project_root / ".env"
+load_dotenv(dotenv_path=env_path)
 
 app = FastAPI(title="Billions")
+
+# ===========================
+# CORS MIDDLEWARE
+# ===========================
+# Allow frontend to access backend APIs
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Frontend dev server
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",  # Alternative port
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+# ===========================
+
 agent = BillionsAgent()
 
 # ===========================
@@ -1806,6 +1832,493 @@ async def moonpay_webhook(request: MoonpayWebhookRequest, session: AsyncSession 
         raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
 
 # Smart Contract Management Endpoints
+@app.get("/api/bounties")
+async def get_bounties(session: AsyncSession = Depends(get_db)):
+    """Get all available bounties"""
+    try:
+        from datetime import datetime
+        from sqlalchemy import select, func
+        from src.models import Transaction
+        
+        # Get lottery state
+        lottery_state = await smart_contract_service.get_lottery_state()
+        
+        # Get total entries
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_entries = result.scalar() or 0
+        
+        # Helper functions for bounty calculations
+        def get_starting_bounty(difficulty: str) -> float:
+            """Get starting bounty amount based on difficulty"""
+            difficulty_map = {
+                'easy': 500.0,
+                'medium': 2500.0,
+                'hard': 5000.0,
+                'expert': 10000.0
+            }
+            return difficulty_map.get(difficulty.lower(), 500.0)
+        
+        def get_starting_question_cost(difficulty: str) -> float:
+            """Get starting question cost based on difficulty"""
+            difficulty_map = {
+                'easy': 0.50,
+                'medium': 2.50,
+                'hard': 5.00,
+                'expert': 10.00
+            }
+            return difficulty_map.get(difficulty.lower(), 0.50)
+        
+        def calculate_current_bounty(starting_bounty: float, starting_cost: float, total_entries: int) -> float:
+            """
+            Calculate current bounty with exponential growth from contributions
+            Each question costs: startingCost * (1.0078 ^ entry_number)
+            60% of each question goes to the bounty pool
+            Revenue split: 60% bounty, 20% operational, 10% buyback, 10% staking
+            Formula: starting_bounty + sum of (question_cost * 0.60) for all entries
+            """
+            if total_entries == 0:
+                return starting_bounty
+            
+            # Sum of geometric series: a * (r^n - 1) / (r - 1)
+            # where a = starting_cost, r = 1.0078, n = total_entries
+            growth_rate = 1.0078
+            contribution_rate = 0.60  # 60% to bounty pool
+            
+            # Calculate total contributions from all questions
+            total_contributions = starting_cost * contribution_rate * (
+                (growth_rate ** total_entries - 1) / (growth_rate - 1)
+            )
+            
+            return starting_bounty + total_contributions
+        
+        # Define available bounties with correct provider names and difficulty levels
+        # Provider names: "claude", "gpt-4", "gemini", "llama" (lowercase)
+        # Difficulty levels: "easy", "medium", "hard", "expert" (lowercase)
+        # Bounty amounts: easy=$500, medium=$2,500, hard=$5,000, expert=$10,000
+        # Question costs grow by 0.78% per entry
+        # Revenue split: 60% bounty pool, 20% operational, 10% buyback, 10% staking
+        bounties_list = []
+        for bounty_config in [
+            {"id": 1, "name": "Claude Champ", "provider": "claude", "difficulty": "expert"},
+            {"id": 2, "name": "GPT-4 Bounty", "provider": "gpt-4", "difficulty": "hard"},
+            {"id": 3, "name": "Gemini Challenge", "provider": "gemini", "difficulty": "medium"},
+            {"id": 4, "name": "Llama Quest", "provider": "llama", "difficulty": "easy"},
+        ]:
+            starting_bounty = get_starting_bounty(bounty_config["difficulty"])
+            starting_cost = get_starting_question_cost(bounty_config["difficulty"])
+            current_pool = calculate_current_bounty(starting_bounty, starting_cost, total_entries)
+            
+            bounties_list.append({
+                "id": bounty_config["id"],
+                "name": bounty_config["name"],
+                "llm_provider": bounty_config["provider"],
+                "current_pool": round(current_pool, 2),
+                "total_entries": total_entries,
+                "win_rate": 0.0001,
+                "difficulty_level": bounty_config["difficulty"],
+                "is_active": True
+            })
+        
+        return {
+            "success": True,
+            "bounties": bounties_list
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounties: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "bounties": []
+        }
+
+# NOTE: More specific routes must be defined before parameterized routes
+# /api/bounty/status and /api/bounty/history must come before /api/bounty/{bounty_id}
+
+@app.get("/api/bounty/status")
+async def get_bounty_status(session: AsyncSession = Depends(get_db)):
+    """Get current bounty status - transforms lottery data for frontend compatibility"""
+    try:
+        # Get lottery state from smart contract
+        lottery_state = await smart_contract_service.get_lottery_state()
+        
+        # Get escape plan status (if needed)
+        from datetime import datetime, timedelta
+        from sqlalchemy import select, func
+        from src.models import Transaction
+        
+        # Get total entries from transactions (query_fee transactions represent entries)
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_entries = result.scalar() or 0
+        
+        # Get recent winners (last 5 payouts)
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.transaction_type == 'payout'
+            ).order_by(Transaction.timestamp.desc()).limit(5)
+        )
+        transactions = result.scalars().all()
+        
+        recent_winners = []
+        for tx in transactions:
+            recent_winners.append({
+                "user_id": tx.user_id,
+                "prize_amount": float(tx.amount),
+                "won_at": tx.timestamp.isoformat() if tx.timestamp else datetime.utcnow().isoformat()
+            })
+        
+        # Transform to frontend format
+        bounty_status = {
+            "current_pool": lottery_state.get("current_jackpot", 0),
+            "total_entries": total_entries,
+            "win_rate": 0.0001,  # 0.01% win rate
+            "recent_winners": recent_winners
+        }
+        
+        # Add next rollover if available
+        if lottery_state.get("next_rollover"):
+            bounty_status["next_rollover_at"] = lottery_state["next_rollover"]
+        
+        return bounty_status
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounty status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bounty status: {str(e)}")
+
+@app.get("/api/bounty/history")
+async def get_bounty_history(http_request: Request, session: AsyncSession = Depends(get_db)):
+    """Get user's bounty entry history"""
+    try:
+        # Get user from session
+        from sqlalchemy import select
+        from src.models import User, Transaction
+        
+        # Get user_id from session cookie
+        session_id = http_request.cookies.get("session_id")
+        if not session_id:
+            return {
+                "total_entries": 0,
+                "total_spent": 0,
+                "wins": 0,
+                "last_entry": None
+            }
+        
+        # Find user by session
+        result = await session.execute(
+            select(User).where(User.session_id == session_id)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return {
+                "total_entries": 0,
+                "total_spent": 0,
+                "wins": 0,
+                "last_entry": None
+            }
+        
+        # Get user's entries (query_fee transactions)
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.user_id == user.id,
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_entries = result.scalar() or 0
+        
+        # Get total spent
+        result = await session.execute(
+            select(func.sum(Transaction.amount)).where(
+                Transaction.user_id == user.id,
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_spent = float(result.scalar() or 0)
+        
+        # Get wins (payout transactions)
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.user_id == user.id,
+                Transaction.transaction_type == 'payout'
+            )
+        )
+        wins = result.scalar() or 0
+        
+        # Get last entry
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.user_id == user.id,
+                Transaction.transaction_type == 'query_fee'
+            ).order_by(Transaction.timestamp.desc()).limit(1)
+        )
+        last_entry_tx = result.scalar_one_or_none()
+        last_entry = last_entry_tx.timestamp.isoformat() if last_entry_tx and last_entry_tx.timestamp else None
+        
+        return {
+            "total_entries": total_entries,
+            "total_spent": total_spent,
+            "wins": wins,
+            "last_entry": last_entry
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounty history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get bounty history: {str(e)}")
+
+@app.get("/api/bounty/{bounty_id}/messages/public")
+async def get_bounty_messages(bounty_id: int, limit: int = 50, session: AsyncSession = Depends(get_db)):
+    """Get public chat messages for a specific bounty"""
+    try:
+        from sqlalchemy import select
+        from src.models import Conversation
+        
+        # Query recent public messages for this specific bounty
+        result = await session.execute(
+            select(Conversation)
+            .where(Conversation.bounty_id == bounty_id)
+            .order_by(Conversation.timestamp.desc())
+            .limit(limit)
+        )
+        conversations = result.scalars().all()
+        
+        # Format messages for frontend
+        messages = []
+        for conv in conversations:
+            messages.append({
+                "id": conv.id,
+                "user_id": conv.user_id,
+                "message_type": conv.message_type,
+                "content": conv.content,
+                "timestamp": conv.timestamp.isoformat() if conv.timestamp else None,
+                "cost": conv.cost
+            })
+        
+        return {
+            "success": True,
+            "messages": messages,
+            "total": len(messages),
+            "bounty_id": bounty_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounty messages for bounty {bounty_id}: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "messages": [],
+            "bounty_id": bounty_id
+        }
+
+@app.get("/api/bounty/{bounty_id}/status")
+async def get_bounty_status_by_id(bounty_id: int, session: AsyncSession = Depends(get_db)):
+    """Get status for a specific bounty (used by mobile app)"""
+    try:
+        from datetime import datetime
+        from sqlalchemy import select, func
+        from src.models import Transaction
+        
+        # Get bounty configuration
+        bounty_configs = {
+            1: {"difficulty": "expert"},
+            2: {"difficulty": "hard"},
+            3: {"difficulty": "medium"},
+            4: {"difficulty": "easy"}
+        }
+        
+        config = bounty_configs.get(bounty_id, {"difficulty": "medium"})
+        
+        # Get total entries
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_entries = result.scalar() or 0
+        
+        # Calculate dynamic values using helper functions
+        def get_starting_bounty(difficulty: str) -> float:
+            difficulty_map = {
+                'easy': 500.0,
+                'medium': 2500.0,
+                'hard': 5000.0,
+                'expert': 10000.0
+            }
+            return difficulty_map.get(difficulty.lower(), 500.0)
+        
+        def get_starting_question_cost(difficulty: str) -> float:
+            difficulty_map = {
+                'easy': 0.50,
+                'medium': 2.50,
+                'hard': 5.00,
+                'expert': 10.00
+            }
+            return difficulty_map.get(difficulty.lower(), 0.50)
+        
+        def calculate_current_bounty(starting_bounty, starting_cost, total_entries):
+            if total_entries == 0:
+                return starting_bounty
+            growth_rate = 1.0078
+            contribution_rate = 0.60
+            total_contributions = starting_cost * contribution_rate * (
+                (growth_rate ** total_entries - 1) / (growth_rate - 1)
+            )
+            return starting_bounty + total_contributions
+        
+        starting_pool = get_starting_bounty(config["difficulty"])
+        starting_cost = get_starting_question_cost(config["difficulty"])
+        current_pool = calculate_current_bounty(starting_pool, starting_cost, total_entries)
+        current_question_cost = starting_cost * (1.0078 ** total_entries)
+        
+        return {
+            "id": bounty_id,
+            "current_pool": round(current_pool, 2),
+            "total_entries": total_entries,
+            "win_rate": 0.0001,
+            "time_until_rollover": None
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounty status for bounty {bounty_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bounty/{bounty_id}")
+async def get_bounty_by_id(bounty_id: int, session: AsyncSession = Depends(get_db)):
+    """Get a specific bounty by ID"""
+    try:
+        from datetime import datetime
+        
+        # For now, return a mock bounty with the requested ID
+        # In production, this would fetch from a bounties table
+        lottery_state = await smart_contract_service.get_lottery_state()
+        
+        # Create bounty data based on ID
+        # Provider names: "claude", "gpt-4", "gemini", "llama" (lowercase)
+        # Difficulty levels: "easy", "medium", "hard", "expert" (lowercase)
+        bounty_configs = {
+            1: {
+                "name": "Claude Champ",
+                "description": "Face off against Claude, Anthropic's most advanced AI. This expert-level challenge requires sophisticated persuasion tactics.",
+                "llm_provider": "claude",
+                "difficulty_level": "expert",
+            },
+            2: {
+                "name": "GPT-4 Bounty",
+                "description": "Can you outsmart GPT-4? Try your best persuasion techniques in this hard-level challenge!",
+                "llm_provider": "gpt-4",
+                "difficulty_level": "hard",
+            },
+            3: {
+                "name": "Gemini Challenge",
+                "description": "Challenge Google's Gemini in this medium-difficulty bounty. Test your skills!",
+                "llm_provider": "gemini",
+                "difficulty_level": "medium",
+            },
+            4: {
+                "name": "Llama Quest",
+                "description": "Perfect for beginners! Try your luck with Meta's Llama model in this easy-level quest.",
+                "llm_provider": "llama",
+                "difficulty_level": "easy",
+            },
+        }
+        
+        config = bounty_configs.get(bounty_id, {
+            "name": f"Bounty #{bounty_id}",
+            "description": "Challenge the AI guardian to win the prize pool!",
+            "llm_provider": "claude",
+            "difficulty_level": "medium",
+        })
+        
+        from sqlalchemy import select, func
+        from src.models import Transaction
+        
+        # Get total entries
+        result = await session.execute(
+            select(func.count(Transaction.id)).where(
+                Transaction.transaction_type == 'query_fee'
+            )
+        )
+        total_entries = result.scalar() or 0
+        
+        # Helper functions for bounty calculations
+        def get_starting_bounty(difficulty: str) -> float:
+            """Get starting bounty amount based on difficulty"""
+            difficulty_map = {
+                'easy': 500.0,
+                'medium': 2500.0,
+                'hard': 5000.0,
+                'expert': 10000.0
+            }
+            return difficulty_map.get(difficulty.lower(), 500.0)
+        
+        def get_starting_question_cost(difficulty: str) -> float:
+            """Get starting question cost based on difficulty"""
+            difficulty_map = {
+                'easy': 0.50,
+                'medium': 2.50,
+                'hard': 5.00,
+                'expert': 10.00
+            }
+            return difficulty_map.get(difficulty.lower(), 0.50)
+        
+        def calculate_current_bounty(starting_bounty: float, starting_cost: float, total_entries: int) -> float:
+            """
+            Calculate current bounty with exponential growth from contributions
+            Each question costs: startingCost * (1.0078 ^ entry_number)
+            60% of each question goes to the bounty pool
+            Revenue split: 60% bounty, 20% operational, 10% buyback, 10% staking
+            """
+            if total_entries == 0:
+                return starting_bounty
+            
+            # Sum of geometric series: a * (r^n - 1) / (r - 1)
+            growth_rate = 1.0078
+            contribution_rate = 0.60  # 60% to bounty pool
+            
+            total_contributions = starting_cost * contribution_rate * (
+                (growth_rate ** total_entries - 1) / (growth_rate - 1)
+            )
+            
+            return starting_bounty + total_contributions
+        
+        starting_pool = get_starting_bounty(config["difficulty_level"])
+        starting_cost = get_starting_question_cost(config["difficulty_level"])
+        current_pool = calculate_current_bounty(starting_pool, starting_cost, total_entries)
+        
+        bounty_data = {
+            "id": bounty_id,
+            "name": config["name"],
+            "description": config["description"],
+            "llm_provider": config["llm_provider"],
+            "difficulty_level": config["difficulty_level"],
+            "current_pool": round(current_pool, 2),
+            "starting_pool": starting_pool,
+            "total_entries": total_entries,
+            "win_rate": 0.0001,  # 0.01% win rate
+            "is_active": True,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        return {
+            "success": True,
+            "bounty": bounty_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get bounty {bounty_id}: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @app.get("/api/lottery/status")
 async def get_lottery_status(session: AsyncSession = Depends(get_db)):
     """Get current lottery status from smart contract"""
