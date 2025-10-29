@@ -384,19 +384,27 @@ class FreeQuestions(Base):
     __tablename__ = "free_questions"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    source: Mapped[str] = mapped_column(String(50))  # 'referral_bonus', 'referral_signup', 'anonymous'
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    wallet_address: Mapped[Optional[str]] = mapped_column(String(255), index=True, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), index=True, nullable=True)
+    source: Mapped[str] = mapped_column(String(50), default='anonymous')  # 'referral_bonus', 'referral_signup', 'anonymous'
     referral_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("referrals.id"), nullable=True)
-    questions_earned: Mapped[int] = mapped_column(Integer, default=5)  # 5 free questions per referral, 2 for anonymous
+    referred_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Referrer wallet address
+    referrer_reward_pending: Mapped[bool] = mapped_column(Boolean, default=False)
+    questions_earned: Mapped[int] = mapped_column(Integer, default=1)  # 1 for anonymous, 5 for referral
     questions_used: Mapped[int] = mapped_column(Integer, default=0)
-    questions_remaining: Mapped[int] = mapped_column(Integer, default=5)
+    questions_remaining: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Optional expiration
     
     # Relationships
-    user: Mapped["User"] = relationship("User")
+    user: Mapped[Optional["User"]] = relationship("User")
     referral: Mapped[Optional["Referral"]] = relationship("Referral")
+
+# Alias for backward compatibility
+FreeQuestionUsage = FreeQuestions
 
 
 # ===========================

@@ -554,6 +554,90 @@ async def get_token_metrics(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/revenue/platform-stats")
+async def get_platform_revenue_stats(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get platform revenue statistics for staking dashboard
+    
+    Shows:
+    - Total platform revenue (all-time and monthly)
+    - Breakdown of the 20% distributed portion (Buyback + Staking)
+    - Excludes 60% jackpot and 20% operations (not relevant to stakers)
+    """
+    try:
+        from ..models import PaymentTransaction
+        from sqlalchemy import select, func
+        from datetime import datetime, timedelta
+        
+        # Get total confirmed revenue (all-time)
+        total_revenue_query = select(func.sum(PaymentTransaction.amount_usd)).where(
+            PaymentTransaction.status == "confirmed",
+            PaymentTransaction.payment_type.in_(["query_payment", "usdc_purchase"])
+        )
+        result = await db.execute(total_revenue_query)
+        total_revenue = result.scalar() or 0.0
+        
+        # Get monthly revenue (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        monthly_revenue_query = select(func.sum(PaymentTransaction.amount_usd)).where(
+            PaymentTransaction.status == "confirmed",
+            PaymentTransaction.payment_type.in_(["query_payment", "usdc_purchase"]),
+            PaymentTransaction.created_at >= thirty_days_ago
+        )
+        result = await db.execute(monthly_revenue_query)
+        monthly_revenue = result.scalar() or 0.0
+        
+        # Calculate allocations
+        # 60% goes to jackpot (not shown to stakers)
+        # 20% goes to operations (not shown to stakers)
+        # 20% is distributed: 10% buyback + 10% staking
+        
+        distributed_percentage = 0.20  # The portion stakers care about
+        buyback_percentage = 0.10
+        staking_percentage = 0.10
+        
+        # Total distributed amounts (20% of revenue)
+        total_distributed = total_revenue * distributed_percentage
+        monthly_distributed = monthly_revenue * distributed_percentage
+        
+        # Breakdown: Buyback vs Staking
+        total_buyback = total_revenue * buyback_percentage
+        total_staking_pool = total_revenue * staking_percentage
+        
+        monthly_buyback = monthly_revenue * buyback_percentage
+        monthly_staking_pool = monthly_revenue * staking_percentage
+        
+        return {
+            "total_revenue": {
+                "all_time": round(total_revenue, 2),
+                "monthly": round(monthly_revenue, 2)
+            },
+            "distributed_portion": {
+                "percentage": distributed_percentage * 100,  # 20%
+                "all_time": round(total_distributed, 2),
+                "monthly": round(monthly_distributed, 2),
+                "breakdown": {
+                    "buyback": {
+                        "percentage": buyback_percentage * 100,  # 10%
+                        "all_time": round(total_buyback, 2),
+                        "monthly": round(monthly_buyback, 2)
+                    },
+                    "staking_pool": {
+                        "percentage": staking_percentage * 100,  # 10%
+                        "all_time": round(total_staking_pool, 2),
+                        "monthly": round(monthly_staking_pool, 2)
+                    }
+                }
+            },
+            "note": "60% goes to jackpot, 20% to operations (not shown here)"
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ===========================
 # Health & Status
 # ===========================

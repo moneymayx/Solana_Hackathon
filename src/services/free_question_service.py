@@ -5,16 +5,17 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
-from ..models import User, FreeQuestions, Referral, ReferralCode
-from ..repositories import UserRepository
+from .models import User, FreeQuestions, Referral, ReferralCode
+from .repositories import UserRepository
 
 class FreeQuestionService:
     """Service for managing free question allocation and usage"""
     
     # Constants
-    ANONYMOUS_FREE_QUESTIONS = 2
+    ANONYMOUS_FREE_QUESTIONS = 1  # Anonymous users get 1 free question
     REFERRAL_FREE_QUESTIONS = 5
-    MAX_ANONYMOUS_QUESTIONS = 2
+    NFT_FREE_QUESTIONS = 5  # NEW: Questions granted for NFT verification
+    MAX_ANONYMOUS_QUESTIONS = 1  # Anonymous users get 1 free question
     
     def __init__(self):
         self.user_repo = None
@@ -43,12 +44,12 @@ class FreeQuestionService:
     async def _check_anonymous_eligibility(self, session: AsyncSession, user: User) -> Dict[str, Any]:
         """Check eligibility for anonymous users"""
         
-        # Check if user has already used their 1 free question
+        # Check if user has already used their 2 free questions
         if user.anonymous_free_questions_used >= self.MAX_ANONYMOUS_QUESTIONS:
             return {
                 "eligible": False,
                 "type": "signup_required",
-                "message": "You've used your 1 free question. Please sign up to continue.",
+                "message": "You've used your 2 free questions. Please sign up to continue.",
                 "questions_used": user.anonymous_free_questions_used,
                 "questions_remaining": 0
             }
@@ -247,6 +248,44 @@ class FreeQuestionService:
             "success": True,
             "questions_granted": self.REFERRAL_FREE_QUESTIONS,
             "message": f"Granted {self.REFERRAL_FREE_QUESTIONS} free questions for successful referral"
+        }
+    
+    async def grant_nft_questions(
+        self, 
+        session: AsyncSession, 
+        user_id: int, 
+        nft_mint: str
+    ) -> Dict[str, Any]:
+        """Grant 5 free questions to user for NFT verification"""
+        
+        # Check if user already has free questions from NFT verification
+        existing = await session.execute(
+            select(FreeQuestions)
+            .where(
+                and_(
+                    FreeQuestions.user_id == user_id,
+                    FreeQuestions.source == "nft_verification"
+                )
+            )
+        )
+        if existing.scalar_one_or_none():
+            return {"success": False, "error": "User already has questions from NFT verification"}
+        
+        # Create free questions record
+        free_questions = FreeQuestions(
+            user_id=user_id,
+            source="nft_verification",
+            referral_id=None,
+            questions_earned=self.NFT_FREE_QUESTIONS,
+            questions_remaining=self.NFT_FREE_QUESTIONS
+        )
+        session.add(free_questions)
+        await session.commit()
+        
+        return {
+            "success": True,
+            "questions_granted": self.NFT_FREE_QUESTIONS,
+            "message": f"Granted {self.NFT_FREE_QUESTIONS} free questions from NFT verification"
         }
     
     async def _get_user(self, session: AsyncSession, user_id: int) -> Optional[User]:

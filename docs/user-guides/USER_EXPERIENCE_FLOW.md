@@ -22,9 +22,9 @@ This document outlines the complete user experience flow for the Billions Bounty
 
 The platform uses a strategic hybrid authentication approach that balances user acquisition with conversion:
 
-- **Anonymous Access**: Users get 2 free questions without any registration
+- **Anonymous Access**: Users get 1 free question without any registration
 - **Session-Based Tracking**: Unique `session_id` stored in browser cookies for anonymous users
-- **Email Authentication**: Required after 2 free questions to continue
+- **Email Authentication**: Required after 1 free question to continue
 - **Wallet Integration**: Optional Solana wallet connection for enhanced features
 - **Device Fingerprinting**: IP address and user agent tracking for security
 - **KYC Compliance**: Email signup enables MoonPay integration for payments
@@ -49,7 +49,7 @@ class User:
     is_verified: bool         # Email verification status
     
     # Free question tracking
-    anonymous_free_questions_used: int      # 0-2 for anonymous users
+    anonymous_free_questions_used: int      # 0-1 for anonymous users
     has_used_anonymous_questions: bool      # Prevents return anonymous access
     
     # Wallet integration fields
@@ -81,14 +81,14 @@ class User:
 
 ### Step 2: Anonymous Free Questions
 
-1. **2 Free Questions**: Users can ask 2 questions without any registration
+1. **1 Free Question**: Users can ask 1 question without any registration
 2. **Question Tracking**: System tracks `anonymous_free_questions_used` and `has_used_anonymous_questions`
-3. **No Payment Required**: Questions are completely free for anonymous users
+3. **No Payment Required**: Question is completely free for anonymous users
 4. **Session Persistence**: Questions tracked across browser sessions
 
 ### Step 3: Signup Gate
 
-1. **Signup Required**: After 2 free questions, user must create account
+1. **Signup Required**: After 1 free question, user must create account
 2. **Email Registration**: User provides email and password
 3. **Referral Prompt**: "Before you pay, share your referral link to get 5 free questions per signup"
 4. **Account Creation**: System creates registered user account
@@ -334,10 +334,10 @@ class SecurityEvent:
 
 **Purpose**: Reduce friction for new users while encouraging signups
 
-- **2 Free Questions**: Anonymous users get exactly 2 questions without registration
+- **1 Free Question**: Anonymous users get exactly 1 question without registration
 - **Session Tracking**: Questions tracked via `anonymous_free_questions_used` and `has_used_anonymous_questions`
-- **One-Time Access**: Users can't get additional anonymous questions after using their 2
-- **Signup Gate**: After 2 questions, user must create account to continue
+- **One-Time Access**: Users can't get additional anonymous questions after using their 1
+- **Signup Gate**: After 1 question, user must create account to continue
 
 ### Referral Free Questions
 
@@ -356,7 +356,7 @@ class FreeQuestions:
     user_id: int
     source: str                  # 'referral_bonus', 'referral_signup', 'anonymous'
     referral_id: int             # Links to specific referral
-    questions_earned: int        # 5 for referrals, 2 for anonymous
+    questions_earned: int        # 5 for referrals, 1 for anonymous
     questions_used: int          # Questions consumed
     questions_remaining: int     # Available questions
     created_at: datetime
@@ -366,7 +366,7 @@ class FreeQuestions:
 
 ### Business Logic
 
-1. **Anonymous Users**: 2 questions maximum, tracked per session
+1. **Anonymous Users**: 1 question maximum, tracked per session
 2. **Referral Users**: 5 questions per successful referral
 3. **Referrer Rewards**: 5 questions when someone uses their code
 4. **Prevention**: Users can't be referred multiple times
