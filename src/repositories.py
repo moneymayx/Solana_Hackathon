@@ -24,7 +24,10 @@ class UserRepository:
             user_agent=user_agent,
             email=email,
             password_hash=password_hash,
-            display_name=display_name
+            display_name=display_name,
+            nft_verified=False,  # Default to False for new users
+            nft_verified_at=None,
+            nft_mint_address=None
         )
         self.session.add(user)
         await self.session.commit()

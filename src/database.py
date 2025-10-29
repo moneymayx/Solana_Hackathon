@@ -29,6 +29,11 @@ from .config.simulation_models import (
 # Database URL - defaults to SQLite for development
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./billions.db")
 
+# Log which database we're connecting to
+import logging
+logger = logging.getLogger(__name__)
+logger.info(f"🗄️  DATABASE_URL: {DATABASE_URL[:80]}...")
+
 # Create async engine with connection pool settings
 engine = create_async_engine(
     DATABASE_URL,

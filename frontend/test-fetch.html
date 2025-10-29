@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Backend Fetch</title>
+</head>
+<body>
+    <h1>Testing Backend Connection</h1>
+    <button onclick="testFetch()">Test Fetch to Backend</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testFetch() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                console.log('Attempting fetch to http://localhost:8000/api/bounties');
+                const response = await fetch('http://localhost:8000/api/bounties');
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                resultEl.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultEl.textContent = `ERROR: ${error.message}\n\nCheck browser console for details.`;
+            }
+        }
+    </script>
+</body>
+</html>
+

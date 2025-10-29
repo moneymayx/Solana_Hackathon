@@ -8,8 +8,21 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
+import pathlib
+import logging
 
-# Import from reorganized src package
+# Set up logging FIRST
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load .env from project root BEFORE importing src (which connects to database)
+project_root = pathlib.Path(__file__).parent.parent.parent
+env_path = project_root / ".env"
+load_dotenv(dotenv_path=env_path)
+logger.info(f"✅ Loaded .env from: {env_path}")
+logger.info(f"🗄️  DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT SET')[:80]}...")
+
+# NOW Import from reorganized src package (after .env is loaded)
 from src import (
     BillionsAgent,
     get_db, create_tables,
@@ -26,18 +39,8 @@ from src import (
     GDPRComplianceService, ConsentType
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-import os
-import logging
 import json
-
-logger = logging.getLogger(__name__)
 from sqlalchemy import select, update, func, and_, desc
-
-# Load .env from project root (not from apps/backend/)
-import pathlib
-project_root = pathlib.Path(__file__).parent.parent.parent
-env_path = project_root / ".env"
-load_dotenv(dotenv_path=env_path)
 
 app = FastAPI(title="Billions")
 
@@ -160,6 +163,8 @@ class WalletConnectRequest(BaseModel):
 class TransactionVerifyRequest(BaseModel):
     tx_signature: str
     payment_method: str
+    wallet_address: str
+    amount_usd: Optional[float] = 10.0  # Default to $10
 
 @app.get("/")
 async def read_root():
@@ -807,33 +812,166 @@ async def chat_interface():
     </html>
     """
 
-async def get_or_create_user(request: Request, session: AsyncSession = Depends(get_db)):
-    """Get or create user based on session with enhanced free question logic"""
-    from src.free_question_service import free_question_service
-    
-    # Get session ID from cookies or create new one
-    session_id = request.cookies.get("session_id")
-    if not session_id:
-        session_id = str(uuid.uuid4())
+async def get_or_create_user(request: Request, session: AsyncSession, wallet_address: Optional[str] = None):
+    """Get or create user based on wallet address (priority) or session with enhanced free question logic"""
+    from src.services.free_question_service import free_question_service
     
     user_repo = UserRepository(session)
-    user = await user_repo.get_user_by_session(session_id)
     
-    if not user:
-        # Create new user
-        ip_address = request.client.host if request.client else None
-        user_agent = request.headers.get("user-agent")
-        user = await user_repo.create_user(session_id, ip_address, user_agent)
+    # If wallet address is provided, find user by wallet FIRST
+    if wallet_address:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if user:
+            logger.info(f"✅ Found user {user.id} by wallet address: {wallet_address}")
+            session_id = user.session_id or str(uuid.uuid4())
+        else:
+            # Create new user with wallet address
+            session_id = str(uuid.uuid4())
+            ip_address = request.client.host if request.client else None
+            user_agent = request.headers.get("user-agent")
+            user = await user_repo.create_user(session_id, ip_address, user_agent)
+            await user_repo.update_user_wallet(user.id, wallet_address)
+            await session.refresh(user)
+            logger.info(f"✅ Created new user {user.id} with wallet: {wallet_address}")
+    else:
+        # Fall back to session-based user
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        user = await user_repo.get_user_by_session(session_id)
+        
+        if not user:
+            # Create new user
+            ip_address = request.client.host if request.client else None
+            user_agent = request.headers.get("user-agent")
+            user = await user_repo.create_user(session_id, ip_address, user_agent)
+            logger.info(f"✅ Created new session-based user {user.id}")
     
     # Check for referral code in URL
     referral_code = request.query_params.get("ref")
     
     # Check user's question eligibility
     eligibility = await free_question_service.check_user_question_eligibility(
-        session, user.id, is_anonymous=not user.email, referral_code=referral_code
+        session, user.id, is_anonymous=not user.email and not user.wallet_address, referral_code=referral_code
     )
     
     return user, session_id, eligibility
+
+@app.post("/api/bounty/{bounty_id}/chat")
+async def bounty_chat_endpoint(
+    bounty_id: int,
+    request: dict,
+    http_request: Request,
+    session: AsyncSession = Depends(get_db)
+):
+    """Chat endpoint for specific bounty challenges"""
+    try:
+        message = request.get("message")
+        user_id = request.get("user_id", 1)
+        wallet_address = request.get("wallet_address")
+        ip_address = request.get("ip_address", http_request.client.host if http_request.client else "browser")
+        
+        if not message:
+            raise HTTPException(status_code=400, detail="message required")
+        
+        logger.info(f"💬 Bounty {bounty_id} chat: {message[:50]}...")
+        
+        # Get or create user (with wallet address if provided)
+        user, session_id, eligibility = await get_or_create_user(http_request, session, wallet_address)
+        
+        logger.info(f"🔍 USER ELIGIBILITY: user_id={user.id}, wallet={wallet_address}, type={eligibility['type']}, eligible={eligibility['eligible']}, remaining={eligibility.get('questions_remaining', 0)}")
+        
+        # Check if user can ask questions
+        if not eligibility["eligible"]:
+            if eligibility["type"] == "payment_required":
+                raise HTTPException(status_code=402, detail={
+                    "error": "payment_required",
+                    "message": eligibility["message"],
+                    "questions_remaining": eligibility.get("questions_remaining", 0)
+                })
+        
+        # Use a free question if applicable
+        question_result = None
+        if eligibility["type"] in ["anonymous", "free_questions", "referral_signup"]:
+            from src.services.free_question_service import free_question_service
+            question_result = await free_question_service.use_free_question(
+                session, user.id, eligibility["type"]
+            )
+            
+            if not question_result["success"]:
+                raise HTTPException(status_code=402, detail={
+                    "error": "no_questions_remaining",
+                    "message": question_result.get("error", "No questions remaining"),
+                    "requires_payment": True
+                })
+        
+        # Get AI response with bounty integration
+        # agent is already imported at top of file
+        chat_result = await agent.chat(message, session, user.id, eligibility["type"])
+        
+        # Store conversation with bounty_id
+        from src.models import Conversation
+        try:
+            conv_user = Conversation(
+                user_id=user.id,
+                bounty_id=bounty_id,
+                message_type="user",
+                content=message,
+                cost=chat_result.get("cost", 0),
+                model_used=chat_result.get("model", "unknown")
+            )
+            session.add(conv_user)
+            
+            conv_ai = Conversation(
+                user_id=user.id,
+                bounty_id=bounty_id,
+                message_type="assistant",
+                content=chat_result["response"],
+                is_winner=chat_result["winner_result"].get("is_winner", False)
+            )
+            session.add(conv_ai)
+            await session.commit()
+        except Exception as db_error:
+            logger.error(f"Database error storing conversation: {db_error}")
+            await session.rollback()
+            # Continue and return response even if storage fails
+            logger.info("Returning AI response despite database storage failure")
+        
+        logger.info(f"✅ Bounty {bounty_id} response generated")
+        
+        # Use updated counts from question_result if available, otherwise use original eligibility
+        if question_result:
+            questions_remaining = question_result.get("questions_remaining", 0)
+            questions_used = question_result.get("questions_used", eligibility.get("questions_used", 0))
+        else:
+            questions_remaining = eligibility.get("questions_remaining", 0)
+            questions_used = eligibility.get("questions_used", 0)
+        
+        logger.info(f"📤 RETURNING: remaining={questions_remaining}, used={questions_used}, question_result={question_result}")
+        
+        return {
+            "success": True,
+            "response": chat_result["response"],
+            "bounty_status": chat_result.get("bounty_status", {}),
+            "winner_result": chat_result.get("winner_result", {}),
+            "free_questions": {
+                "remaining": questions_remaining,
+                "used": questions_used
+            },
+            "cost": chat_result.get("cost", 0),
+            "model_used": chat_result.get("model", "unknown")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bounty chat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
@@ -1364,22 +1502,79 @@ async def get_payment_options(request: PaymentRequest, session: AsyncSession = D
 
 @app.post("/api/payment/create")
 async def create_payment(request: PaymentRequest, http_request: Request, session: AsyncSession = Depends(get_db)):
-    """Create a payment transaction through smart contract"""
+    """Create a payment transaction (returns transaction details for user to sign)"""
     user, session_id, eligibility = await get_or_create_user(http_request, session)
     
     if request.payment_method == "wallet":
         if not request.wallet_address:
             raise HTTPException(status_code=400, detail="Wallet address required for wallet payments")
         
-        # Process lottery entry payment using new payment flow service
-        result = await payment_flow_service.process_lottery_entry_payment(
-            session=session,
-            user_id=user.id,
-            wallet_address=request.wallet_address,
-            entry_amount=request.amount_usd
-        )
+        # Check if we're in mock payment mode
+        payment_mode = os.getenv("PAYMENT_MODE", "real")
         
-        return result
+        if payment_mode == "mock":
+            # Use mock payment service for testing
+            from src.services.mock_payment_service import mock_payment_service
+            logger.info("🧪 Using MOCK payment mode - no real transactions")
+            
+            result = await mock_payment_service.create_mock_transaction(
+                session=session,
+                wallet_address=request.wallet_address,
+                amount_usd=request.amount_usd
+            )
+            return result
+        
+        else:
+            # Real payment flow (production)
+            logger.info("💰 Using REAL payment mode - actual blockchain transactions")
+            
+            # Build transaction details for frontend to sign
+            # Convert USD to USDC units (6 decimals)
+            amount_units = int(request.amount_usd * 1_000_000)
+            
+            # Check if amount is below recommended (warn but don't block)
+            warning = None
+            if amount_units < smart_contract_service.research_fee:
+                warning = f"Recommended amount is ${smart_contract_service.research_fee / 1_000_000:.2f}. Transaction may fail if you don't have sufficient USDC."
+            
+            # Get USDC mint and recipient (smart contract PDA)
+            usdc_mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC mainnet
+            recipient = os.getenv("TREASURY_WALLET", str(smart_contract_service.lottery_pda))
+            
+            # Calculate ATAs (Associated Token Accounts)
+            from solders.pubkey import Pubkey as SoldersPubkey
+            from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
+            
+            user_pubkey = SoldersPubkey.from_string(request.wallet_address)
+            mint_pubkey = SoldersPubkey.from_string(usdc_mint)
+            recipient_pubkey = SoldersPubkey.from_string(recipient)
+            
+            # Get user's USDC ATA
+            from_ata = str(SoldersPubkey.find_program_address(
+                [bytes(user_pubkey), bytes(TOKEN_PROGRAM_ID), bytes(mint_pubkey)],
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            )[0])
+            
+            # Get recipient's USDC ATA  
+            to_ata = str(SoldersPubkey.find_program_address(
+                [bytes(recipient_pubkey), bytes(TOKEN_PROGRAM_ID), bytes(mint_pubkey)],
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            )[0])
+            
+            return {
+                "success": True,
+                "transaction": {
+                    "recipient": recipient,
+                    "mint": usdc_mint,
+                    "from_ata": from_ata,
+                    "to_ata": to_ata,
+                    "units": amount_units,
+                    "amount_usd": request.amount_usd
+                },
+                "warning": warning,
+                "message": "Transaction details ready for signing",
+                "is_mock": False
+            }
     
     elif request.payment_method == "fiat":
         raise HTTPException(
@@ -1392,10 +1587,98 @@ async def create_payment(request: PaymentRequest, http_request: Request, session
 
 @app.post("/api/payment/verify")
 async def verify_payment(request: TransactionVerifyRequest, session: AsyncSession = Depends(get_db)):
-    """Verify a payment transaction"""
+    """Verify a payment transaction and grant free questions"""
     if request.payment_method == "wallet":
-        result = await wallet_service.verify_transaction(request.tx_signature)
-        return result
+        # Check if we're in mock payment mode
+        payment_mode = os.getenv("PAYMENT_MODE", "real")
+        
+        if payment_mode == "mock":
+            # Mock verification - grant free questions without real payment
+            from src.services.mock_payment_service import mock_payment_service
+            from src.services.free_question_service import free_question_service
+            
+            logger.info(f"🧪 MOCK payment verification for {request.wallet_address}")
+            
+            # Verify mock transaction
+            result = await mock_payment_service.verify_mock_transaction(
+                session=session,
+                wallet_address=request.wallet_address,
+                transaction_signature=request.tx_signature,
+                amount_usd=getattr(request, 'amount_usd', 10.0)  # Default to $10
+            )
+            
+            if result["verified"]:
+                # Get or create user by wallet address
+                from src.repositories import UserRepository
+                
+                user_result = await session.execute(
+                    select(User).where(User.wallet_address == request.wallet_address)
+                )
+                user = user_result.scalar_one_or_none()
+                
+                # Create user if doesn't exist
+                if not user:
+                    logger.info(f"Creating new user for wallet: {request.wallet_address}")
+                    user_repo = UserRepository(session)
+                    user = await user_repo.create_user(
+                        session_id=f"payment_{request.wallet_address}"
+                    )
+                    # Update with wallet address
+                    await user_repo.update_user_wallet(
+                        user_id=user.id,
+                        wallet_address=request.wallet_address
+                    )
+                    await session.commit()
+                    await session.refresh(user)  # Refresh the user object, not the return value
+                    logger.info(f"✅ Created user {user.id} for wallet {request.wallet_address}")
+                
+                # Grant free questions and track credit
+                questions_to_grant = result.get("questions_granted", 0)
+                credit_remainder = result.get("credit_remainder", 0.0)
+                
+                if questions_to_grant > 0 or credit_remainder > 0:
+                    await free_question_service.grant_free_questions(
+                        session=session,
+                        user_id=user.id,
+                        questions_to_grant=questions_to_grant,
+                        source=f"mock_payment_${result.get('amount_usd', 0)}",
+                        credit_remainder=credit_remainder,
+                        bounty_id=None  # Could be passed from request
+                    )
+                    logger.info(f"✅ Granted {questions_to_grant} questions + ${credit_remainder:.2f} credit to user {user.id}")
+            
+            return result
+        
+        else:
+            # Real payment verification (production)
+            logger.info(f"💰 REAL payment verification")
+            result = await wallet_service.verify_transaction(request.tx_signature)
+            
+            # If verified, grant free questions based on payment amount
+            if result.get("verified"):
+                from src.services.free_question_service import free_question_service
+                
+                user_result = await session.execute(
+                    select(User).where(User.wallet_address == request.wallet_address)
+                )
+                user = user_result.scalar_one_or_none()
+                
+                if user:
+                    # Grant questions based on payment: $10 per question
+                    amount_usd = result.get("amount_usd", 10.0)
+                    COST_PER_QUESTION = 10.0
+                    questions_to_grant = max(1, int(amount_usd / COST_PER_QUESTION))
+                    
+                    await free_question_service.grant_free_questions(
+                        session=session,
+                        user_id=user.id,
+                        questions_to_grant=questions_to_grant,
+                        source=f"wallet_payment_${amount_usd}"
+                    )
+                    
+                    result["questions_granted"] = questions_to_grant
+            
+            return result
     
     elif request.payment_method == "fiat":
         raise HTTPException(
@@ -1405,6 +1688,125 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
     
     else:
         raise HTTPException(status_code=400, detail="Invalid payment method")
+
+@app.get("/api/nft/status/{wallet_address}")
+async def check_nft_status(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Check if wallet owns eligible NFTs and return status"""
+    try:
+        # Check if we're in mock payment mode (use same mode for NFT)
+        payment_mode = os.getenv("PAYMENT_MODE", "real")
+        
+        if payment_mode == "mock":
+            # Use mock NFT service for testing
+            from src.services.mock_nft_service import mock_nft_service
+            logger.info(f"🎨 Using MOCK NFT mode - no real NFTs required")
+            
+            result = await mock_nft_service.check_nft_ownership(
+                session=session,
+                wallet_address=wallet_address
+            )
+            return result
+        
+        else:
+            # Real NFT verification (production)
+            # Tell frontend to use real Solana RPC
+            logger.info(f"💎 REAL NFT verification - frontend will check blockchain")
+            
+            # Check if already verified in our database
+            user_result = await session.execute(
+                select(User).where(User.wallet_address == wallet_address)
+            )
+            user = user_result.scalar_one_or_none()
+            
+            verified = False
+            questions_remaining = 0
+            if user:
+                from src.services.free_question_service import free_question_service
+                free_qs = await free_question_service.get_user_free_questions(session, user.id)
+                questions_remaining = free_qs.get("remaining", 0)
+                # Check if they got questions from NFT verification
+                verified = free_qs.get("nft_verified", False)
+            
+            return {
+                "success": True,
+                "is_mock": False,
+                "verified": verified,
+                "questions_remaining": questions_remaining,
+                "message": "Use frontend Solana RPC to check NFT ownership"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error checking NFT status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/nft/verify")
+async def verify_nft_and_grant(request: dict, session: AsyncSession = Depends(get_db)):
+    """Verify NFT ownership and grant free questions"""
+    try:
+        wallet_address = request.get("wallet_address")
+        signature = request.get("signature")  # Transaction signature from frontend
+        
+        if not wallet_address:
+            raise HTTPException(status_code=400, detail="wallet_address required")
+        
+        # Check if we're in mock payment mode (use same mode for NFT)
+        payment_mode = os.getenv("PAYMENT_MODE", "real")
+        
+        if payment_mode == "mock":
+            # Use mock NFT service
+            from src.services.mock_nft_service import mock_nft_service
+            logger.info(f"🎨 MOCK NFT verification for {wallet_address}")
+            
+            result = await mock_nft_service.verify_and_grant_questions(
+                session=session,
+                wallet_address=wallet_address,
+                questions_to_grant=5  # Grant 5 free questions for NFT holders
+            )
+            return result
+        
+        else:
+            # Real NFT verification (production)
+            # Frontend has already verified NFT via RPC and sent transaction signature
+            logger.info(f"💎 REAL NFT verification for {wallet_address}")
+            
+            # Get or create user
+            user_result = await session.execute(
+                select(User).where(User.wallet_address == wallet_address)
+            )
+            user = user_result.scalar_one_or_none()
+            
+            if not user:
+                # Create user if they don't exist
+                from src.repositories.user_repository import UserRepository
+                user_repo = UserRepository(session)
+                user = await user_repo.create_user(
+                    session_id=str(uuid.uuid4()),
+                    wallet_address=wallet_address
+                )
+            
+            # Grant 5 free questions for NFT holders
+            from src.services.free_question_service import free_question_service
+            await free_question_service.grant_free_questions(
+                session=session,
+                user_id=user.id,
+                questions_to_grant=5,
+                source=f"nft_verification_{signature[:8] if signature else 'direct'}"
+            )
+            
+            logger.info(f"✅ Granted 5 free questions to user {user.id} for NFT verification")
+            
+            return {
+                "success": True,
+                "verified": True,
+                "questions_granted": 5,
+                "message": "NFT verified and 5 free questions granted",
+                "signature": signature,
+                "is_mock": False
+            }
+            
+    except Exception as e:
+        logger.error(f"Error verifying NFT: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/payment/rates")
 async def get_payment_rates():
@@ -2080,6 +2482,8 @@ async def get_bounty_messages(bounty_id: int, limit: int = 50, session: AsyncSes
         from sqlalchemy import select
         from src.models import Conversation
         
+        logger.info(f"🔍 Fetching messages for bounty_id={bounty_id}, limit={limit}")
+        
         # Query recent public messages for this specific bounty
         result = await session.execute(
             select(Conversation)
@@ -2089,17 +2493,24 @@ async def get_bounty_messages(bounty_id: int, limit: int = 50, session: AsyncSes
         )
         conversations = result.scalars().all()
         
+        logger.info(f"📊 Found {len(conversations)} conversations in database")
+        
         # Format messages for frontend
         messages = []
         for conv in conversations:
+            logger.info(f"  Processing conversation ID {conv.id}: {conv.message_type}")
             messages.append({
                 "id": conv.id,
                 "user_id": conv.user_id,
                 "message_type": conv.message_type,
                 "content": conv.content,
                 "timestamp": conv.timestamp.isoformat() if conv.timestamp else None,
-                "cost": conv.cost
+                "cost": conv.cost,
+                "model_used": conv.model_used,
+                "is_winner": getattr(conv, 'is_winner', False)
             })
+        
+        logger.info(f"✅ Returning {len(messages)} formatted messages")
         
         return {
             "success": True,
@@ -2109,7 +2520,9 @@ async def get_bounty_messages(bounty_id: int, limit: int = 50, session: AsyncSes
         }
         
     except Exception as e:
-        logger.error(f"Failed to get bounty messages for bounty {bounty_id}: {str(e)}")
+        logger.error(f"❌ Failed to get bounty messages for bounty {bounty_id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {
             "success": False,
             "error": str(e),
@@ -2205,25 +2618,25 @@ async def get_bounty_by_id(bounty_id: int, session: AsyncSession = Depends(get_d
         bounty_configs = {
             1: {
                 "name": "Claude Champ",
-                "description": "Face off against Claude, Anthropic's most advanced AI. This expert-level challenge requires sophisticated persuasion tactics.",
+                "description": "Expert-level challenge against Anthropic's most advanced AI.",
                 "llm_provider": "claude",
                 "difficulty_level": "expert",
             },
             2: {
                 "name": "GPT-4 Bounty",
-                "description": "Can you outsmart GPT-4? Try your best persuasion techniques in this hard-level challenge!",
+                "description": "Hard-level challenge: Can you outsmart OpenAI's GPT-4?",
                 "llm_provider": "gpt-4",
                 "difficulty_level": "hard",
             },
             3: {
                 "name": "Gemini Challenge",
-                "description": "Challenge Google's Gemini in this medium-difficulty bounty. Test your skills!",
+                "description": "Medium-difficulty: Test your skills against Google's Gemini.",
                 "llm_provider": "gemini",
                 "difficulty_level": "medium",
             },
             4: {
                 "name": "Llama Quest",
-                "description": "Perfect for beginners! Try your luck with Meta's Llama model in this easy-level quest.",
+                "description": "Easy-level: Perfect for beginners to try Meta's Llama.",
                 "llm_provider": "llama",
                 "difficulty_level": "easy",
             },
@@ -2577,15 +2990,14 @@ async def user_signup(request: UserSignupRequest, http_request: Request, session
         )
         
         if referral_result["success"]:
-            # Grant 5 free questions to referee
+            # Grant 5 free questions to referee with pending referrer reward
             await free_question_service.grant_referral_questions(
                 session, user.id, referral_result["referral_id"]
             )
             
-            # Grant 5 free questions to referrer
-            await free_question_service.grant_referrer_questions(
-                session, referral_result["referrer_id"], referral_result["referral_id"]
-            )
+            # Mark referrer reward as pending (will be granted when referee uses all 5 questions)
+            # This incentivizes high-quality referrals - referrer only gets reward if referee actually uses the questions
+            logger.info(f"✅ Referrer {referral_result['referrer_id']} will receive reward after referee uses all questions")
     
     # Send verification email
     email_result = await email_service.send_verification_email(
@@ -3766,6 +4178,54 @@ async def get_referral_leaderboard(session: AsyncSession = Depends(get_db), limi
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get referral leaderboard: {str(e)}")
+
+@app.get("/api/free-questions/{wallet_address}")
+async def get_free_questions_by_wallet(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get free questions available for a wallet address"""
+    try:
+        from src.services.free_question_service import free_question_service
+        
+        # Get user by wallet address
+        user_repo = UserRepository(session)
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            # No user yet, return default eligibility
+            return {
+                "success": True,
+                "questions_remaining": 0,
+                "questions_used": 0,
+                "questions_earned": 0,
+                "source": None
+            }
+        
+        # Check eligibility
+        # Users with wallet addresses are NOT anonymous (even without email)
+        is_anonymous = not user.email and not user.wallet_address
+        eligibility = await free_question_service.check_user_question_eligibility(
+            session, user.id, is_anonymous=is_anonymous, referral_code=None
+        )
+        
+        return {
+            "success": True,
+            "questions_remaining": eligibility.get("questions_remaining", 0),
+            "questions_used": eligibility.get("questions_used", 0),
+            "questions_earned": eligibility.get("questions_earned", 0),
+            "source": eligibility.get("source"),
+            "referral_code": eligibility.get("referral_code"),
+            "email": user.email
+        }
+    except Exception as e:
+        logger.error(f"Failed to get free questions for {wallet_address}: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "questions_remaining": 0,
+            "questions_used": 0
+        }
 
 @app.get("/api/referral/free-questions/{user_id}")
 async def get_free_questions(user_id: int, session: AsyncSession = Depends(get_db)):

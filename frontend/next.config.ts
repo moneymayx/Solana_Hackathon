@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     // TODO: Fix all ESLint errors for production-ready deployment
     ignoreDuringBuilds: true,
   },
+  // Turbopack configuration
+  // Note: turbopack is not in experimental in Next.js 15.5.4, it's enabled via CLI flag (--turbopack)
   async headers() {
     return [
       {
@@ -40,7 +42,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.mainnet-beta.solana.com wss://api.devnet.solana.com",
+              "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.mainnet-beta.solana.com wss://api.devnet.solana.com",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",

@@ -37,6 +37,11 @@ class User(Base):
     wallet_signature: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Store wallet signature for verification
     display_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Optional display name
     
+    # NFT verification fields
+    nft_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    nft_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    nft_mint_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
     # KYC fields
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     date_of_birth: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -83,6 +88,8 @@ class Conversation(Base):
     cost: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     tokens_used: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model_used: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)  # Whether conversation is publicly viewable
+    is_winner: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True, default=False)  # Whether this was a winning attempt
     
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="conversations")
@@ -398,6 +405,8 @@ class FreeQuestions(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_used: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Optional expiration
+    credit_balance: Mapped[float] = mapped_column(Float, default=0.0)  # Unused payment credit
+    bounty_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Which bounty this is for
     
     # Relationships
     user: Mapped[Optional["User"]] = relationship("User")

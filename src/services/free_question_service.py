@@ -5,8 +5,10 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
-from .models import User, FreeQuestions, Referral, ReferralCode
-from .repositories import UserRepository
+import logging
+from ..models import User, FreeQuestions, Referral, ReferralCode
+
+logger = logging.getLogger(__name__)
 
 class FreeQuestionService:
     """Service for managing free question allocation and usage"""
@@ -18,7 +20,7 @@ class FreeQuestionService:
     MAX_ANONYMOUS_QUESTIONS = 1  # Anonymous users get 1 free question
     
     def __init__(self):
-        self.user_repo = None
+        pass
     
     async def check_user_question_eligibility(
         self, 
@@ -81,13 +83,23 @@ class FreeQuestionService:
         free_questions = await self._get_user_free_questions(session, user.id)
         
         if free_questions and free_questions.questions_remaining > 0:
+            # Check if these are paid questions (payment source) or free questions (NFT/referral)
+            is_paid = "payment" in free_questions.source.lower() or "mock_payment" in free_questions.source.lower()
+            
+            message = (
+                f"You have {free_questions.questions_remaining} questions remaining."
+                if is_paid else
+                f"You have {free_questions.questions_remaining} free questions remaining."
+            )
+            
             return {
                 "eligible": True,
                 "type": "free_questions",
-                "message": f"You have {free_questions.questions_remaining} free questions remaining.",
+                "message": message,
                 "questions_used": free_questions.questions_used,
                 "questions_remaining": free_questions.questions_remaining,
-                "source": free_questions.source
+                "source": free_questions.source,
+                "is_paid": is_paid
             }
         
         # Check if this is a referral signup
@@ -169,6 +181,18 @@ class FreeQuestionService:
                 "requires_payment": True
             }
         
+        # Calculate new values BEFORE update
+        new_questions_remaining = free_questions.questions_remaining - 1
+        new_questions_used = free_questions.questions_used + 1
+        
+        logger.info(f"🔢 BEFORE UPDATE: remaining={free_questions.questions_remaining}, used={free_questions.questions_used}")
+        logger.info(f"🔢 AFTER CALC: new_remaining={new_questions_remaining}, new_used={new_questions_used}")
+        
+        # Check if this is the last question and referrer reward is pending
+        is_last_question = (free_questions.questions_remaining == 1)
+        has_pending_referrer_reward = free_questions.referrer_reward_pending
+        referral_id = free_questions.referral_id
+        
         # Update free questions
         await session.execute(
             update(FreeQuestions)
@@ -176,15 +200,46 @@ class FreeQuestionService:
             .values(
                 questions_used=FreeQuestions.questions_used + 1,
                 questions_remaining=FreeQuestions.questions_remaining - 1,
-                last_used=datetime.utcnow()
+                last_used=datetime.utcnow(),
+                # Clear pending flag when last question is used
+                referrer_reward_pending=False if is_last_question else FreeQuestions.referrer_reward_pending
             )
         )
         await session.commit()
         
+        # If this was the last question and referrer reward is pending, grant it now!
+        if is_last_question and has_pending_referrer_reward and referral_id:
+            logger.info(f"🎉 Referee used all questions! Granting referrer reward for referral {referral_id}")
+            
+            # Get the referral to find the referrer
+            from ..models import Referral
+            referral_result = await session.execute(
+                select(Referral).where(Referral.id == referral_id)
+            )
+            referral = referral_result.scalar_one_or_none()
+            
+            if referral and referral.referrer_id:
+                # Grant referrer their 5 questions
+                await self.grant_referrer_questions(
+                    session, referral.referrer_id, referral_id
+                )
+                logger.info(f"✅ Granted 5 questions to referrer {referral.referrer_id}")
+        
+        # Check if these are paid questions or free questions
+        is_paid = "payment" in free_questions.source.lower() or "mock_payment" in free_questions.source.lower()
+        
+        message = (
+            f"Question used. {new_questions_remaining} questions remaining."
+            if is_paid else
+            f"Question used. {new_questions_remaining} free questions remaining."
+        )
+        
         return {
             "success": True,
-            "questions_remaining": free_questions.questions_remaining - 1,
-            "message": f"Question used. {free_questions.questions_remaining - 1} free questions remaining."
+            "questions_remaining": new_questions_remaining,
+            "questions_used": new_questions_used,
+            "message": message,
+            "is_paid": is_paid
         }
     
     async def grant_referral_questions(
@@ -193,7 +248,7 @@ class FreeQuestionService:
         user_id: int, 
         referral_id: int
     ) -> Dict[str, Any]:
-        """Grant 5 free questions to a user from a referral"""
+        """Grant 5 free questions to a user from a referral and mark referrer reward as pending"""
         
         # Check if user already has free questions from this referral
         existing = await session.execute(
@@ -208,11 +263,12 @@ class FreeQuestionService:
         if existing.scalar_one_or_none():
             return {"success": False, "error": "User already has questions from this referral"}
         
-        # Create free questions record
+        # Create free questions record with pending referrer reward
         free_questions = FreeQuestions(
             user_id=user_id,
             source="referral_signup",
             referral_id=referral_id,
+            referrer_reward_pending=True,  # Mark that referrer should get reward when these are used
             questions_earned=self.REFERRAL_FREE_QUESTIONS,
             questions_remaining=self.REFERRAL_FREE_QUESTIONS
         )
@@ -222,7 +278,7 @@ class FreeQuestionService:
         return {
             "success": True,
             "questions_granted": self.REFERRAL_FREE_QUESTIONS,
-            "message": f"Granted {self.REFERRAL_FREE_QUESTIONS} free questions from referral"
+            "message": f"Granted {self.REFERRAL_FREE_QUESTIONS} free questions from referral (referrer reward pending)"
         }
     
     async def grant_referrer_questions(
@@ -286,6 +342,42 @@ class FreeQuestionService:
             "success": True,
             "questions_granted": self.NFT_FREE_QUESTIONS,
             "message": f"Granted {self.NFT_FREE_QUESTIONS} free questions from NFT verification"
+        }
+    
+    async def grant_free_questions(
+        self,
+        session: AsyncSession,
+        user_id: int,
+        questions_to_grant: int,
+        source: str,
+        credit_remainder: float = 0.0,
+        bounty_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Grant free questions to a user (generic method for payments)"""
+        
+        # Create free questions record
+        free_questions = FreeQuestions(
+            user_id=user_id,
+            source=source,
+            referral_id=None,
+            questions_earned=questions_to_grant,
+            questions_remaining=questions_to_grant,
+            credit_balance=credit_remainder,
+            bounty_id=bounty_id
+        )
+        session.add(free_questions)
+        await session.commit()
+        
+        if credit_remainder > 0:
+            logger.info(f"✅ Granted {questions_to_grant} questions + ${credit_remainder:.2f} credit to user {user_id} (source: {source})")
+        else:
+            logger.info(f"✅ Granted {questions_to_grant} questions to user {user_id} (source: {source})")
+        
+        return {
+            "success": True,
+            "questions_granted": questions_to_grant,
+            "credit_balance": credit_remainder,
+            "message": f"Granted {questions_to_grant} questions" + (f" + ${credit_remainder:.2f} credit" if credit_remainder > 0 else "")
         }
     
     async def _get_user(self, session: AsyncSession, user_id: int) -> Optional[User]:

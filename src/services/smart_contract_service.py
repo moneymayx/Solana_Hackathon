@@ -228,12 +228,12 @@ class SmartContractService:
         This replaces the backend fund routing system.
         """
         try:
-            # Validate entry amount
-            if entry_amount < self.research_fee:
-                return {
-                    "success": False,
-                    "error": f"Entry amount must be at least ${self.research_fee}"
-                }
+            # Validate entry amount (warn but don't block)
+            # Convert entry_amount (USD) to USDC units for comparison
+            entry_amount_usdc = int(entry_amount * 1_000_000)
+            warning = None
+            if entry_amount_usdc < self.research_fee:
+                warning = f"Recommended amount is ${self.research_fee / 1_000_000:.2f}. Transaction may fail if you don't have sufficient USDC."
             
             # Calculate fund distribution (60/20/10/10 split)
             bounty_contribution = entry_amount * self.bounty_pool_contribution_rate
@@ -249,7 +249,7 @@ class SmartContractService:
             
             # Record the entry in database for tracking
             entry_record = await self._record_lottery_entry(
-                session, user_wallet, entry_amount, research_contribution, operational_fee, payment_data
+                session, user_wallet, entry_amount, bounty_contribution, operational_fee, payment_data
             )
             
             if not entry_record:
@@ -257,7 +257,7 @@ class SmartContractService:
             
             # Call smart contract to process entry and lock funds
             contract_result = await self._call_smart_contract_entry(
-                user_wallet, entry_amount, research_contribution, operational_fee
+                user_wallet, entry_amount, bounty_contribution, operational_fee
             )
             
             if contract_result["success"]:
@@ -272,8 +272,10 @@ class SmartContractService:
                     "message": "Lottery entry processed and funds locked",
                     "entry_id": entry_record.id,
                     "transaction_signature": contract_result["transaction_signature"],
-                    "research_contribution": research_contribution,
+                    "bounty_contribution": bounty_contribution,
                     "operational_fee": operational_fee,
+                    "buyback_amount": buyback_amount,
+                    "staking_amount": staking_amount,
                     "funds_locked": True
                 }
             else:
@@ -382,7 +384,7 @@ class SmartContractService:
         session: AsyncSession, 
         user_wallet: str, 
         entry_amount: float,
-        research_contribution: float,
+        bounty_contribution: float,
         operational_fee: float,
         payment_data: Dict[str, Any]
     ) -> Optional[FundDeposit]:
@@ -396,9 +398,9 @@ class SmartContractService:
                 payment_method="smart_contract",
                 status="pending",
                 deposit_wallet=user_wallet,
-                target_wallet=self.program_id,  # Smart contract program ID
+                target_wallet=str(self.program_id),  # Convert Pubkey to string
                 extra_data=json.dumps({
-                    "research_contribution": research_contribution,
+                    "bounty_contribution": bounty_contribution,
                     "operational_fee": operational_fee,
                     "contract_type": "lottery_entry"
                 })
@@ -420,7 +422,7 @@ class SmartContractService:
         self, 
         user_wallet: str, 
         entry_amount: float,
-        research_contribution: float,
+        bounty_contribution: float,
         operational_fee: float
     ) -> Dict[str, Any]:
         """
@@ -444,7 +446,7 @@ class SmartContractService:
                 "success": True,
                 "transaction_signature": f"contract_tx_{int(datetime.utcnow().timestamp())}",
                 "funds_locked": True,
-                "research_contribution": research_contribution,
+                "bounty_contribution": bounty_contribution,
                 "operational_fee": operational_fee
             }
             

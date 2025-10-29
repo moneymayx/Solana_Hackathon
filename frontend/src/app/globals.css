@@ -1,36 +1,31 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --radius: 0.5rem;
-  }
+@theme {
+  --color-background: hsl(222.2 84% 4.9%);
+  --color-foreground: hsl(210 40% 98%);
+  --color-card: hsl(222.2 84% 4.9%);
+  --color-card-foreground: hsl(210 40% 98%);
+  --color-popover: hsl(222.2 84% 4.9%);
+  --color-popover-foreground: hsl(210 40% 98%);
+  --color-primary: hsl(210 40% 98%);
+  --color-primary-foreground: hsl(222.2 84% 4.9%);
+  --color-secondary: hsl(217.2 32.6% 17.5%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+  --color-muted: hsl(217.2 32.6% 17.5%);
+  --color-muted-foreground: hsl(215 20.2% 65.1%);
+  --color-accent: hsl(217.2 32.6% 17.5%);
+  --color-accent-foreground: hsl(210 40% 98%);
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(217.2 32.6% 17.5%);
+  --color-input: hsl(217.2 32.6% 17.5%);
+  --color-ring: hsl(212.7 26.8% 83.9%);
+  --radius: 0.5rem;
 }
 
-@layer base {
-  body {
-    @apply bg-background text-foreground;
-  }
+body {
+  background-color: hsl(222.2 84% 4.9%);
+  color: hsl(210 40% 98%);
 }
 
 /* Custom scrollbar */
@@ -39,52 +34,88 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+  background: rgb(31 41 55);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
+  background: rgb(75 85 99);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  background: rgb(107 114 128);
 }
 
 /* Wallet adapter custom styles */
 .wallet-adapter-button {
-  @apply !bg-gradient-to-r !from-purple-500 !to-pink-500 !text-white !font-bold !px-4 !py-2 !rounded-lg !border-0 !transition-all !duration-200;
+  background: linear-gradient(to right, rgb(168 85 247), rgb(236 72 153)) !important;
+  color: white !important;
+  font-weight: bold !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.5rem !important;
+  border: 0 !important;
+  transition: all 0.2s !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 200px !important;
+  font-size: 0.875rem !important;
+}
+
+.wallet-button-wrapper .wallet-adapter-button {
+  width: 100% !important;
 }
 
 .wallet-adapter-button:hover {
-  @apply !from-purple-600 !to-pink-600 !transform !scale-105;
+  background: linear-gradient(to right, rgb(147 51 234), rgb(219 39 119)) !important;
+  transform: scale(1.05) !important;
 }
 
 .wallet-adapter-button:disabled {
-  @apply !opacity-50 !cursor-not-allowed !transform-none;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
 .wallet-adapter-modal-wrapper {
-  @apply !bg-gray-900/95 !backdrop-blur-sm;
+  background: rgb(17 24 39 / 0.95) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 .wallet-adapter-modal {
-  @apply !bg-gray-800 !border !border-gray-700 !rounded-lg;
+  background: rgb(31 41 55) !important;
+  border: 1px solid rgb(55 65 81) !important;
+  border-radius: 0.5rem !important;
 }
 
 .wallet-adapter-modal-title {
-  @apply !text-white !text-xl !font-bold;
+  color: white !important;
+  font-size: 1.25rem !important;
+  font-weight: bold !important;
 }
 
 .wallet-adapter-modal-list {
-  @apply !space-y-2;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem !important;
 }
 
 .wallet-adapter-modal-list-item {
-  @apply !bg-gray-700 !hover:bg-gray-600 !rounded-lg !transition-colors !duration-200;
+  background: rgb(55 65 81) !important;
+  border-radius: 0.5rem !important;
+  transition: background-color 0.2s, color 0.2s !important;
+}
+
+.wallet-adapter-modal-list-item:hover {
+  background: rgb(75 85 99) !important;
 }
 
 .wallet-adapter-modal-list-item button {
-  @apply !text-white !font-medium !p-4 !w-full !text-left;
+  color: white !important;
+  font-weight: 500 !important;
+  padding: 1rem !important;
+  width: 100% !important;
+  text-align: left !important;
 }
 
 /* Animation classes */
@@ -118,23 +149,53 @@
 
 /* Gradient text */
 .gradient-text {
-  @apply bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent;
+  background: linear-gradient(to right, rgb(250 204 21), rgb(239 68 68), rgb(236 72 153));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 /* Custom button styles */
 .btn-primary {
-  @apply bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 transform hover:scale-105;
+  background: linear-gradient(to right, rgb(168 85 247), rgb(236 72 153));
+  color: white;
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  transform: scale(1);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(to right, rgb(147 51 234), rgb(219 39 119));
+  transform: scale(1.05);
 }
 
 .btn-secondary {
-  @apply bg-gray-700 text-white font-medium px-6 py-3 rounded-lg hover:bg-gray-600 transition-all duration-200;
+  background: rgb(55 65 81);
+  color: white;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: rgb(75 85 99);
 }
 
 /* Card styles */
 .card {
-  @apply bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg;
+  background: rgb(31 41 55 / 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgb(55 65 81 / 0.5);
+  border-radius: 0.5rem;
 }
 
 .card-glow {
-  @apply card shadow-lg shadow-purple-500/20;
+  background: rgb(31 41 55 / 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgb(55 65 81 / 0.5);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1), 0 0 20px rgb(168 85 247 / 0.2);
 }
