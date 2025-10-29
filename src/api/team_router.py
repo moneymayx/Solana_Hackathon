@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from ..database import get_db
-from ..team_service import TeamService
+from ..services.team_service import TeamService
 
 router = APIRouter(prefix="/api/teams", tags=["Team Collaboration"])
 

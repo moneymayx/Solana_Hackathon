@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from ..database import get_db
-from ..token_economics_service import TokenEconomicsService
-from ..revenue_distribution_service import RevenueDistributionService
-from ..token_config import StakingPeriod
+from ..services.token_economics_service import TokenEconomicsService
+from ..services.revenue_distribution_service import RevenueDistributionService
+from ..config.token_config import StakingPeriod
 
 router = APIRouter(prefix="/api/token", tags=["Token Economics"])
 

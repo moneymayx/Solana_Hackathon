@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from ..database import get_db
-from ..semantic_search_service import SemanticSearchService
-from ..pattern_detector_service import PatternDetectorService
-from ..context_builder_service import ContextBuilderService
+from ..services.semantic_search_service import SemanticSearchService
+from ..services.pattern_detector_service import PatternDetectorService
+from ..services.context_builder_service import ContextBuilderService
 
 router = APIRouter(prefix="/api/context", tags=["Context Management"])
 
