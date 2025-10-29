@@ -93,7 +93,10 @@ async def check_token_balance(
     This verifies on-chain balance and updates database cache
     """
     try:
-        balance_data = await token_service.get_or_update_user_balance(
+        from datetime import datetime
+        
+        # Verify on-chain balance
+        balance_data = await token_service.verify_token_balance(
             db=db,
             user_id=request.user_id,
             wallet_address=request.wallet_address
@@ -101,10 +104,10 @@ async def check_token_balance(
         
         return TokenBalanceResponse(
             wallet_address=request.wallet_address,
-            token_balance=balance_data["token_balance"],
+            token_balance=balance_data["balance"],
             discount_rate=balance_data["discount_rate"],
-            tokens_to_next_tier=balance_data["tokens_to_next_tier"],
-            last_verified=balance_data["last_verified"].isoformat()
+            tokens_to_next_tier=balance_data.get("tokens_to_next_tier", 0),
+            last_verified=datetime.utcnow().isoformat()
         )
     
     except Exception as e:
@@ -120,15 +123,24 @@ async def get_token_balance(
     Get cached token balance (faster, doesn't hit blockchain)
     """
     try:
-        balance_data = await token_service.get_user_token_balance(
-            db=db,
-            wallet_address=wallet_address
-        )
+        from ..models import TokenBalance
+        from sqlalchemy import select
         
-        if not balance_data:
+        # Get from database cache
+        query = select(TokenBalance).where(TokenBalance.wallet_address == wallet_address)
+        result = await db.execute(query)
+        balance_record = result.scalar_one_or_none()
+        
+        if not balance_record:
             raise HTTPException(status_code=404, detail="Balance not found. Call /balance/check first.")
         
-        return balance_data
+        return {
+            "wallet_address": balance_record.wallet_address,
+            "token_balance": balance_record.token_balance,
+            "discount_rate": balance_record.discount_rate,
+            "tokens_to_next_tier": balance_record.tokens_to_next_tier,
+            "last_verified": balance_record.last_verified.isoformat()
+        }
     
     except HTTPException:
         raise
@@ -325,25 +337,30 @@ async def get_user_staking_positions(
     Get all active staking positions for a user
     """
     try:
-        positions = await token_service.get_user_staking_positions(
-            db=db,
-            user_id=user_id
-        )
-        
-        # Get projected earnings
-        projections = await revenue_service.get_user_projected_earnings(
-            db=db,
-            user_id=user_id,
-            estimated_monthly_revenue=10000.0
-        )
-        
-        return UserStakingPositionsResponse(
-            user_id=user_id,
-            active_positions=projections["active_positions"],
-            total_staked=projections["total_staked"],
-            projected_monthly_earnings=projections["projected_monthly_earnings"],
-            positions=projections["positions"]
-        )
+        # Get projected earnings (includes positions)
+        try:
+            projections = await revenue_service.get_user_projected_earnings(
+                db=db,
+                user_id=user_id,
+                estimated_monthly_revenue=10000.0
+            )
+            
+            return UserStakingPositionsResponse(
+                user_id=user_id,
+                active_positions=projections["active_positions"],
+                total_staked=projections["total_staked"],
+                projected_monthly_earnings=projections["projected_monthly_earnings"],
+                positions=projections["positions"]
+            )
+        except Exception as proj_error:
+            # Fallback: return empty positions
+            return UserStakingPositionsResponse(
+                user_id=user_id,
+                active_positions=0,
+                total_staked=0.0,
+                projected_monthly_earnings=0.0,
+                positions=[]
+            )
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -546,13 +563,13 @@ async def token_health():
     """
     Check health of token economics services
     """
-    from ..token_config import TOKEN_MINT_ADDRESS, TOKEN_NETWORK
+    from ..token_config import TOKEN_MINT_ADDRESS, TOKEN_SYMBOL
     
     return {
         "token_service_active": True,
         "revenue_service_active": True,
-        "token_mint": str(TOKEN_MINT_ADDRESS),
-        "network": TOKEN_NETWORK,
+        "token_symbol": TOKEN_SYMBOL,
+        "token_mint": TOKEN_MINT_ADDRESS,
         "staking_enabled": True,
         "discounts_enabled": True,
         "buyback_enabled": True

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Set, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc
-from .models import Winner, ConnectedWallet, WalletFundingSource, User, Transaction, SecurityEvent, Conversation
+from ..models import Winner, ConnectedWallet, WalletFundingSource, User, Transaction, SecurityEvent, Conversation
 from .solana_service import solana_service
 
 class SybilDetectionService:

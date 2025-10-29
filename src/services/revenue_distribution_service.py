@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
-from .models import StakingPosition, User
-from .token_config import (
+from ..models import StakingPosition, User
+from ..config.token_config import (
     StakingPeriod,
     STAKING_REVENUE_PERCENTAGE,
     TIER_ALLOCATIONS

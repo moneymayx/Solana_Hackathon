@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .token_economics_service import TokenEconomicsService
-from .token_config import BASE_QUERY_COST
+from ..config.token_config import BASE_QUERY_COST
 
 
 class PaymentServiceWithDiscounts:
@@ -177,7 +177,7 @@ class PaymentServiceWithDiscounts:
         )
         
         # Get tier information
-        from .token_config import get_tier_info
+        from ..config.token_config import get_tier_info
         tiers = get_tier_info()
         
         return {

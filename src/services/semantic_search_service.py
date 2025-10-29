@@ -4,6 +4,8 @@ Semantic Search Service for Context Window Management
 Provides vector embedding generation and semantic similarity search
 using OpenAI embeddings and pgvector.
 """
+from __future__ import annotations
+
 from typing import List, Dict, Any, Optional
 import openai
 import numpy as np
@@ -12,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 import os
 
-from .models import MessageEmbedding, AttackAttempt, Conversation
+from ..models import MessageEmbedding, AttackAttempt, Conversation
 
 
 class SemanticSearchService:

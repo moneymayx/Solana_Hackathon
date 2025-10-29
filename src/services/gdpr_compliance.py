@@ -21,8 +21,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .database import AsyncSessionLocal
-from .models import User, SecurityEvent, PaymentTransaction, Referral
+from ..database import AsyncSessionLocal
+from ..models import User, SecurityEvent, PaymentTransaction, Referral
 from .encryption_service import EncryptionService
 
 logger = logging.getLogger(__name__)

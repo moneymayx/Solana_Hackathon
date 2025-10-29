@@ -28,7 +28,7 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Free question tracking
-    anonymous_free_questions_used: Mapped[int] = mapped_column(Integer, default=0)  # 2 max for anonymous users
+    anonymous_free_questions_used: Mapped[int] = mapped_column(Integer, default=0)  # 1 max for anonymous users
     has_used_anonymous_questions: Mapped[bool] = mapped_column(Boolean, default=False)  # Track if user used anonymous questions
     
     # Wallet integration fields (primary authentication method)
@@ -52,12 +52,31 @@ class User(Base):
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user")
     wins: Mapped[list["Winner"]] = relationship("Winner", back_populates="user")
 
+class Bounty(Base):
+    """Bounty model for different LLM challenges"""
+    __tablename__ = "bounties"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))  # e.g., "Claude Champ", "GPT-4 Bounty"
+    llm_provider: Mapped[str] = mapped_column(String(50))  # e.g., "claude", "gpt-4", "gemini", "llama"
+    current_pool: Mapped[float] = mapped_column(Float, default=0.0)
+    total_entries: Mapped[int] = mapped_column(Integer, default=0)
+    win_rate: Mapped[float] = mapped_column(Float, default=0.0)  # Percentage
+    difficulty_level: Mapped[str] = mapped_column(String(20), default="medium")  # easy, medium, hard, expert
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    conversations: Mapped[list["Conversation"]] = relationship("Conversation", back_populates="bounty")
+
 class Conversation(Base):
     """Conversation model for storing chat history"""
     __tablename__ = "conversations"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    bounty_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("bounties.id"), nullable=True, index=True)
     message_type: Mapped[str] = mapped_column(String(20))  # 'user' or 'assistant'
     content: Mapped[str] = mapped_column(Text)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -67,6 +86,7 @@ class Conversation(Base):
     
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="conversations")
+    bounty: Mapped["Bounty"] = relationship("Bounty", back_populates="conversations")
 
 class AttackAttempt(Base):
     """Model for logging potential manipulation attempts"""

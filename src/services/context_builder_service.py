@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 import anthropic
 
-from .models import Conversation, AttackAttempt, MessageEmbedding, ContextSummary
+from ..models import Conversation, AttackAttempt, MessageEmbedding, ContextSummary
 from .semantic_search_service import SemanticSearchService
 from .pattern_detector_service import PatternDetectorService
 

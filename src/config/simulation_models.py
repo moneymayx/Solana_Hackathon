@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy import String, Text, DateTime, Float, Integer, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base
+from ..base import Base
 
 class SimulationRun(Base):
     """Model for tracking individual simulation runs"""

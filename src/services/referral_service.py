@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_, or_
-from .models import User, ReferralCode, Referral, FreeQuestions, PaymentTransaction
+from ..models import User, ReferralCode, Referral, FreeQuestions, PaymentTransaction
 
 class ReferralService:
     """Service for managing the referral system"""

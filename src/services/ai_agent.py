@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update, select
 from dotenv import load_dotenv
 from .personality import BillionsPersonality
-from .repositories import ConversationRepository, UserRepository, AttackAttemptRepository, BlacklistedPhraseRepository
+from ..repositories import ConversationRepository, UserRepository, AttackAttemptRepository, BlacklistedPhraseRepository
 # from .bounty_service import ResearchService  # OBSOLETE - moved to smart contract
-from .models import BountyEntry, Conversation
+from ..models import BountyEntry, Conversation
 from .solana_service import solana_service
 from .winner_tracking_service import winner_tracking_service
 from .ai_decision_service import ai_decision_service
@@ -510,7 +510,7 @@ REMEMBER: 1-2 sentences max. No asterisks. No dramatic language. Be conversation
             )
             
             # Log this as a security event
-            from .repositories import SecurityEventRepository
+            from ..repositories import SecurityEventRepository
             security_repo = SecurityEventRepository(session)
             await security_repo.log_security_event(
                 event_type="phrase_blacklisted",

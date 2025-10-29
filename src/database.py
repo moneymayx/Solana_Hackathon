@@ -21,7 +21,7 @@ from .models import (
 )
 
 # Import simulation models
-from .simulation_models import (
+from .config.simulation_models import (
     SimulationRun, SimulationConversation, SimulationMessage, 
     SuccessfulAttempt, SimulationPattern, SimulationAlert, SimulationReport
 )
@@ -29,11 +29,15 @@ from .simulation_models import (
 # Database URL - defaults to SQLite for development
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./billions.db")
 
-# Create async engine
+# Create async engine with connection pool settings
 engine = create_async_engine(
     DATABASE_URL,
     echo=True if os.getenv("DEBUG") == "true" else False,
-    future=True
+    future=True,
+    pool_pre_ping=True,  # Verify connections before using
+    pool_size=10,  # Number of connections to maintain
+    max_overflow=20,  # Max additional connections
+    pool_recycle=3600,  # Recycle connections after 1 hour
 )
 
 # Create session factory

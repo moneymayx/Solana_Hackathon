@@ -19,7 +19,7 @@ from solders.transaction import Transaction
 from solders.instruction import Instruction, AccountMeta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
-from .models import FundDeposit, FundTransfer, PaymentTransaction
+from ..models import FundDeposit, FundTransfer, PaymentTransaction
 import logging
 import base58
 
@@ -61,9 +61,11 @@ class SmartContractService:
         self.research_fund_floor = 1_000_000_000  # 1000 USDC (with 6 decimals)
         self.research_fee = 10_000_000  # 10 USDC (with 6 decimals)
         
-        # Fund distribution rates
-        self.research_fund_contribution_rate = 0.80  # 80% to research fund
+        # Fund distribution rates (60/20/10/10 split)
+        self.bounty_pool_contribution_rate = 0.60  # 60% to bounty pool
         self.operational_fee_rate = 0.20  # 20% operational fee
+        self.buyback_rate = 0.10  # 10% token buyback
+        self.staking_rate = 0.10  # 10% staking rewards
         
         logger.info(f"🔗 Smart Contract Service initialized")
         logger.info(f"   Program ID: {self.program_id}")
@@ -233,13 +235,17 @@ class SmartContractService:
                     "error": f"Entry amount must be at least ${self.research_fee}"
                 }
             
-            # Calculate fund distribution
-            research_contribution = entry_amount * self.research_fund_contribution_rate
+            # Calculate fund distribution (60/20/10/10 split)
+            bounty_contribution = entry_amount * self.bounty_pool_contribution_rate
             operational_fee = entry_amount * self.operational_fee_rate
+            buyback_amount = entry_amount * self.buyback_rate
+            staking_amount = entry_amount * self.staking_rate
             
             logger.info(f"🎫 Processing lottery entry: ${entry_amount} from {user_wallet}")
-            logger.info(f"   Research contribution: ${research_contribution:.2f}")
-            logger.info(f"   Operational fee: ${operational_fee:.2f}")
+            logger.info(f"   Bounty pool (60%): ${bounty_contribution:.2f}")
+            logger.info(f"   Operational fee (20%): ${operational_fee:.2f}")
+            logger.info(f"   Buyback (10%): ${buyback_amount:.2f}")
+            logger.info(f"   Staking (10%): ${staking_amount:.2f}")
             
             # Record the entry in database for tracking
             entry_record = await self._record_lottery_entry(

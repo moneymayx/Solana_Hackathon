@@ -80,8 +80,10 @@ class RegulatoryComplianceService:
                 • Past wins do not affect future probability
                 
                 FUND MANAGEMENT:
-                • 80% of entry fees go to research fund
+                • 60% of entry fees grow the bounty pool
                 • 20% covers operational costs
+                • 10% used for token buyback
+                • 10% rewards token stakers
                 • Funds are locked in smart contracts
                 • No manual intervention in fund distribution
                 """

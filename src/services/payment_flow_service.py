@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
-from .models import PaymentTransaction, User
+from ..models import PaymentTransaction, User
 from .moonpay_service import moonpay_service
 from .smart_contract_service import smart_contract_service
 import logging

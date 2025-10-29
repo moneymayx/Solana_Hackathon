@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import re
 from collections import Counter
 
-from .models import AttackPattern, AttackAttempt, MessageEmbedding
+from ..models import AttackPattern, AttackAttempt, MessageEmbedding
 
 
 class PatternDetectorService:
