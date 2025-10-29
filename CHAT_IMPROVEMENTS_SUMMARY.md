@@ -223,3 +223,5 @@ const showToast = (message: string, type = 'info') => {
 
 **User experience is now clean and professional!** 🚀
 
+
+

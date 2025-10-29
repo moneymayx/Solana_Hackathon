@@ -140,3 +140,5 @@ Both endpoints are working and accessible from the frontend.
 
 **Status:** Ready for frontend integration!
 
+
+

@@ -297,3 +297,5 @@ lsof -ti:3000
 **Issue:** CSP blocking fetch to localhost:8000  
 **Resolution:** Updated CSP in next.config.ts + browser cache clear required
 
+
+
