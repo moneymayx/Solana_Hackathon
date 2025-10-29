@@ -11,8 +11,8 @@ from typing import List, Dict, Any
 from datetime import datetime, timedelta
 from sqlalchemy import select, func
 from .celery_app import celery_app
-from .database import AsyncSessionLocal
-from .models import User, Conversation, MessageEmbedding, ContextSummary
+from ..database import AsyncSessionLocal
+from ..models import User, Conversation, MessageEmbedding, ContextSummary
 from .semantic_search_service import SemanticSearchService
 from .pattern_detector_service import PatternDetectorService
 from .context_builder_service import ContextBuilderService

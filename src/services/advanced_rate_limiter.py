@@ -13,7 +13,7 @@ from collections import defaultdict, deque
 import redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, insert
-from .models import SecurityEvent
+from ..models import SecurityEvent
 
 logger = logging.getLogger(__name__)
 

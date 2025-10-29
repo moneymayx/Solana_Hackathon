@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
-from .models import User, FreeQuestions, Referral, ReferralCode
-from .repositories import UserRepository
+from ..models import User, FreeQuestions, Referral, ReferralCode
+from ..repositories import UserRepository
 
 class FreeQuestionService:
     """Service for managing free question allocation and usage"""
@@ -43,12 +43,12 @@ class FreeQuestionService:
     async def _check_anonymous_eligibility(self, session: AsyncSession, user: User) -> Dict[str, Any]:
         """Check eligibility for anonymous users"""
         
-        # Check if user has already used their 2 free questions
+        # Check if user has already used their 1 free question
         if user.anonymous_free_questions_used >= self.MAX_ANONYMOUS_QUESTIONS:
             return {
                 "eligible": False,
                 "type": "signup_required",
-                "message": "You've used your 2 free questions. Please sign up to continue.",
+                "message": "You've used your 1 free question. Please sign up to continue.",
                 "questions_used": user.anonymous_free_questions_used,
                 "questions_remaining": 0
             }

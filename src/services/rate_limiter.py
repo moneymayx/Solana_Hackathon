@@ -5,7 +5,7 @@ import time
 from typing import Dict, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from .repositories import PrizePoolRepository, SecurityEventRepository
+from ..repositories import PrizePoolRepository, SecurityEventRepository
 
 class RateLimiter:
     """In-memory rate limiter for basic rate limiting"""

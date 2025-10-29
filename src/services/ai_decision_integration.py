@@ -175,7 +175,7 @@ class AIDecisionIntegration:
             decision_data = signed_decision["decision_data"]
             
             # Create audit log entry
-            from .models import SecurityEvent
+            from ..models import SecurityEvent
             audit_event = SecurityEvent(
                 event_type="ai_decision_processed",
                 severity="medium",

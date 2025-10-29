@@ -87,6 +87,28 @@ class CreatePrizeDistributionRequest(BaseModel):
 
 
 # ===========================
+# Health & Status (MUST be first to avoid route conflicts)
+# ===========================
+
+@router.get("/health")
+async def team_health():
+    """
+    Check health of team collaboration services
+    """
+    return {
+        "team_service_active": True,
+        "features": {
+            "team_creation": True,
+            "member_management": True,
+            "team_funding": True,
+            "collaborative_attempts": True,
+            "team_chat": True,
+            "prize_distribution": True
+        }
+    }
+
+
+# ===========================
 # Team CRUD Endpoints
 # ===========================
 
@@ -765,24 +787,5 @@ async def get_team_statistics(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ===========================
-# Health & Status
-# ===========================
-
-@router.get("/health")
-async def team_health():
-    """
-    Check health of team collaboration services
-    """
-    return {
-        "team_service_active": True,
-        "features": {
-            "team_creation": True,
-            "member_management": True,
-            "team_funding": True,
-            "collaborative_attempts": True,
-            "team_chat": True,
-            "prize_distribution": True
-        }
-    }
+# Health endpoint moved to top of file to avoid route conflicts with /{team_id}
 

@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_
-from .models import EmailVerification, User
+from ..models import EmailVerification, User
 
 class EmailService:
     """Service for sending emails and managing verification tokens"""

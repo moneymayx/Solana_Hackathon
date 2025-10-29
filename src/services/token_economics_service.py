@@ -16,8 +16,8 @@ from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Confirmed
 import os
 
-from .models import TokenBalance, StakingPosition, DiscountUsage, BuybackEvent, TokenPrice
-from .token_config import (
+from ..models import TokenBalance, StakingPosition, DiscountUsage, BuybackEvent, TokenPrice
+from ..config.token_config import (
     TOKEN_MINT_ADDRESS,
     TOKEN_DECIMALS,
     get_discount_for_balance,
@@ -105,7 +105,7 @@ class TokenEconomicsService:
             discount_rate = get_discount_for_balance(balance)
             
             # Get next tier requirement
-            from .token_config import get_next_tier_requirement
+            from ..config.token_config import get_next_tier_requirement
             tokens_to_next = get_next_tier_requirement(balance)
             
             # Update or create TokenBalance record

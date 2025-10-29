@@ -16,7 +16,7 @@ from sqlalchemy import select, func, and_, or_, desc
 import secrets
 import string
 
-from .models import (
+from ..models import (
     Team, TeamMember, TeamInvitation, TeamAttempt, TeamMessage, TeamFunding,
     TeamPrizeDistribution, TeamMemberPrize, User, Winner
 )

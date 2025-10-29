@@ -6,7 +6,7 @@ import secrets
 from typing import Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from .models import User, EmailVerification
+from ..models import User, EmailVerification
 from .email_service import email_service
 
 class AuthService:

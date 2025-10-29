@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, and_, desc
-from .models import User, PaymentTransaction, EmailVerification
+from ..models import User, PaymentTransaction, EmailVerification
 
 class KYCService:
     """Service for managing KYC data and compliance"""

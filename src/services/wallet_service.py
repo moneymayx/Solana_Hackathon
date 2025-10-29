@@ -19,8 +19,8 @@ TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 ASSOCIATED_TOKEN_PROGRAM_ID = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 import requests
 from sqlalchemy.ext.asyncio import AsyncSession
-from .models import User, PaymentTransaction
-from .repositories import UserRepository
+from ..models import User, PaymentTransaction
+from ..repositories import UserRepository
 
 class WalletConnectSolanaService:
     """Service for handling WalletConnect v2.0 with Solana wallets"""
