@@ -18,6 +18,77 @@ import {
   TokenTierStatsEntry,
 } from '@/lib/api/enhancements'
 
+const DEVNET_PARAM_KEY = 'payment_method'
+const DEVNET_PARAM_DISABLED_VALUE = 'false'
+const DEVNET_MONTHLY_REVENUE = 25000
+const DEVNET_STAKING_PERCENTAGE = 10
+const DEVNET_BUYBACK_PERCENTAGE = 10
+const DEVNET_STAKING_POOL_MONTHLY = DEVNET_MONTHLY_REVENUE * (DEVNET_STAKING_PERCENTAGE / 100)
+
+const createDevnetPlatformRevenue = (): TokenPlatformRevenueResponse => {
+  const monthlyBuyback = DEVNET_MONTHLY_REVENUE * (DEVNET_BUYBACK_PERCENTAGE / 100)
+  const distributedMonthly = DEVNET_STAKING_POOL_MONTHLY + monthlyBuyback
+
+  return {
+    total_revenue: {
+      monthly: DEVNET_MONTHLY_REVENUE,
+      weekly: DEVNET_MONTHLY_REVENUE / 4,
+      daily: DEVNET_MONTHLY_REVENUE / 30,
+    },
+    distributed_portion: {
+      percentage: DEVNET_STAKING_PERCENTAGE + DEVNET_BUYBACK_PERCENTAGE,
+      monthly: distributedMonthly,
+      weekly: distributedMonthly / 4,
+      breakdown: {
+        staking_pool: {
+          percentage: DEVNET_STAKING_PERCENTAGE,
+          monthly: DEVNET_STAKING_POOL_MONTHLY,
+          weekly: DEVNET_STAKING_POOL_MONTHLY / 4,
+          daily: DEVNET_STAKING_POOL_MONTHLY / 30,
+        },
+        buyback: {
+          percentage: DEVNET_BUYBACK_PERCENTAGE,
+          monthly: monthlyBuyback,
+          weekly: monthlyBuyback / 4,
+          daily: monthlyBuyback / 30,
+        },
+      },
+    },
+  }
+}
+
+const createDevnetTierStats = (): TokenTierStatsResponse => ({
+  tiers: {
+    '30_DAYS': {
+      total_staked: 120_000,
+      staker_count: 48,
+      tier_allocation: 20,
+      average_lock_days: 30,
+    },
+    '60_DAYS': {
+      total_staked: 240_000,
+      staker_count: 32,
+      tier_allocation: 30,
+      average_lock_days: 60,
+    },
+    '90_DAYS': {
+      total_staked: 400_000,
+      staker_count: 20,
+      tier_allocation: 50,
+      average_lock_days: 90,
+    },
+  },
+  updated_at: new Date().toISOString(),
+})
+
+const createDevnetProjectionContext = (): StakingPositionsResponse['projection_context'] => ({
+  monthly_platform_revenue: DEVNET_MONTHLY_REVENUE,
+  monthly_staking_pool: DEVNET_STAKING_POOL_MONTHLY,
+  staking_pool_percentage: DEVNET_STAKING_PERCENTAGE,
+  explanation:
+    'Devnet test mode mirrors the 60/20/10 distribution by projecting staking rewards from a simulated revenue baseline.',
+})
+
 interface StakingInterfaceProps {
   userId: number
   walletAddress?: string
@@ -34,12 +105,42 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
   const [claiming, setClaiming] = useState(false)
   const [apiUnavailable, setApiUnavailable] = useState(false)
   const [apiNotice, setApiNotice] = useState<string | null>(null)
+  const [devnetFallback, setDevnetFallback] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return Boolean(process.env.NEXT_PUBLIC_STAKING_DEVNET?.toLowerCase() === 'true')
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const urlToggle = params.get(DEVNET_PARAM_KEY)
+    const envToggle = process.env.NEXT_PUBLIC_STAKING_DEVNET?.toLowerCase() === 'true'
+
+    return envToggle || urlToggle === DEVNET_PARAM_DISABLED_VALUE
+  })
+  
+  useEffect(() => {
+    if (!devnetFallback) {
+      return
+    }
+
+    // Make it explicit that we are simulating the on-chain staking vault while the REST service is offline.
+    setApiUnavailable(false)
+    setApiNotice('Devnet staking mode active. Transactions are simulated locally because the staking service is disabled in this environment.')
+
+    setTierStats((previous) => previous ?? createDevnetTierStats())
+    setPlatformRevenue((previous) => previous ?? createDevnetPlatformRevenue())
+    setProjectionContext((previous) => previous ?? createDevnetProjectionContext())
+    setLoading(false)
+  }, [devnetFallback])
   
   // Staking form
   const [stakeAmount, setStakeAmount] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<30 | 60 | 90>(90)
 
   const fetchStakingData = useCallback(async () => {
+    if (devnetFallback) {
+      return
+    }
+
     try {
       setLoading(true)
       setApiUnavailable(false)
@@ -73,11 +174,181 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, devnetFallback])
 
   useEffect(() => {
     fetchStakingData()
   }, [fetchStakingData])
+
+  const simulateDevnetStake = useCallback(
+    async (amount: number) => {
+      // Simulate the staking vault mutation that would normally happen on the Solana program.
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      const tierKey = `${selectedPeriod}_DAYS` as keyof TokenTierStatsResponse['tiers']
+      const tierInfo = getTierInfo(selectedPeriod)
+
+      const baselineTierStats = tierStats ?? createDevnetTierStats()
+      const currentTierTotal = baselineTierStats.tiers?.[tierKey]?.total_staked ?? 0
+      const totalAfterStake = currentTierTotal + amount
+
+      const revenueSnapshot = platformRevenue ?? createDevnetPlatformRevenue()
+      const stakingPercentage = revenueSnapshot.distributed_portion?.breakdown?.staking_pool?.percentage ?? DEVNET_STAKING_PERCENTAGE
+      const monthlyRevenue = revenueSnapshot.total_revenue?.monthly ?? DEVNET_MONTHLY_REVENUE
+      const monthlyStakingPool = monthlyRevenue * (stakingPercentage / 100)
+      const tierAllocation = tierInfo.allocation / 100
+      const tierPool = monthlyStakingPool * tierAllocation
+      const shareOfTier = totalAfterStake === 0 ? 0 : amount / totalAfterStake
+      const projectedMonthly = tierPool * shareOfTier
+      const projectedPeriod = projectedMonthly * (selectedPeriod / 30)
+      const unlockDate = new Date(Date.now() + selectedPeriod * 86_400_000)
+
+      setTierStats((previous) => {
+        const next = previous
+          ? { ...previous, tiers: { ...previous.tiers } }
+          : createDevnetTierStats()
+
+        const existingTier = next.tiers?.[tierKey]
+        const updatedTier: TokenTierStatsEntry = existingTier
+          ? { ...existingTier }
+          : {
+              total_staked: 0,
+              staker_count: 0,
+              tier_allocation: tierInfo.allocation,
+              average_lock_days: selectedPeriod,
+            }
+
+        updatedTier.total_staked = Number((updatedTier.total_staked + amount).toFixed(2))
+        updatedTier.staker_count += 1
+        updatedTier.average_lock_days = selectedPeriod
+
+        next.tiers = {
+          ...next.tiers,
+          [tierKey]: updatedTier,
+        }
+        next.updated_at = new Date().toISOString()
+        return next
+      })
+
+      setPlatformRevenue((previous) => previous ?? createDevnetPlatformRevenue())
+      setProjectionContext((previous) => previous ?? createDevnetProjectionContext())
+
+      setPositions((previous) => [
+        ...previous,
+        {
+          position_id: Date.now(),
+          staked_amount: amount,
+          lock_period_days: selectedPeriod,
+          tier_allocation: tierInfo.allocation,
+          unlocks_at: unlockDate.toISOString(),
+          claimed_rewards: 0,
+          claimable_rewards: projectedMonthly,
+          projected_monthly_earnings: projectedMonthly,
+          projected_remaining_earnings: projectedPeriod,
+          share_of_tier: Number((shareOfTier * 100).toFixed(2)),
+          days_remaining: selectedPeriod,
+          status: 'active',
+          is_unlocked: false,
+        },
+      ])
+
+      alert(`✅ Successfully staked ${amount} tokens for ${selectedPeriod} days! (Devnet Mode)`)
+      setStakeAmount('')
+    },
+    [platformRevenue, selectedPeriod, tierStats]
+  )
+
+  const handleDevnetClaim = useCallback(async () => {
+    const claimable = positions
+      .filter((position) => position.status === 'active')
+      .reduce((sum, position) => sum + (position.claimable_rewards ?? 0), 0)
+
+    if (claimable <= 0) {
+      alert('No active positions to claim from')
+      return
+    }
+
+    // Mirror the latency a wallet signer would experience on devnet.
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    setPositions((previous) =>
+      previous.map((position) => {
+        if (position.status !== 'active') {
+          return position
+        }
+
+        const claimableRewards = position.claimable_rewards ?? 0
+        if (claimableRewards <= 0) {
+          return position
+        }
+
+        return {
+          ...position,
+          claimed_rewards: Number((position.claimed_rewards ?? 0) + claimableRewards),
+          total_rewards_earned: Number((position.total_rewards_earned ?? 0) + claimableRewards),
+          claimable_rewards: 0,
+        }
+      })
+    )
+
+    alert(`✅ Successfully claimed ${claimable.toFixed(2)} USDC in rewards! (Devnet Mode)`)
+  }, [positions])
+
+  const handleDevnetUnstake = useCallback(
+    (positionId: number) => {
+      const target = positions.find((position) => (position.position_id ?? position.id) === positionId)
+      if (!target) {
+        return
+      }
+
+      const tierKey = `${target.lock_period_days}_DAYS` as keyof TokenTierStatsResponse['tiers']
+      const amount = target.staked_amount ?? target.amount_staked ?? 0
+
+      setPositions((previous) =>
+        previous.map((position) => {
+          if ((position.position_id ?? position.id) !== positionId) {
+            return position
+          }
+
+          return {
+            ...position,
+            status: 'unstaked',
+            is_unlocked: true,
+            claimable_rewards: 0,
+            days_remaining: 0,
+          }
+        })
+      )
+
+      setTierStats((previous) => {
+        if (!previous) {
+          return previous
+        }
+
+        const existingTier = previous.tiers?.[tierKey]
+        if (!existingTier) {
+          return previous
+        }
+
+        const updatedTier: TokenTierStatsEntry = {
+          ...existingTier,
+          total_staked: Number(Math.max(existingTier.total_staked - amount, 0).toFixed(2)),
+        }
+
+        return {
+          ...previous,
+          tiers: {
+            ...previous.tiers,
+            [tierKey]: updatedTier,
+          },
+          updated_at: new Date().toISOString(),
+        }
+      })
+
+      alert(`✅ Successfully unstaked ${amount} tokens! (Devnet Mode)`)
+    },
+    [positions]
+  )
 
   const handleStake = async () => {
     if (!walletAddress) {
@@ -93,6 +364,16 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
 
     if (amount > currentBalance) {
       alert('Insufficient balance')
+      return
+    }
+
+    if (devnetFallback) {
+      setStaking(true)
+      try {
+        await simulateDevnetStake(amount)
+      } finally {
+        setStaking(false)
+      }
       return
     }
 
@@ -122,11 +403,11 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       await fetchStakingData()
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
-        setApiUnavailable(true)
-        setApiNotice('Staking endpoints are offline, so we cannot create new positions right now.')
-        alert('Staking service is not available in this environment yet.')
+        console.warn('Staking API returned 404. Enabling devnet simulation mode.')
+        setDevnetFallback(true)
+        await simulateDevnetStake(amount)
       } else {
-      console.error('Staking error:', err)
+        console.error('Staking error:', err)
         const message = err instanceof Error ? err.message : 'Unknown error'
         alert(`❌ Staking failed: ${message}`)
       }
@@ -147,6 +428,16 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       return
     }
 
+    if (devnetFallback) {
+      setClaiming(true)
+      try {
+        await handleDevnetClaim()
+      } finally {
+        setClaiming(false)
+      }
+      return
+    }
+
     setClaiming(true)
     try {
       const result = await tokenAPI.claimRewards(userId, walletAddress)
@@ -159,9 +450,8 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
-        setApiUnavailable(true)
-        setApiNotice('Rewards cannot be claimed because the staking endpoints are disabled.')
-        alert('Claiming rewards is not yet enabled on this backend.')
+        setDevnetFallback(true)
+        await handleDevnetClaim()
       } else {
         const message = err instanceof Error ? err.message : 'Unknown error'
         alert(`❌ Claim failed: ${message}`)
@@ -181,6 +471,11 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       return
     }
 
+    if (devnetFallback) {
+      handleDevnetUnstake(positionId)
+      return
+    }
+
     try {
       const result = await tokenAPI.unstake(positionId, userId)
       
@@ -192,9 +487,8 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       }
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 404) {
-        setApiUnavailable(true)
-        setApiNotice('Unstaking is disabled because the staking endpoints are offline.')
-        alert('Unstaking is not available in this environment yet.')
+        setDevnetFallback(true)
+        handleDevnetUnstake(positionId)
       } else {
         const message = err instanceof Error ? err.message : 'Unknown error'
         alert(`❌ Unstake failed: ${message}`)

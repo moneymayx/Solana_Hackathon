@@ -10,6 +10,7 @@ import {
   FundVerificationData,
   SecurityStatusData,
 } from '@/lib/api/dashboard'
+import { fetchBounties, Bounty } from '@/lib/api/bounties'
 import ContractActivityMonitor from '@/components/ContractActivityMonitor'
 import TopNavigation from '@/components/TopNavigation'
 
@@ -22,10 +23,20 @@ const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string; icon: string }> =
   { id: 'contracts', label: 'Contract Activity', icon: '⚡' },
 ]
 
+export const sumBountyPools = (bountyList: Bounty[] | null): number => {
+  // Combining every active bounty pool keeps the analytics jackpot view aligned with the underlying payout treasury logic.
+  if (!bountyList?.length) {
+    return 0
+  }
+
+  return bountyList.reduce((accumulator: number, bounty: Bounty) => accumulator + (bounty.current_pool || 0), 0)
+}
+
 export default function Analytics() {
   const [overviewData, setOverviewData] = useState<DashboardOverviewData | null>(null)
   const [fundData, setFundData] = useState<FundVerificationData | null>(null)
   const [securityData, setSecurityData] = useState<SecurityStatusData | null>(null)
+  const [totalBounties, setTotalBounties] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview')
@@ -35,7 +46,7 @@ export default function Analytics() {
       setLoading(true)
       setError(null)
 
-      const [overview, fund, security] = await Promise.all([
+      const [overview, fund, security, bounties] = await Promise.all([
         fetchDashboardOverview().catch((err: unknown) => {
           console.warn('Overview fetch failed', err)
           return null
@@ -48,13 +59,20 @@ export default function Analytics() {
           console.warn('Security status fetch failed', err)
           return null
         }),
+        fetchBounties().catch((err: unknown) => {
+          console.warn('Bounty fetch failed', err)
+          return null
+        }),
       ])
 
       setOverviewData(overview)
       setFundData(fund)
       setSecurityData(security)
+      const bountyTotalAmount = sumBountyPools(bounties)
+      // Persisting the aggregated bounty total lets us surface the combined jackpot exposure alongside wallet verification data.
+      setTotalBounties(bountyTotalAmount)
 
-      if (!overview && !fund && !security) {
+      if (!overview && !fund && !security && (!bounties || bounties.length === 0)) {
         setError('Failed to load analytics data. Check console for details.')
       }
     } catch (err) {
@@ -184,7 +202,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
             {overviewData ? (
               <>
                 {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
@@ -218,23 +236,6 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="mt-2">
                       <span className="text-green-600 text-sm font-medium">
                         +{overviewData.recent_activity.new_users_24h} today
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-gray-600 text-sm">Research Attempts</p>
-                        <p className="text-2xl font-bold text-gray-900 break-words break-all">
-                          {formatNumber(overviewData.platform_stats.total_attempts)}
-                        </p>
-                      </div>
-                      <div className="text-3xl">🔬</div>
-                    </div>
-                    <div className="mt-2">
-                      <span className="text-blue-600 text-sm font-medium">
-                        +{overviewData.recent_activity.attempts_24h} today
                       </span>
                     </div>
                   </div>
@@ -280,7 +281,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                 {/* Recent Activity */}
                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Activity (24h)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="text-center">
                       <p className="text-3xl font-bold text-green-600">
                         {formatNumber(overviewData.recent_activity.new_users_24h)}
@@ -292,12 +293,6 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                         {formatNumber(overviewData.recent_activity.questions_24h)}
                       </p>
                       <p className="text-gray-600">Questions Asked</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-3xl font-bold text-purple-600">
-                        {formatNumber(overviewData.recent_activity.attempts_24h)}
-                      </p>
-                      <p className="text-gray-600">Research Attempts</p>
                     </div>
                   </div>
                 </div>
@@ -326,88 +321,52 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Lottery Funds (USDC)</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Target Jackpot</span>
-                        <span className="text-gray-900 font-mono break-words break-all">
-                          {formatCurrency(fundData.lottery_funds.current_jackpot_usdc)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">On-Chain Balance</span>
-                        <span className="text-gray-900 font-mono break-words break-all">
-                          {formatCurrency(fundData.lottery_funds.jackpot_balance_usdc)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Coverage</span>
-                        <span
-                          className={cn(
-                            "font-medium break-words break-all",
-                            fundData.lottery_funds.fund_verified ? "text-green-600" : "text-red-600"
-                          )}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-gray-600 text-sm uppercase tracking-wide">Total Bounties</p>
+                        <p
+                          className="text-5xl font-bold text-gray-900 break-words break-all"
+                          style={{ fontFamily: 'var(--font-gravitas), cursive' }}
                         >
-                          {fundData.lottery_funds.fund_verified ? '✅ Fully Verified' : '❌ Shortfall Detected'}
-                        </span>
+                          {formatCurrency(totalBounties)}
+                        </p>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Difference</span>
-                        <span className="font-medium break-words break-all">
-                          {(() => {
-                            if (fundData.lottery_funds.balance_gap_usdc > 0) {
-                              return (
-                                <span className="text-red-600 break-words break-all">
-                                  -{formatCurrency(fundData.lottery_funds.balance_gap_usdc)} (Shortfall)
-                                </span>
-                              )
-                            }
-                            if (fundData.lottery_funds.surplus_usdc > 0) {
-                              return (
-                                <span className="text-green-600 break-words break-all">
-                                  +{formatCurrency(fundData.lottery_funds.surplus_usdc)} (Surplus)
-                                </span>
-                              )
-                            }
-                            return <span className="text-gray-500 break-words break-all">Balanced</span>
-                          })()}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {fundData.lottery_funds.last_prize_pool_update
-                          ? `Last prize pool update: ${new Date(fundData.lottery_funds.last_prize_pool_update).toLocaleString()}`
-                          : 'No prize pool updates recorded yet.'}
-                      </div>
+                      <p className="text-sm text-gray-500">
+                        Combined prize pools across all active bounties.
+                      </p>
+                      {fundData.lottery_funds.last_prize_pool_update && (
+                        <p className="text-xs text-gray-400">
+                          {`Last prize pool update: ${new Date(fundData.lottery_funds.last_prize_pool_update).toLocaleString()}`}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Jackpot Wallet</h3>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div>
-                        <p className="text-gray-600 text-sm">Wallet Address</p>
+                        <p className="text-gray-600 text-sm">Address</p>
                         <div className="font-mono text-xs text-gray-900 break-words break-all">
                           {fundData.jackpot_wallet.address || 'Not configured'}
                         </div>
                       </div>
+                      <p className="text-sm text-gray-500">
+                        Primary jackpot treasury for bounty payouts. View on explorer to confirm balances.
+                      </p>
                       <div>
-                        <p className="text-gray-600 text-sm">Token Account</p>
-                        <div className="font-mono text-xs text-gray-900 break-words break-all">
-                          {fundData.jackpot_wallet.token_account || 'Not detected'}
+                        <p className="text-gray-600 text-sm">USDC Balance</p>
+                        <div className="text-gray-900 font-mono break-words break-all">
+                          {formatCurrency(fundData.jackpot_wallet.balance_usdc)}
                         </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">USDC Balance</span>
-                        <span className="text-gray-900 font-mono break-words break-all">
-                          {formatCurrency(fundData.jackpot_wallet.balance_usdc)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">SOL Balance</span>
-                        <span className="text-gray-900 font-mono break-words break-all">
+                      <div>
+                        <p className="text-gray-600 text-sm">SOL Balance</p>
+                        <div className="text-gray-900 font-mono break-words break-all">
                           {fundData.jackpot_wallet.balance_sol !== null
                             ? `${fundData.jackpot_wallet.balance_sol.toFixed(4)} SOL`
                             : 'N/A'}
-                        </span>
+                        </div>
                       </div>
                       <div>
                         {(() => {
@@ -419,7 +378,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                           )
                         })()}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-xs text-gray-500">
                         Balance checked: {new Date(fundData.jackpot_wallet.last_balance_check).toLocaleString()}
                       </div>
                     </div>
@@ -441,43 +400,6 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                       </div>
                     </div>
                   )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Fund Activity Summary</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                      <p className="text-sm text-gray-600">Completed Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
-                        {formatCurrency(fundData.fund_activity.total_completed_usdc)}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                      <p className="text-sm text-gray-600">Pending Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
-                        {formatCurrency(fundData.fund_activity.total_pending_usdc)}
-                      </p>
-                      <p className="text-sm text-gray-500">{fundData.fund_activity.pending_count} pending</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                      <p className="text-sm text-gray-600">Failed Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
-                        {formatCurrency(fundData.fund_activity.total_failed_usdc)}
-                      </p>
-                      <p className="text-sm text-gray-500">{fundData.fund_activity.failed_count} failed</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                      <p className="text-sm text-gray-600">Recorded Entries</p>
-                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
-                        {formatNumber(fundData.fund_activity.total_entries_recorded)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-sm text-gray-500">
-                    {fundData.fund_activity.last_deposit_at
-                      ? `Last contribution observed: ${new Date(fundData.fund_activity.last_deposit_at).toLocaleString()}`
-                      : 'No fund contributions have been recorded yet.'}
-                  </div>
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
