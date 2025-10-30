@@ -203,7 +203,7 @@ fun RevenueModelCard(platformRevenue: PlatformRevenue?) {
                         color = Color(0xFF64748B),
                         fontSize = 11.sp
                     )
-                </Column>
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Tiered Distribution",
@@ -217,7 +217,7 @@ fun RevenueModelCard(platformRevenue: PlatformRevenue?) {
                         color = Color(0xFF64748B),
                         fontSize = 11.sp
                     )
-                </Column>
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "No Fixed APY",
@@ -231,7 +231,7 @@ fun RevenueModelCard(platformRevenue: PlatformRevenue?) {
                         color = Color(0xFF64748B),
                         fontSize = 11.sp
                     )
-                </Column>
+                }
             }
             
             // Warning
