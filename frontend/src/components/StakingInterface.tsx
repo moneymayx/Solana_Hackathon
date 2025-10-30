@@ -7,13 +7,15 @@
  * Shows revenue-based rewards (not fixed APY)
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   tokenAPI,
   StakingPosition,
   TokenTierStatsResponse,
   TokenPlatformRevenueResponse,
   ApiError,
+  TokenTierStatsEntry,
+  UnstakeResponse,
 } from '@/lib/api/enhancements'
 
 interface StakingInterfaceProps {
@@ -36,11 +38,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
   const [stakeAmount, setStakeAmount] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState<30 | 60 | 90>(90)
 
-  useEffect(() => {
-    fetchStakingData()
-  }, [userId])
-
-  const fetchStakingData = async () => {
+  const fetchStakingData = useCallback(async () => {
     try {
       setLoading(true)
       setApiUnavailable(false)
@@ -72,7 +70,11 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    fetchStakingData()
+  }, [fetchStakingData])
 
   const handleStake = async () => {
     if (!walletAddress) {
@@ -177,7 +179,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     }
 
     try {
-      const result = await tokenAPI.unstake(positionId, userId)
+      const result: UnstakeResponse = await tokenAPI.unstake(positionId, userId)
 
       if (result.success) {
         alert(`✅ Successfully unstaked ${result.amount_returned} tokens!`)
@@ -241,8 +243,6 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       </div>
     )
   }
-
-  const tierInfo = getTierInfo(selectedPeriod)
 
   return (
     <div className="space-y-6">
@@ -516,17 +516,20 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
           <h3 className="text-xl font-bold text-slate-900 mb-4">Platform Staking Tiers</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(tierStats.tiers || {}).map(([tierName, tierData]: [string, any]) => (
-              <div key={tierName} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5">
-                <p className="text-slate-600 text-sm mb-1">{tierName.replace('_', ' ')}</p>
-                <p className="text-slate-900 font-bold text-xl">
-                  {tierData.total_staked.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-sm text-slate-600">
-                  {tierData.staker_count} stakers • {tierData.tier_allocation}% allocation
-                </p>
-              </div>
-            ))}
+            {Object.entries(tierStats.tiers ?? {}).map(([tierName, tierData]) => {
+              const stats = tierData as TokenTierStatsEntry
+              return (
+                <div key={tierName} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5">
+                  <p className="text-slate-600 text-sm mb-1">{tierName.replace('_', ' ')}</p>
+                  <p className="text-slate-900 font-bold text-xl">
+                    {stats.total_staked.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    {stats.staker_count} stakers • {stats.tier_allocation}% allocation
+                  </p>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
