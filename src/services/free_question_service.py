@@ -386,7 +386,7 @@ class FreeQuestionService:
         return result.scalar_one_or_none()
     
     async def _get_user_free_questions(self, session: AsyncSession, user_id: int) -> Optional[FreeQuestions]:
-        """Get user's active free questions"""
+        """Get user's active free questions (most recent with remaining questions)"""
         result = await session.execute(
             select(FreeQuestions)
             .where(
@@ -396,6 +396,7 @@ class FreeQuestionService:
                 )
             )
             .order_by(FreeQuestions.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
     
