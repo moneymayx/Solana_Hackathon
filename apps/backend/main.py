@@ -1682,6 +1682,7 @@ async def create_payment(request: PaymentRequest, http_request: Request, session
         
         # Check if we're in mock payment mode
         payment_mode = os.getenv("PAYMENT_MODE", "real")
+        logger.info(f"🔍 PAYMENT_MODE environment variable: '{payment_mode}'")
         
         if payment_mode == "mock":
             # Use mock payment service for testing
