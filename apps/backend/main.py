@@ -1086,7 +1086,7 @@ async def bounty_chat_endpoint(
         chat_result = await agent.chat(message, session, user.id, eligibility["type"])
         
         # Store conversation with bounty_id
-        from src.models import Conversation
+        from src.models import Conversation, Bounty
         try:
             conv_user = Conversation(
                 user_id=user.id,
@@ -1106,6 +1106,16 @@ async def bounty_chat_endpoint(
                 is_winner=chat_result["winner_result"].get("is_winner", False)
             )
             session.add(conv_ai)
+            
+            # Increment total_entries for this bounty
+            bounty_result = await session.execute(
+                select(Bounty).where(Bounty.id == bounty_id)
+            )
+            bounty = bounty_result.scalar_one_or_none()
+            if bounty:
+                bounty.total_entries += 1
+                logger.info(f"📊 Incremented total_entries for bounty {bounty_id}: {bounty.total_entries}")
+            
             await session.commit()
         except Exception as db_error:
             logger.error(f"Database error storing conversation: {db_error}")
