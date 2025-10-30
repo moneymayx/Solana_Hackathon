@@ -5,6 +5,7 @@ Tests the "Try Your Luck" payment flow with different amounts
 import pytest
 import asyncio
 import logging
+from datetime import datetime
 from httpx import AsyncClient, ConnectTimeout, ReadTimeout
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -21,11 +22,40 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Import models and services
-from src.models import User, FreeQuestions
+from src.models import User, FreeQuestions, Bounty
 from src.services.free_question_service import free_question_service
 
 # Test wallet address
 TEST_WALLET = "TestWallet1111111111111111111111111111111"
+
+# Bounty pricing helpers to keep tests aligned with production logic
+STARTING_BOUNTIES = {
+    "easy": 500.0,
+    "medium": 2500.0,
+    "hard": 5000.0,
+    "expert": 10000.0,
+}
+
+STARTING_COSTS = {
+    "easy": 0.50,
+    "medium": 2.50,
+    "hard": 5.00,
+    "expert": 10.00,
+}
+
+BOUNTY_PROVIDER_BY_DIFFICULTY = {
+    "easy": "llama",
+    "medium": "gemini",
+    "hard": "gpt-4",
+    "expert": "claude",
+}
+
+BOUNTY_NAME_BY_DIFFICULTY = {
+    "easy": "Llama Legend",
+    "medium": "Gemini Great",
+    "hard": "GPT Gigachad",
+    "expert": "Claude Champ",
+}
 
 # Timeout settings
 TEST_TIMEOUT = 10  # seconds per test
@@ -120,29 +150,62 @@ async def cleanup_test_data(async_session):
         logger.error(f"❌ Cleanup error: {e}")
         raise
 
+
+async def ensure_bounty_state(session: AsyncSession, bounty_id: int, difficulty: str) -> None:
+    """Ensure the target bounty exists with predictable pricing for tests."""
+
+    difficulty_key = difficulty.lower()
+    starting_pool = STARTING_BOUNTIES.get(difficulty_key, STARTING_BOUNTIES["medium"])
+    provider = BOUNTY_PROVIDER_BY_DIFFICULTY.get(difficulty_key, "claude")
+    name = BOUNTY_NAME_BY_DIFFICULTY.get(difficulty_key, f"Test Bounty {bounty_id}")
+
+    result = await session.execute(select(Bounty).where(Bounty.id == bounty_id))
+    bounty = result.scalar_one_or_none()
+
+    if bounty:
+        bounty.name = bounty.name or name
+        bounty.llm_provider = provider
+        bounty.difficulty_level = difficulty_key
+        bounty.current_pool = starting_pool
+        bounty.total_entries = 0
+        bounty.updated_at = datetime.utcnow()
+    else:
+        session.add(Bounty(
+            id=bounty_id,
+            name=name,
+            llm_provider=provider,
+            current_pool=starting_pool,
+            total_entries=0,
+            difficulty_level=difficulty_key,
+            is_active=True
+        ))
+
+    await session.commit()
+
 class TestPaymentAmounts:
     """Test suite for payment amount selection"""
     
-    # Test cases: (amount, expected_questions, expected_credit)
+    # Test cases: (bounty_id, difficulty, amount, expected_questions, expected_credit)
     PAYMENT_TEST_CASES = [
-        (1, 0, 1.0),        # $1 = 0 questions + $1 credit (below minimum)
-        (10, 1, 0.0),       # $10 = 1 question + $0 credit
-        (20, 2, 0.0),       # $20 = 2 questions + $0 credit
-        (50, 5, 0.0),       # $50 = 5 questions + $0 credit
-        (100, 10, 0.0),     # $100 = 10 questions + $0 credit
-        (1000, 100, 0.0),   # $1000 = 100 questions + $0 credit
-        (15, 1, 5.0),       # $15 = 1 question + $5 credit (fractional)
-        (99, 9, 9.0),       # $99 = 9 questions + $9 credit (fractional)
-        (7.50, 0, 7.50),    # $7.50 = 0 questions + $7.50 credit
-        (25, 2, 5.0),       # $25 = 2 questions + $5 credit
+        (1, 'expert', 1, 0, 1.0),        # Expert difficulty, insufficient payment
+        (1, 'expert', 10, 1, 0.0),       # Expert: baseline question cost $10
+        (1, 'expert', 20, 2, 0.0),       # Expert: multiple questions
+        (1, 'expert', 15, 1, 5.0),       # Expert: credit remainder
+        (1, 'expert', 25, 2, 5.0),       # Expert: extra credit on multiples
+        (3, 'medium', 3, 1, 0.5),        # Medium difficulty: cost $2.50
+        (3, 'medium', 5, 2, 0.0),        # Medium: two questions
+        (3, 'medium', 7.50, 3, 0.0),     # Medium: fractional input equals exact questions
+        (4, 'easy', 1, 2, 0.0),          # Easy difficulty: cost $0.50, $1 → 2 questions
+        (2, 'hard', 5, 1, 0.0),          # Hard difficulty: cost $5
     ]
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(TEST_TIMEOUT)
-    @pytest.mark.parametrize("amount,expected_questions,expected_credit", PAYMENT_TEST_CASES)
-    async def test_payment_create_with_amount(self, amount, expected_questions, expected_credit, cleanup_test_data):
+    @pytest.mark.parametrize("bounty_id,difficulty,amount,expected_questions,expected_credit", PAYMENT_TEST_CASES)
+    async def test_payment_create_with_amount(self, bounty_id, difficulty, amount, expected_questions, expected_credit, cleanup_test_data, async_session):
         """Test payment creation with different amounts"""
         try:
+            await ensure_bounty_state(async_session, bounty_id, difficulty)
             logger.info(f"🧪 Testing payment create: ${amount}")
             async with AsyncClient(
                 base_url="http://localhost:8000",
@@ -177,10 +240,11 @@ class TestPaymentAmounts:
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(TEST_TIMEOUT)
-    @pytest.mark.parametrize("amount,expected_questions,expected_credit", PAYMENT_TEST_CASES)
-    async def test_mock_payment_verification(self, amount, expected_questions, expected_credit, cleanup_test_data, async_session):
+    @pytest.mark.parametrize("bounty_id,difficulty,amount,expected_questions,expected_credit", PAYMENT_TEST_CASES)
+    async def test_mock_payment_verification(self, bounty_id, difficulty, amount, expected_questions, expected_credit, cleanup_test_data, async_session):
         """Test mock payment verification and question allocation"""
         try:
+            await ensure_bounty_state(async_session, bounty_id, difficulty)
             logger.info(f"🧪 Testing payment verification: ${amount}")
             # Step 1: Create payment
             async with AsyncClient(
@@ -208,7 +272,8 @@ class TestPaymentAmounts:
                         "tx_signature": mock_signature,
                         "wallet_address": TEST_WALLET,
                         "payment_method": "wallet",
-                        "amount_usd": amount
+                        "amount_usd": amount,
+                        "bounty_id": bounty_id
                     }
                 )
                 
@@ -218,6 +283,12 @@ class TestPaymentAmounts:
                 assert verify_data["success"] is True
                 assert verify_data["verified"] is True
                 assert verify_data["questions_granted"] == expected_questions
+                actual_cost = verify_data.get("question_cost_usd")
+                if actual_cost is not None:
+                    assert abs(float(actual_cost) - STARTING_COSTS[difficulty.lower()]) < 0.01, (
+                        f"Expected cost ${STARTING_COSTS[difficulty.lower()]:.2f} for {difficulty}, "
+                        f"got ${float(actual_cost):.2f}"
+                    )
                 
                 # Check credit remainder
                 credit_remainder = verify_data.get("credit_remainder", 0.0)
@@ -270,6 +341,8 @@ class TestPaymentAmounts:
         """Test that multiple payments create separate question records"""
         try:
             logger.info("🧪 Testing multiple payments accumulation")
+            bounty_id = 1
+            await ensure_bounty_state(async_session, bounty_id, 'expert')
             async with AsyncClient(
                 base_url="http://localhost:8000",
                 timeout=API_TIMEOUT
@@ -297,7 +370,8 @@ class TestPaymentAmounts:
                             "tx_signature": mock_signature,
                             "wallet_address": TEST_WALLET,
                             "payment_method": "wallet",
-                            "amount_usd": amount
+                            "amount_usd": amount,
+                            "bounty_id": bounty_id
                         }
                     )
                     
@@ -331,6 +405,8 @@ class TestPaymentAmounts:
         """Test that paid questions show correct message (not 'free')"""
         try:
             logger.info("🧪 Testing payment message distinction")
+            bounty_id = 1
+            await ensure_bounty_state(async_session, bounty_id, 'expert')
             async with AsyncClient(
                 base_url="http://localhost:8000",
                 timeout=API_TIMEOUT
@@ -353,7 +429,8 @@ class TestPaymentAmounts:
                         "tx_signature": mock_signature,
                         "wallet_address": TEST_WALLET,
                         "payment_method": "wallet",
-                        "amount_usd": 20
+                        "amount_usd": 20,
+                        "bounty_id": bounty_id
                     }
                 )
                 
@@ -384,10 +461,12 @@ class TestPaymentAmounts:
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(TEST_TIMEOUT)
-    async def test_smart_contract_integration(self, cleanup_test_data):
+    async def test_smart_contract_integration(self, cleanup_test_data, async_session):
         """Test that mock payments trigger smart contract (in mock mode)"""
         try:
             logger.info("🧪 Testing smart contract integration")
+            bounty_id = 1
+            await ensure_bounty_state(async_session, bounty_id, 'expert')
             async with AsyncClient(
                 base_url="http://localhost:8000",
                 timeout=API_TIMEOUT
@@ -410,7 +489,8 @@ class TestPaymentAmounts:
                         "tx_signature": mock_signature,
                         "wallet_address": TEST_WALLET,
                         "payment_method": "wallet",
-                        "amount_usd": 100
+                        "amount_usd": 100,
+                        "bounty_id": bounty_id
                     }
                 )
                 

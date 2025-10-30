@@ -9,7 +9,7 @@ All winner images are now loaded from the drawable folder:
 
 | Winner | File Name | Size | Description |
 |--------|-----------|------|-------------|
-| Claude Champion | `claude_champ.png` | 1.1 MB | Winner holding $10,000 check |
+| Claude Champ | `claude_champ.png` | 1.1 MB | Winner holding $10,000 check |
 | GPT Goon | `gpt_goon.png` | 996 KB | Winner holding $10,000 check |
 | Gemini Giant | `gemini_giant.png` | 930 KB | Winner holding $10,000 check |
 | Llama Legend | `llama_legend.png` | 928 KB | Winner holding $10,000 check |
@@ -39,7 +39,7 @@ LazyRow {
 **After (Real Images):**
 ```kotlin
 val winners = listOf(
-    WinnerData("Claude Champion", "claude_champ"),
+    WinnerData("Claude Champ", "claude_champ"),
     WinnerData("GPT Goon", "gpt_goon"),
     WinnerData("Gemini Giant", "gemini_giant"),
     WinnerData("Llama Legend", "llama_legend")
@@ -79,7 +79,7 @@ data class WinnerData(val name: String, val imageName: String)
 - **Spacing**: 12dp between cards
 
 ### Winner Names
-1. **Claude Champion** - First winner card
+1. **Claude Champ** - First winner card
 2. **GPT Goon** - Second winner card
 3. **Gemini Giant** - Third winner card
 4. **Llama Legend** - Fourth winner card
@@ -161,7 +161,7 @@ To verify winner images display correctly:
 ## Result
 
 Your Android app now displays the **same winner images as your website**:
-- 🏆 Claude Champion with $10,000 check
+- 🏆 Claude Champ with $10,000 check
 - 🏆 GPT Goon with $10,000 check
 - 🏆 Gemini Giant with $10,000 check
 - 🏆 Llama Legend with $10,000 check

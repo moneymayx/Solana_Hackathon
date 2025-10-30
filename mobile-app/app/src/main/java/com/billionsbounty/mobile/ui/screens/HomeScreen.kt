@@ -50,8 +50,8 @@ import kotlinx.coroutines.launch
  * 3. Scrolling Banner with images
  * 4. Choose Your Bounty section
  * 5. How It Works section
- * 6. FAQ section
- * 7. Winners section
+ * 6. Winners section
+ * 7. FAQ section
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION")
@@ -80,8 +80,8 @@ fun HomeScreen(
     val bannerIndex = 1
     val bountiesIndex = 2
     val howItWorksIndex = 3
-    val faqIndex = 4
-    val winnersIndex = 5
+    val winnersIndex = 4
+    val faqIndex = 5
 
     // Note: ViewModel already loads bounties in init, no need to call again here
     // This prevents redundant API calls on screen composition
@@ -147,17 +147,17 @@ fun HomeScreen(
                 HowItWorksSection()
             }
             
-            // FAQ Section
-            item {
-                FAQSection()
-            }
-            
             // Winners Section
             item {
                 WinnersSection(
                     bounties = bounties,
                     onNavigateToBounty = onNavigateToBounty
                 )
+            }
+            
+            // FAQ Section
+            item {
+                FAQSection()
             }
             
             // Footer
@@ -289,7 +289,7 @@ fun HeroTextSection() {
 fun AutoScrollingBanner() {
     Image(
         painter = painterResource(id = com.billionsbounty.mobile.R.drawable.claude_champion_banner),
-        contentDescription = "Claude Champion Banner",
+        contentDescription = "Claude Champ Banner",
             modifier = Modifier
                 .fillMaxWidth()
             .wrapContentHeight(),
@@ -834,7 +834,7 @@ fun WinnersSection(
     // Winner data with actual images
     val winners = remember {
         listOf(
-            WinnerData("Claude Champion", "claude_champ"),
+            WinnerData("Claude Champ", "claude_champ"),
             WinnerData("GPT Goon", "gpt_goon"),
             WinnerData("Gemini Giant", "gemini_giant"),
             WinnerData("Llama Legend", "llama_legend")

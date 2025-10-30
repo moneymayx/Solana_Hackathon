@@ -142,7 +142,7 @@ async def seed_initial_bounties(engine):
             "is_active": True
         },
         {
-            "name": "GPT-4 Bounty",
+            "name": "GPT Gigachad",
             "llm_provider": "gpt-4",
             "current_pool": 1500.0,
             "total_entries": 0,
@@ -151,7 +151,7 @@ async def seed_initial_bounties(engine):
             "is_active": True
         },
         {
-            "name": "Gemini Quest",
+            "name": "Gemini Great",
             "llm_provider": "gemini",
             "current_pool": 800.0,
             "total_entries": 0,

@@ -37,7 +37,7 @@ export default function WinnersSection({ className }: WinnersSectionProps) {
       name: "Marcus Johnson",
       amount: 10000,
       date: "2024-01-12",
-      challenge: "GPT-4 Bounty",
+      challenge: "GPT Gigachad",
       image: "/images/winners/GPT-goon.png"
     },
     {
@@ -45,7 +45,7 @@ export default function WinnersSection({ className }: WinnersSectionProps) {
       name: "Elena Rodriguez",
       amount: 10000,
       date: "2024-01-10",
-      challenge: "Gemini Quest",
+      challenge: "Gemini Great",
       image: "/images/winners/Gemini_giant.png"
     },
     {

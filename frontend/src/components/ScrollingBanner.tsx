@@ -16,7 +16,7 @@ export default function ScrollingBanner({ className }: ScrollingBannerProps) {
     {
       id: 1,
       type: 'jackpot',
-      title: 'Claude Champion',
+      title: 'Claude Champ',
       subtitle: 'Beat the Bot',
       description: 'Think you can outsmart the most advanced AI?',
       prize: '$50,000',

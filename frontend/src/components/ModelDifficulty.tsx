@@ -77,7 +77,7 @@ export default function ModelDifficulty({ className, limit = 10 }: ModelDifficul
       success_rate: 0.75,
       last_tested: '2024-01-15T09:45:00Z',
       status: 'active',
-      is_highlighted: true // Matches "GPT-4 Bounty" (hard)
+      is_highlighted: true // Matches "GPT Gigachad" (hard)
     },
     {
       id: 3,
@@ -90,7 +90,7 @@ export default function ModelDifficulty({ className, limit = 10 }: ModelDifficul
       success_rate: 0.72,
       last_tested: '2024-01-15T08:20:00Z',
       status: 'active',
-      is_highlighted: true // Matches "Claude Champ" (medium)
+      is_highlighted: true // Matches "Claude Champ" (expert)
     },
     {
       id: 4,
@@ -103,7 +103,7 @@ export default function ModelDifficulty({ className, limit = 10 }: ModelDifficul
       success_rate: 0.68,
       last_tested: '2024-01-15T07:15:00Z',
       status: 'active',
-      is_highlighted: true // Matches "Gemini Quest" (easy)
+      is_highlighted: true // Matches "Gemini Great" (medium)
     },
     {
       id: 5,
