@@ -2,7 +2,7 @@
 Database models for Billions
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlalchemy import String, Text, DateTime, Float, Integer, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
@@ -417,67 +417,9 @@ FreeQuestionUsage = FreeQuestions
 
 
 # ===========================
-# PHASE 2: TOKEN ECONOMICS MODELS ($100Bs)
+# PHASE 2: TOKEN ECONOMICS MODELS ($100Bs) - REMOVED
+# TokenBalance and StakingPosition models removed - token discount functionality discontinued
 # ===========================
-
-class TokenBalance(Base):
-    """
-    Track user's $100Bs token balance and last verification
-    """
-    __tablename__ = "token_balances"
-    
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, index=True)
-    wallet_address: Mapped[str] = mapped_column(String(255), index=True)
-    
-    # Token balance
-    token_balance: Mapped[float] = mapped_column(Float, default=0.0)
-    last_verified: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
-    # Current discount tier
-    discount_rate: Mapped[float] = mapped_column(Float, default=0.0)  # 0.0 to 0.5
-    tokens_to_next_tier: Mapped[float] = mapped_column(Float, default=0.0)
-    
-    # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user: Mapped["User"] = relationship("User")
-
-
-class StakingPosition(Base):
-    """
-    Track user's staked $100Bs tokens
-    """
-    __tablename__ = "staking_positions"
-    
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
-    
-    # Staking details
-    staked_amount: Mapped[float] = mapped_column(Float)
-    staking_period_days: Mapped[int] = mapped_column(Integer)  # 30, 60, or 90
-    apy_rate: Mapped[float] = mapped_column(Float)  # APY at time of staking
-    
-    # Timing
-    staked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    unlocks_at: Mapped[datetime] = mapped_column(DateTime)
-    
-    # Rewards
-    estimated_rewards: Mapped[float] = mapped_column(Float)
-    claimed_rewards: Mapped[float] = mapped_column(Float, default=0.0)
-    
-    # Status
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    
-    # On-chain reference
-    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    
-    # Relationships
-    user: Mapped["User"] = relationship("User")
-
 
 class BuybackEvent(Base):
     """
@@ -903,4 +845,78 @@ class TeamMemberPrize(Base):
     
     # Relationships
     distribution: Mapped["TeamPrizeDistribution"] = relationship("TeamPrizeDistribution", back_populates="member_distributions")
+    user: Mapped["User"] = relationship("User")
+
+
+class StakingPosition(Base):
+    """Tracks a user's revenue-sharing stake for the 60/20/10/10 lottery split."""
+
+    __tablename__ = "staking_positions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+
+    # Wallet + transaction context
+    wallet_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    stake_tx_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
+
+    # Staking details
+    staked_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    staking_period_days: Mapped[int] = mapped_column(Integer)  # 30, 60, or 90 day lock
+    tier_allocation_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+
+    # Status + reward tracking
+    status: Mapped[str] = mapped_column(String(50), default="active")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    claimed_rewards: Mapped[float] = mapped_column(Float, default=0.0)
+    claimable_rewards: Mapped[float] = mapped_column(Float, default=0.0)
+    total_rewards_earned: Mapped[float] = mapped_column(Float, default=0.0)
+    reward_wallet_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Temporal metadata
+    staked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    unlocks_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    last_reward_calculated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    unstaked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Optional on-chain/context metadata
+    extra_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+    reward_events: Mapped[list["StakingRewardEvent"]] = relationship(
+        "StakingRewardEvent",
+        back_populates="position",
+        cascade="all, delete-orphan"
+    )
+
+
+class StakingRewardEvent(Base):
+    """Historical record of staking payouts for transparency and audits."""
+
+    __tablename__ = "staking_reward_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    position_id: Mapped[int] = mapped_column(Integer, ForeignKey("staking_positions.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+
+    # Reward breakdown
+    reward_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    tier_allocation_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    share_of_tier_percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    platform_revenue_snapshot: Mapped[float] = mapped_column(Float, default=0.0)
+    staking_pool_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    tier_pool_amount: Mapped[float] = mapped_column(Float, default=0.0)
+
+    claim_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    transaction_signature: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    position: Mapped["StakingPosition"] = relationship("StakingPosition", back_populates="reward_events")
     user: Mapped["User"] = relationship("User")

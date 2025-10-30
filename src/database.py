@@ -12,7 +12,7 @@ from .models import (
     Winner, ConnectedWallet, WalletFundingSource, EmailVerification,
     ReferralCode, FundDeposit, FundTransfer, Referral, FreeQuestions,
     # Phase 2: Token Economics ($100Bs)
-    TokenBalance, StakingPosition, BuybackEvent, TokenPrice, DiscountUsage,
+    BuybackEvent, TokenPrice, DiscountUsage, StakingPosition, StakingRewardEvent,
     # Phase 1: Context Window Management
     MessageEmbedding, AttackPattern, ContextSummary,
     # Phase 3: Team Collaboration
