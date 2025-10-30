@@ -429,12 +429,13 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
           <h3 className="text-xl font-bold text-slate-900 mb-4">Your Staking Positions</h3>
           <div className="space-y-4">
-            {positions.map((position) => {
+            {positions.map((position, index) => {
               const isUnlocked = position.is_unlocked || false
               const canUnstake = isUnlocked && position.status === 'active'
+              const key = position.position_id ?? position.id ?? index
               
               return (
-                <div key={position.position_id || position.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-lg hover:shadow-slate-900/10 transition-all duration-200">
+                <div key={key} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-lg hover:shadow-slate-900/10 transition-all duration-200">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-slate-900 font-bold text-lg">

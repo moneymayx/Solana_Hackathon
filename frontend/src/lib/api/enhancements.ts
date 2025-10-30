@@ -117,6 +117,7 @@ export interface TokenMetrics {
 
 export interface StakingPosition {
   position_id: number
+  id?: number
   staked_amount?: number
   amount_staked?: number
   lock_period_days: number
