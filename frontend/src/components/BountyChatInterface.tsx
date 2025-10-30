@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
-import { Send, Wallet, CreditCard, Gift, AlertCircle, Trophy, Users, Clock, Zap, Loader2 } from 'lucide-react'
+import { Send, Wallet, CreditCard, Gift, AlertCircle, Trophy, Users, Clock, Zap, Loader2, Target, Crown, Shield } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Transaction, PublicKey, SystemProgram } from '@solana/web3.js'
 import { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
@@ -54,6 +54,7 @@ interface UserEligibility {
   source?: string
   referral_code?: string
   email?: string
+  is_paid?: boolean  // Indicates if questions are from paid transactions vs free/referral
 }
 
 interface BountyChatInterfaceProps {
@@ -76,6 +77,42 @@ const getStartingQuestionCost = (difficulty: string): number => {
 // Helper function to calculate current question cost
 const getCurrentQuestionCost = (startingCost: number, totalEntries: number): number => {
   return startingCost * Math.pow(1.0078, totalEntries)
+}
+
+// Helper function to get difficulty icon
+const getDifficultyIcon = (difficulty: string | undefined) => {
+  if (!difficulty) return <Target className="h-5 w-5 text-slate-600" />
+  
+  switch (difficulty.toLowerCase()) {
+    case 'expert':
+      return <Crown className="h-5 w-5 text-red-600" />
+    case 'hard':
+      return <Zap className="h-5 w-5 text-orange-600" />
+    case 'medium':
+      return <Target className="h-5 w-5 text-blue-600" />
+    case 'easy':
+      return <Shield className="h-5 w-5 text-emerald-600" />
+    default:
+      return <Target className="h-5 w-5 text-slate-600" />
+  }
+}
+
+// Helper function to get difficulty color
+const getDifficultyColor = (difficulty: string | undefined) => {
+  if (!difficulty) return 'text-slate-600 bg-slate-100 border-slate-300'
+  
+  switch (difficulty.toLowerCase()) {
+    case 'expert':
+      return 'text-red-600 bg-red-100 border-red-300'
+    case 'hard':
+      return 'text-orange-600 bg-orange-100 border-orange-300'
+    case 'medium':
+      return 'text-blue-600 bg-blue-100 border-blue-300'
+    case 'easy':
+      return 'text-emerald-600 bg-emerald-100 border-emerald-300'
+    default:
+      return 'text-slate-600 bg-slate-100 border-slate-300'
+  }
 }
 
 export default function BountyChatInterface({ 
@@ -168,7 +205,8 @@ export default function BountyChatInterface({
           questions_remaining: data.questions_remaining,
           questions_used: data.questions_used,
           referral_code: data.referral_code,
-          email: data.email
+          email: data.email,
+          is_paid: data.is_paid || false  // Include is_paid from API response
         }
         
         setUserEligibility(eligibility)
@@ -306,6 +344,7 @@ export default function BountyChatInterface({
           
           // Check if these are paid questions or free questions
           const isPaid = data.free_questions.is_paid || false
+          newEligibility.is_paid = isPaid  // Preserve is_paid status
           
           if (newEligibility.questions_remaining === 0) {
             newEligibility.eligible = false
@@ -478,7 +517,8 @@ export default function BountyChatInterface({
           tx_signature: signature,
           wallet_address: publicKey.toString(),
           payment_method: 'wallet',
-          amount_usd: currentCost
+          amount_usd: currentCost,
+          bounty_id: bountyId  // Pass bounty_id for per-bounty pool tracking
         })
       })
 
@@ -543,7 +583,7 @@ export default function BountyChatInterface({
 
       if (showReferralFlow) {
         return (
-          <div className="h-96 bg-white border border-slate-200 rounded-xl shadow-lg p-6">
+          <div className="h-96 bg-white border border-slate-200 rounded-xl shadow-2xl shadow-slate-900/10 p-6">
         <ReferralFlow
           onSuccess={async (referralCode) => {
             console.log('🎉 Referral Success - Starting unlock sequence')
@@ -565,7 +605,8 @@ export default function BountyChatInterface({
                 questions_remaining: data.remaining,
                 questions_used: 0,
                 referral_code: referralCode,
-                type: 'free_questions' as const
+                type: 'free_questions' as const,
+                is_paid: data.is_paid || false  // Use API value, default to false if not provided
               }
               console.log('🎉 Setting new eligibility:', newEligibility)
               setUserEligibility(newEligibility)
@@ -601,7 +642,7 @@ export default function BountyChatInterface({
         />
       )}
       
-      <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-lg">
+      <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-2xl shadow-slate-900/10">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
           <div className="flex items-center space-x-3">
@@ -615,11 +656,20 @@ export default function BountyChatInterface({
           </div>
           
           {bountyStatus && (
-            <div className="text-right">
-              <div className="text-lg font-bold text-yellow-600">
-                ${(bountyStatus.current_pool || 0).toLocaleString()}
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-3xl font-bold text-yellow-600">
+                  ${(bountyStatus.current_pool || 0).toLocaleString()}
+                </div>
+                <div className="text-xs text-slate-500">Prize Pool</div>
               </div>
-              <div className="text-xs text-slate-500">Prize Pool</div>
+              <div className={cn(
+                "px-3 py-1 rounded-full border text-sm font-medium flex items-center space-x-1",
+                getDifficultyColor(bountyStatus.difficulty_level)
+              )}>
+                {getDifficultyIcon(bountyStatus.difficulty_level)}
+                <span className="capitalize">{bountyStatus.difficulty_level}</span>
+              </div>
             </div>
           )}
         </div>
@@ -818,7 +868,8 @@ export default function BountyChatInterface({
                 message: `You have ${data.remaining} free questions remaining.`,
                 questions_remaining: data.remaining,
                 questions_used: 0,
-                type: 'free_questions' as const
+                type: 'free_questions' as const,
+                is_paid: data.is_paid || false  // Use API value, default to false if not provided
               }
               console.log('🎨 Setting new eligibility:', newEligibility)
               setUserEligibility(newEligibility)
