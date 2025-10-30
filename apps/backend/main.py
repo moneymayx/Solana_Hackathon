@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 import pathlib
 import logging
+import math
 
 # Set up logging FIRST
 logging.basicConfig(level=logging.INFO)
@@ -117,6 +118,36 @@ referral_service = ReferralService()
 from network_config import get_network_config
 network_config = get_network_config()
 rpc_endpoint = network_config.get_rpc_endpoint()
+
+# Safeguard analytics responses from unrealistic contract readings so the public dashboards
+# never surface placeholder lottery values when the chain is unreachable in production.
+MAX_ANALYTICS_JACKPOT_USD = float(os.getenv("MAX_ANALYTICS_JACKPOT_USD", "10000000"))
+
+
+def _sanitize_money(amount: Optional[float], *, cap: float = MAX_ANALYTICS_JACKPOT_USD) -> float:
+    """Clamp lottery-derived monetary values to keep dashboards trustworthy."""
+    if amount is None:
+        return 0.0
+
+    try:
+        value = float(amount)
+    except (TypeError, ValueError):
+        return 0.0
+
+    if not math.isfinite(value):
+        return 0.0
+
+    if value < 0:
+        return 0.0
+
+    if value > cap:
+        logger.warning(
+            "Ignoring unrealistic lottery amount from upstream",
+            extra={"amount": value, "cap": cap},
+        )
+        return 0.0
+
+    return value
 
 wallet_service = WalletConnectSolanaService(
     project_id=os.getenv("WALLETCONNECT_PROJECT_ID", ""),
@@ -2082,13 +2113,18 @@ async def get_dashboard_overview(session: AsyncSession = Depends(get_db)):
         prize_pool_repo = PrizePoolRepository(session)
         prize_pool = await prize_pool_repo.get_current_prize_pool()
 
-        target_jackpot_usdc = float(
-            prize_pool.current_amount
-        ) if prize_pool else float(lottery_status_raw.get("current_jackpot_usdc", 0.0) or 0.0)
+        if not lottery_status_raw.get("success", False):
+            # When the contract call fails we treat the jackpot as zero so we never show junk data publicly.
+            target_jackpot_usdc = 0.0
+        else:
+            target_jackpot_usdc = _sanitize_money(
+                prize_pool.current_amount if prize_pool else lottery_status_raw.get("current_jackpot_usdc", 0.0)
+            )
 
-        jackpot_balance_usdc = float(
-            jackpot_balance_info.get("balance_usdc", 0.0) or 0.0
-        ) if jackpot_balance_info.get("success", False) else 0.0
+        jackpot_balance_usdc = _sanitize_money(
+            jackpot_balance_info.get("balance_usdc", 0.0) if jackpot_balance_info.get("success", False) else 0.0,
+            cap=max(target_jackpot_usdc or 0.0, MAX_ANALYTICS_JACKPOT_USD),
+        )
 
         total_entries_snapshot = max(
             total_attempts,
@@ -2181,13 +2217,18 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         prize_pool_repo = PrizePoolRepository(session)
         prize_pool = await prize_pool_repo.get_current_prize_pool()
 
-        target_jackpot_usdc = float(
-            prize_pool.current_amount
-        ) if prize_pool else float(lottery_status.get("current_jackpot_usdc", 0.0) or 0.0)
+        # Clamp lottery inputs so production dashboards avoid placeholder spikes.
+        if not lottery_status.get("success", False):
+            target_jackpot_usdc = 0.0
+        else:
+            target_jackpot_usdc = _sanitize_money(
+                prize_pool.current_amount if prize_pool else lottery_status.get("current_jackpot_usdc", 0.0)
+            )
 
-        jackpot_balance_usdc = float(
-            jackpot_balance.get("balance_usdc", 0.0) or 0.0
-        ) if jackpot_balance.get("success", False) else 0.0
+        jackpot_balance_usdc = _sanitize_money(
+            jackpot_balance.get("balance_usdc", 0.0) if jackpot_balance.get("success", False) else 0.0,
+            cap=max(target_jackpot_usdc or 0.0, MAX_ANALYTICS_JACKPOT_USD),
+        )
 
         fund_verified = (
             jackpot_balance.get("success", False)
@@ -2198,7 +2239,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         balance_gap_usdc = max(0.0, target_jackpot_usdc - jackpot_balance_usdc)
         surplus_usdc = max(0.0, jackpot_balance_usdc - target_jackpot_usdc)
 
-        jackpot_wallet_address = os.getenv("JACKPOT_WALLET_ADDRESS", "")
+        jackpot_wallet_address = os.getenv("JACKPOT_WALLET_ADDRESS", "").strip() or None
         jackpot_wallet_sol: Optional[float] = None
         if jackpot_wallet_address:
             try:
@@ -2208,7 +2249,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                 logger.warning("Failed to fetch jackpot wallet SOL balance: %s", exc)
                 jackpot_wallet_sol = None
 
-        treasury_wallet_address = os.getenv("TREASURY_SOLANA_ADDRESS", "")
+        treasury_wallet_address = os.getenv("TREASURY_SOLANA_ADDRESS", "").strip() or None
         treasury_balance_sol: Optional[float] = None
         if treasury_wallet_address:
             try:
@@ -2254,11 +2295,11 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         timestamp_now = datetime.utcnow().isoformat()
 
         treasury_payload = None
-        if treasury_wallet_address:
+        if treasury_wallet_address and treasury_balance_sol is not None:
             treasury_payload = {
                 "address": treasury_wallet_address,
                 "balance_sol": treasury_balance_sol,
-                "balance_usd": (treasury_balance_sol * 100.0) if treasury_balance_sol is not None else None,
+                "balance_usd": treasury_balance_sol * 100.0,
                 "last_balance_check": timestamp_now,
             }
 
@@ -2309,7 +2350,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                     ),
                     "treasury_wallet": (
                         f"https://explorer.solana.com/address/{treasury_wallet_address}{explorer_suffix}"
-                        if treasury_wallet_address else None
+                        if treasury_wallet_address and treasury_payload else None
                     ),
                 },
                 "last_updated": timestamp_now
