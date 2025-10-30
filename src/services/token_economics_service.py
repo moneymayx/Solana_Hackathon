@@ -146,6 +146,19 @@ class TokenEconomicsService:
         total_rewards = sum(item.get("projected_monthly_earnings", 0.0) for item in serialized)
         active_positions = sum(1 for item in serialized if item["status"] == "active")
 
+        monthly_staking_pool = self._monthly_revenue * STAKING_REVENUE_PERCENTAGE
+
+        # Surface the revenue assumptions so the UI can label projections accurately.
+        projection_context = {
+            "monthly_platform_revenue": round(self._monthly_revenue, 2),
+            "monthly_staking_pool": round(monthly_staking_pool, 2),
+            "staking_pool_percentage": STAKING_REVENUE_PERCENTAGE * 100,
+            "explanation": (
+                "Projected rewards mirror the 60/20/10/10 lottery split, "
+                "with this stake sharing in the staking vault's percentage of monthly platform revenue."
+            ),
+        }
+
         return {
             "user_id": user_id,
             "positions": serialized,
@@ -154,6 +167,7 @@ class TokenEconomicsService:
                 "total_rewards_earned": total_rewards,
                 "active_positions": active_positions,
             },
+            "projection_context": projection_context,
         }
 
     async def claim_rewards(

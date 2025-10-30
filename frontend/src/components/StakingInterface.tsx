@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   tokenAPI,
   StakingPosition,
+  StakingPositionsResponse,
   TokenTierStatsResponse,
   TokenPlatformRevenueResponse,
   ApiError,
@@ -27,6 +28,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
   const [positions, setPositions] = useState<StakingPosition[]>([])
   const [tierStats, setTierStats] = useState<TokenTierStatsResponse | null>(null)
   const [platformRevenue, setPlatformRevenue] = useState<TokenPlatformRevenueResponse | null>(null)
+  const [projectionContext, setProjectionContext] = useState<StakingPositionsResponse['projection_context'] | null>(null)
   const [loading, setLoading] = useState(true)
   const [staking, setStaking] = useState(false)
   const [claiming, setClaiming] = useState(false)
@@ -51,6 +53,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       ])
 
       setPositions(positionsData.positions ?? [])
+      setProjectionContext(positionsData.projection_context ?? null)
       setTierStats(stats)
       setPlatformRevenue(revenueStats)
     } catch (err) {
@@ -60,6 +63,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
         // Notify the UI so developers know to start the Phase 2 service locally.
         setApiNotice('Staking endpoints are not active on this backend. Displaying read-only defaults until the token service is enabled.')
         setPositions([])
+        setProjectionContext(null)
         setTierStats(null)
         setPlatformRevenue(null)
       } else {
@@ -439,6 +443,11 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
       {positions.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
           <h3 className="text-xl font-bold text-slate-900 mb-4">Your Staking Positions</h3>
+          {projectionContext && (
+            <p className="text-xs text-slate-500 mb-4">
+              Projections assume ${projectionContext.monthly_platform_revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in monthly platform revenue with {projectionContext.staking_pool_percentage.toFixed(1)}% routed to staking, funding a {projectionContext.monthly_staking_pool.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} rewards pool. Actual payouts fluctuate with platform revenue and tier participation.
+            </p>
+          )}
           <div className="space-y-4">
             {positions.map((position, index) => {
               const isUnlocked = position.is_unlocked || false
@@ -450,6 +459,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
               const formattedUnlockDate = unlockDate
                 ? new Date(unlockDate).toLocaleDateString()
                 : 'Pending'
+              const projectedMonthly = Number(position.projected_monthly_earnings ?? position.claimable_rewards ?? 0)
 
               return (
                 <div key={key} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-lg hover:shadow-slate-900/10 transition-all duration-200">
@@ -468,8 +478,9 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
                       </span>
                     </div>
                     <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Projected</p>
                       <p className="text-emerald-600 font-bold">
-                        ${(position.projected_monthly_earnings || position.claimable_rewards || 0).toFixed(2)}/mo
+                        ~${projectedMonthly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
                       </p>
                       {position.share_of_tier && (
                         <p className="text-xs text-slate-500">

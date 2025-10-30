@@ -96,7 +96,11 @@ async def _rename_column(
     await conn.execute(sql)
 
 
-async def _backfill_columns(conn: AsyncConnection, available_columns: Iterable[str]) -> None:
+async def _backfill_columns(
+    conn: AsyncConnection,
+    available_columns: Iterable[str],
+    dialect_name: str,
+) -> None:
     """Populate newly added staking columns using legacy data where possible."""
 
     columns = set(available_columns)
@@ -198,8 +202,11 @@ async def _backfill_columns(conn: AsyncConnection, available_columns: Iterable[s
         )
 
     # Ensure the timestamp columns have sensible defaults for auditing.
-    now_iso = datetime.now(timezone.utc).isoformat()
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_value = datetime.now(timezone.utc)
+    if dialect_name == "sqlite":
+        now_param = now_value.isoformat()
+    else:
+        now_param = now_value.replace(tzinfo=None)
     if "created_at" in columns:
         await conn.execute(
             text(
@@ -208,7 +215,7 @@ async def _backfill_columns(conn: AsyncConnection, available_columns: Iterable[s
                 SET created_at = COALESCE(created_at, staked_at, :now)
                 """
             ),
-            {"now": now_iso},
+            {"now": now_param},
         )
     if "updated_at" in columns:
         await conn.execute(
@@ -218,7 +225,7 @@ async def _backfill_columns(conn: AsyncConnection, available_columns: Iterable[s
                 SET updated_at = COALESCE(updated_at, created_at, :now)
                 """
             ),
-            {"now": now_iso},
+            {"now": now_param},
         )
 
 
@@ -273,6 +280,7 @@ async def migrate_staking_positions() -> None:
 
     async with engine.begin() as conn:
         try:
+            dialect = _dialect_name(conn)
             existing = await _existing_columns(conn, "staking_positions")
 
             # Legacy builds used different column names; migrate them before adding new ones.
@@ -304,7 +312,7 @@ async def migrate_staking_positions() -> None:
 
             updated_columns = await _existing_columns(conn, "staking_positions")
 
-            await _backfill_columns(conn, updated_columns)
+            await _backfill_columns(conn, updated_columns, dialect)
             await _ensure_unique_index(conn)
         except SQLAlchemyError as exc:
             raise RuntimeError(f"Failed to migrate staking_positions: {exc}") from exc

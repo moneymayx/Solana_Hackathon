@@ -189,6 +189,13 @@ export interface StakingPositionsResponse {
     active_positions?: number
     [key: string]: unknown
   }
+  projection_context?: {
+    monthly_platform_revenue: number
+    monthly_staking_pool: number
+    staking_pool_percentage: number
+    explanation?: string
+    [key: string]: unknown
+  }
   [key: string]: unknown
 }
 
