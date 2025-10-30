@@ -1,0 +1,30 @@
+[package]
+name = "staking-v2"
+version = "0.2.0"
+edition = "2021"
+description = "Staking rewards contract skeleton for Phase 2"
+authors = ["Billions Bounty Team"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "staking_v2"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false
+
+[dependencies]
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+

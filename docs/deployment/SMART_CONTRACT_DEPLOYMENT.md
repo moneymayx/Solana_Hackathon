@@ -57,8 +57,8 @@ solana config set --url devnet
 # Airdrop SOL for deployment
 solana airdrop 2
 
-# Deploy to devnet
-anchor deploy --provider.cluster devnet
+# Deploy to devnet (v1 or v2)
+anchor deploy --program-name billions_bounty_v2 --provider.cluster devnet
 ```
 
 ### 4. Deploy to Mainnet
@@ -72,11 +72,13 @@ anchor deploy --provider.cluster mainnet-beta
 
 ## Backend Integration
 
-### 1. Update Environment Variables
+### 1. Update Environment Variables (Feature Flags)
 Add to your `.env` file:
 ```env
 # Smart Contract Configuration
-LOTTERY_PROGRAM_ID=B1LL10N5B0UNTY1111111111111111111111111111111111
+USE_CONTRACT_V2=false
+LOTTERY_PROGRAM_ID=4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK
+LOTTERY_PROGRAM_ID_V2=4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW
 SOLANA_RPC_ENDPOINT=https://api.mainnet-beta.solana.com
 
 # USDC Configuration
@@ -90,7 +92,7 @@ AUTHORITY_PRIVATE_KEY=your_authority_private_key_here
 ```python
 from src.smart_contract_service import smart_contract_service
 
-# Initialize lottery with $10,000 floor and $10 entry fee
+# Initialize v2 lottery with $10,000 floor and $10 entry fee (staging)
 result = await smart_contract_service.initialize_lottery(
     authority_keypair="your_authority_keypair",
     jackpot_wallet="your_jackpot_wallet_address"
@@ -247,3 +249,31 @@ For issues or questions:
 ## License
 
 This smart contract system is licensed under the MIT License. See LICENSE file for details.
+
+## V2 (Devnet) Deployment Details
+
+- Program ID: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- Global PDA: `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh`
+- Bounty[1] PDA: `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z`
+- Bounty Pool ATA: `3QGq4L81FuhCNMHq2Mq7ZwahXzsyDQvKptZZL1UVsaXE`
+- Devnet SPL mint: `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`
+
+Environment variables (staging)
+- LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
+- V2_GLOBAL_PDA=F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh
+- V2_BOUNTY_1_PDA=AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z
+- V2_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+- V2_BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
+- V2_OPERATIONAL_WALLET=46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D
+- V2_BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
+- V2_STAKING_WALLET=Fzj8pyBehQQ3Tu1h5fb6RRqtphVBzPbB9srAw1P5q6WX
+- USE_CONTRACT_V2=true
+
+IDL
+- IDL Account: `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr`
+- Fetch: `anchor idl fetch --provider.cluster devnet GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- Status: ✅ Published on devnet
+
+Notes
+- Research fund floor set to 0 for devnet initialization.
+- Contract is fully verifiable on Solana explorers.

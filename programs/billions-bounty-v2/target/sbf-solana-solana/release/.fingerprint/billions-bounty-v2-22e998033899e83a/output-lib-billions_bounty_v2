@@ -1,0 +1,2 @@
+Error: Function _ZN18billions_bounty_v29__private8__global24process_entry_payment_v217h20a2dccd3eb02006E Stack offset of 5968 exceeded max offset of 4096 by 1872 bytes, please minimize large stack variables
+Error: Function _ZN83_$LT$billions_bounty_v2..ProcessEntryPaymentV2$u20$as$u20$anchor_lang..Accounts$GT$12try_accounts17h2f26a0b87fddd548E Stack offset of 4776 exceeded max offset of 4096 by 680 bytes, please minimize large stack variables

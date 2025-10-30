@@ -1,6 +1,6 @@
 # Smart Contract Migration Plan
 
-**Date Created**: January 2025  
+**Date Created**: October 2025  
 **Status**: Roadmap for Future Migration  
 **Current State**: Backend handles most functionality; Contracts handle core payments & winner payouts
 
@@ -373,6 +373,18 @@ signature = self.private_key.sign(decision_hash)
 **Files to Modify**:
 - `programs/billions-bounty/src/lib.rs`
 - `programs/staking/src/lib.rs` (create if missing)
+
+### Parallel Integration Plan (Contract V2)
+
+To avoid breaking existing functionality, integrate v2 in parallel:
+
+- Backend Flag: `USE_CONTRACT_V2=false` (default)
+- Adapter: `src/services/contract_adapter_v2.py` (only active when flag=true)
+- IDL: Extract and commit `programs/billions-bounty-v2/target/idl/billions_bounty_v2.json`
+- Staged Rollout: Enable flag in staging, then canary, then production
+- Non-Regression: Keep v1 paths untouched until final cutover
+
+See `docs/development/INTEGRATION_V2_PLAN.md` for step-by-step guide.
 
 ### Phase 3: Future Features (Month 4+)
 

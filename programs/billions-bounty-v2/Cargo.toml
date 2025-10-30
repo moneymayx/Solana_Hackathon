@@ -1,0 +1,33 @@
+[package]
+name = "billions-bounty-v2"
+version = "0.2.0"
+edition = "2021"
+description = "Enhanced autonomous lottery system with 4-way split, per-bounty tracking, and Phase 1-2 features"
+authors = ["Billions Bounty Team"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "billions_bounty_v2"
+
+[features]
+no-entrypoint = []
+idl-build = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = ["idl-build"]
+
+[profile.release]
+opt-level = "z"        # Optimize for size instead of speed
+lto = true            # Link-time optimization
+codegen-units = 1     # Single codegen unit for better optimization
+panic = "abort"       # Smaller panic handling
+strip = true          # Remove debug symbols
+overflow-checks = false  # Disable overflow checks to reduce size
+
+[dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+sha2 = "0.10"
+indexmap = "=2.2.6"
+
