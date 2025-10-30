@@ -16,7 +16,6 @@ import {
   ApiError,
   TokenTierStatsEntry,
 } from '@/lib/api/enhancements'
-import type { UnstakeResponse } from '@/lib/api/enhancements'
 
 interface StakingInterfaceProps {
   userId: number
@@ -169,6 +168,8 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
   }
 
   const handleUnstake = async (positionId: number) => {
+    type UnstakeResult = Awaited<ReturnType<typeof tokenAPI.unstake>>
+
     if (!walletAddress) {
       alert('Please connect your wallet first')
       return
@@ -179,7 +180,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     }
 
     try {
-      const result: UnstakeResponse = await tokenAPI.unstake(positionId, userId)
+      const result = (await tokenAPI.unstake(positionId, userId)) as UnstakeResult
 
       if (result.success) {
         alert(`✅ Successfully unstaked ${result.amount_returned} tokens!`)
