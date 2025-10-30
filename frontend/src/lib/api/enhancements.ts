@@ -78,12 +78,124 @@ export const contextAPI = {
 // PHASE 2: TOKEN ECONOMICS API
 // =====================================================================
 
+export interface TokenBalance {
+  wallet_address: string
+  token_balance: number
+  last_verified: string
+  [key: string]: unknown
+}
+
+export interface DiscountTier {
+  id?: number
+  name?: string
+  tier_name?: string
+  min_balance?: number
+  min_tokens?: number
+  discount_percentage?: number
+  discount_rate?: number
+  description?: string
+  perks?: string[]
+  [key: string]: unknown
+}
+
+export interface DiscountTiersResponse {
+  tiers: DiscountTier[]
+  updated_at?: string
+  [key: string]: unknown
+}
+
+export interface TokenMetrics {
+  token_symbol: string
+  total_supply: number
+  total_staked: number
+  staking_ratio: number
+  staking_revenue_percentage: number
+  circulating_supply?: number
+  market_cap?: number
+  [key: string]: unknown
+}
+
+export interface StakingPosition {
+  position_id: number
+  staked_amount?: number
+  amount_staked?: number
+  lock_period_days: number
+  tier_allocation?: number
+  unlocks_at?: string
+  unlock_date?: string
+  claimed_rewards?: number
+  total_rewards_earned?: number
+  projected_monthly_earnings?: number
+  projected_remaining_earnings?: number
+  claimable_rewards?: number
+  share_of_tier?: number
+  days_remaining?: number
+  status?: string
+  is_unlocked?: boolean
+  [key: string]: unknown
+}
+
+export interface StakingPositionsResponse {
+  positions: StakingPosition[]
+  user_id?: number
+  summary?: {
+    total_staked?: number
+    total_rewards_earned?: number
+    active_positions?: number
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+export interface TokenTierStatsEntry {
+  total_staked: number
+  staker_count: number
+  tier_allocation: number
+  average_lock_days?: number
+  [key: string]: unknown
+}
+
+export interface TokenTierStatsResponse {
+  tiers: Record<string, TokenTierStatsEntry>
+  updated_at?: string
+  [key: string]: unknown
+}
+
+export interface RevenueBreakdownEntry {
+  percentage?: number
+  monthly?: number
+  weekly?: number
+  daily?: number
+  [key: string]: unknown
+}
+
+export interface TokenPlatformRevenueResponse {
+  total_revenue?: {
+    monthly?: number
+    weekly?: number
+    daily?: number
+    [key: string]: unknown
+  }
+  distributed_portion?: {
+    percentage?: number
+    monthly?: number
+    weekly?: number
+    breakdown?: {
+      staking_pool?: RevenueBreakdownEntry
+      buyback?: RevenueBreakdownEntry
+      [key: string]: RevenueBreakdownEntry | undefined
+    }
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
 export const tokenAPI = {
   /**
    * Check user's token balance (on-chain verification)
    */
   checkBalance: (walletAddress: string, userId: number) =>
-    apiCall('/api/token/balance/check', {
+    apiCall<TokenBalance>('/api/token/balance/check', {
       method: 'POST',
       body: JSON.stringify({ wallet_address: walletAddress, user_id: userId }),
     }),
@@ -92,13 +204,13 @@ export const tokenAPI = {
    * Get cached token balance (faster)
    */
   getBalance: (walletAddress: string) =>
-    apiCall(`/api/token/balance/${walletAddress}`),
+    apiCall<TokenBalance>(`/api/token/balance/${walletAddress}`),
   
   /**
    * Calculate discount for a price
    */
   calculateDiscount: (walletAddress: string, basePrice: number) =>
-    apiCall('/api/token/discount/calculate', {
+    apiCall<{ discount_amount: number; final_price: number; discount_rate: number }>('/api/token/discount/calculate', {
       method: 'POST',
       body: JSON.stringify({ wallet_address: walletAddress, base_price: basePrice }),
     }),
@@ -106,13 +218,13 @@ export const tokenAPI = {
   /**
    * Get all discount tiers
    */
-  getDiscountTiers: () => apiCall('/api/token/discount/tiers'),
+  getDiscountTiers: () => apiCall<DiscountTiersResponse>('/api/token/discount/tiers'),
   
   /**
    * Create a staking position
    */
   stake: (userId: number, walletAddress: string, amount: number, periodDays: number, txSignature?: string) =>
-    apiCall('/api/token/stake', {
+    apiCall<{ success?: boolean; is_mock?: boolean; [key: string]: unknown }>('/api/token/stake', {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId,
@@ -127,7 +239,7 @@ export const tokenAPI = {
    * Get user's staking positions
    */
   getStakingPositions: (userId: number) =>
-    apiCall(`/api/token/staking/user/${userId}`),
+    apiCall<StakingPositionsResponse>(`/api/token/staking/user/${userId}`),
   
   /**
    * Unstake tokens
@@ -141,17 +253,17 @@ export const tokenAPI = {
   /**
    * Get platform-wide token metrics
    */
-  getMetrics: () => apiCall('/api/token/metrics'),
+  getMetrics: () => apiCall<TokenMetrics>('/api/token/metrics'),
   
   /**
    * Get staking tier statistics
    */
-  getTierStats: () => apiCall('/api/token/staking/tier-stats'),
+  getTierStats: () => apiCall<TokenTierStatsResponse>('/api/token/staking/tier-stats'),
   
   /**
    * Get platform revenue statistics for staking dashboard
    */
-  getPlatformRevenue: () => apiCall('/api/token/revenue/platform-stats'),
+  getPlatformRevenue: () => apiCall<TokenPlatformRevenueResponse>('/api/token/revenue/platform-stats'),
   
   /**
    * Check token service health

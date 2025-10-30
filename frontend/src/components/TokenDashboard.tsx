@@ -7,21 +7,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { tokenAPI } from '@/lib/api/enhancements'
-
-interface TokenBalance {
-  wallet_address: string
-  token_balance: number
-  last_verified: string
-}
-
-interface TokenMetrics {
-  token_symbol: string
-  total_supply: number
-  total_staked: number
-  staking_ratio: number
-  staking_revenue_percentage: number
-}
+import { tokenAPI, DiscountTier, TokenBalance, TokenMetrics } from '@/lib/api/enhancements'
 
 interface TokenDashboardProps {
   userId: number
@@ -46,18 +32,18 @@ export default function TokenDashboard({ userId, walletAddress }: TokenDashboard
       setError(null)
 
       // Fetch discount tiers (always available)
-      const tiersData = await tokenAPI.getDiscountTiers() as any
-      setTiers(tiersData.tiers)
+      const tiersData = await tokenAPI.getDiscountTiers()
+      setTiers(tiersData.tiers ?? [])
 
       // Fetch platform metrics
-      const metricsData = await tokenAPI.getMetrics() as any
-      setMetrics(metricsData)
+      const metricsData = await tokenAPI.getMetrics()
+      setMetrics(metricsData ?? null)
 
       // Fetch user balance if wallet connected
       if (walletAddress) {
         try {
-          const balanceData = await tokenAPI.checkBalance(walletAddress, userId) as any
-          setBalance(balanceData)
+          const balanceData = await tokenAPI.checkBalance(walletAddress, userId)
+          setBalance(balanceData ?? null)
         } catch (balanceError) {
           console.warn('Could not fetch balance:', balanceError)
           // Continue even if balance check fails
@@ -76,8 +62,8 @@ export default function TokenDashboard({ userId, walletAddress }: TokenDashboard
     
     setRefreshing(true)
     try {
-      const balanceData = await tokenAPI.checkBalance(walletAddress, userId) as any
-      setBalance(balanceData)
+      const balanceData = await tokenAPI.checkBalance(walletAddress, userId)
+      setBalance(balanceData ?? null)
     } catch (err: any) {
       setError(err.message)
     } finally {
