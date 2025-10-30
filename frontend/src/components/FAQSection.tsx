@@ -137,7 +137,9 @@ export default function FAQSection({ className }: FAQSectionProps) {
             </h3>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
               <a
-                href="/docs"
+                href="https://github.com/moneymayx/Solana_Hackathon/blob/main/README.md"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors duration-200"
               >
                 View Documentation
