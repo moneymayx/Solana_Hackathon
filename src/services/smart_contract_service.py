@@ -338,7 +338,7 @@ class SmartContractService:
             # For now, return placeholder data
             return {
                 "success": True,
-                "program_id": self.program_id,
+                "program_id": str(self.program_id),  # Convert Pubkey to string for JSON serialization
                 "current_jackpot": 10000.0,  # Would be fetched from contract
                 "total_entries": 0,  # Would be fetched from contract
                 "is_active": True,  # Would be fetched from contract
