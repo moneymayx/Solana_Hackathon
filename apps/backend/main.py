@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 import pathlib
 import logging
@@ -44,17 +44,47 @@ from sqlalchemy import select, update, func, and_, desc
 
 app = FastAPI(title="Billions")
 
+
+def _clean_origin(origin: str) -> Optional[str]:
+    origin = origin.strip()
+    if not origin:
+        return None
+    if origin.endswith('/'):
+        origin = origin[:-1]
+    return origin or None
+
+
+default_origins: List[str] = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://localhost:4173",
+    "https://www.billionsbounty.com",
+    "https://billionsbounty.com",
+    "https://billions-bounty-iwnh3.ondigitalocean.app",
+    os.getenv("NEXT_PUBLIC_API_URL", ""),
+    os.getenv("NEXT_PUBLIC_SITE_URL", ""),
+]
+
+extra_origins = os.getenv("CORS_EXTRA_ORIGINS", "")
+if extra_origins:
+    default_origins.extend(extra_origins.split(','))
+
+allow_origins = []
+for origin in default_origins:
+    cleaned = _clean_origin(origin or "")
+    if cleaned and cleaned not in allow_origins:
+        allow_origins.append(cleaned)
+
+logger.info("🔓 CORS allowed origins: %s", allow_origins)
+
 # ===========================
 # CORS MIDDLEWARE
 # ===========================
 # Allow frontend to access backend APIs
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Frontend dev server
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",  # Alternative port
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
