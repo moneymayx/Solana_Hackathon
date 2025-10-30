@@ -151,7 +151,7 @@ export async function verifyNftOwnership(
     }
     
     // Check backend mode
-    const statusResponse = await fetch(`http://localhost:8000/api/nft/status/${wallet.publicKey.toString()}`);
+    const statusResponse = await fetch(`${getBackendUrl()}/api/nft/status/${wallet.publicKey.toString()}`);
     const statusData = await statusResponse.json();
     
     let signature: string | undefined;

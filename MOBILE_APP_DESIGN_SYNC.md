@@ -108,3 +108,4 @@ This document tracks the synchronization of design changes between the web front
 - The visual effect on mobile will be slightly different due to platform rendering differences, but the intent (pronounced raised cards) is preserved
 
 
+
