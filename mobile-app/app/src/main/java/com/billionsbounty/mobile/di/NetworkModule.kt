@@ -19,21 +19,32 @@ object NetworkModule {
     /**
      * Backend API Configuration
      * 
-     * EMULATOR (Default): Use "http://10.0.2.2:8000/"
+     * ⚠️ IMPORTANT: Choose the correct URL for your testing environment!
+     * 
+     * EMULATOR: Use "http://10.0.2.2:8000/"
      *   - 10.0.2.2 is Android emulator's special alias for localhost
      *   - Works for testing with backend running on development machine
      * 
      * PHYSICAL DEVICE: Use "http://YOUR_LOCAL_IP:8000/"
-     *   - Find your local IP: Run `ipconfig getifaddr en0` (Mac) or `ipconfig` (Windows)
-     *   - Example: "http://192.168.1.100:8000/"
+     *   - Your computer's IP: 192.168.0.206
      *   - Ensure device and computer are on same WiFi network
-     *   - Update firewall to allow port 8000 connections
+     *   - Backend must be started with: uvicorn apps.backend.main:app --host 0.0.0.0 --port 8000
      * 
      * PRODUCTION: Use your deployed backend URL
      *   - Example: "https://api.billionsbounty.com/"
      *   - Ensure HTTPS is configured for production
      */
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    
+    // 🔧 CONFIGURATION: Uncomment the line you need based on your testing environment
+    
+    // For Android Emulator (default):
+    // private const val BASE_URL = "http://10.0.2.2:8000/"
+    
+    // For Physical Device (CURRENT RECOMMENDED):
+    private const val BASE_URL = "http://192.168.0.206:8000/"
+    
+    // For Production:
+    // private const val BASE_URL = "https://api.billionsbounty.com/"
     
     /**
      * Payment Mode Configuration
@@ -44,10 +55,6 @@ object NetworkModule {
      * Note: Backend must also have PAYMENT_MODE=mock in its .env file for mock mode to work
      */
     private const val PAYMENT_MODE = "mock"  // Change to "real" for production
-    
-    // Alternative configurations (uncomment to use):
-    // private const val BASE_URL = "http://192.168.1.100:8000/"  // Physical device example
-    // private const val BASE_URL = "https://api.billionsbounty.com/"  // Production example
 
     @Provides
     @Singleton

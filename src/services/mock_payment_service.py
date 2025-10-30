@@ -94,6 +94,8 @@ class MockPaymentService:
         wallet_address: str,
         transaction_signature: str,
         amount_usd: float,
+        *,
+        cost_per_question: float = 10.0,
         trigger_smart_contract: bool = True
     ) -> Dict[str, Any]:
         """
@@ -106,14 +108,20 @@ class MockPaymentService:
             # Simulate async verification delay (like real blockchain)
             await asyncio.sleep(0.5)
             
-            # Calculate number of free questions to grant based on payment
-            # IMPORTANT: This uses a fixed $10 per question for simplicity
-            # In production, this should be calculated based on bounty difficulty
-            COST_PER_QUESTION = 10.0
-            questions_to_grant = int(amount_usd / COST_PER_QUESTION)  # Floor division
-            credit_remainder = amount_usd % COST_PER_QUESTION  # Remaining credit
+            # Calculate number of questions using dynamic bounty pricing so test mode
+            # mirrors the live lottery economics (0.78% growth handled upstream).
+            effective_cost = cost_per_question if cost_per_question > 0 else 10.0
+            questions_to_grant = int(amount_usd / effective_cost)  # Floor division per question
+            credit_remainder = amount_usd - (questions_to_grant * effective_cost)
+            credit_remainder = max(0.0, round(credit_remainder, 2))
             
-            logger.info(f"🧪 MOCK PAYMENT SUCCESS: ${amount_usd} → {questions_to_grant} questions + ${credit_remainder:.2f} credit")
+            logger.info(
+                "🧪 MOCK PAYMENT SUCCESS: $%s → %s questions @ $%.4f + $%.2f credit",
+                f"{amount_usd:.2f}",
+                questions_to_grant,
+                effective_cost,
+                credit_remainder
+            )
             
             result = {
                 "success": True,
@@ -123,6 +131,7 @@ class MockPaymentService:
                 "amount_usd": amount_usd,
                 "questions_granted": questions_to_grant,
                 "credit_remainder": credit_remainder,
+                "question_cost_usd": effective_cost,
                 "is_mock": True,
                 "message": f"🧪 TEST: Granted {questions_to_grant} questions" + (f" + ${credit_remainder:.2f} credit" if credit_remainder > 0 else " (no real payment made)")
             }

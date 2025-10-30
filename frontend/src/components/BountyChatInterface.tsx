@@ -55,6 +55,7 @@ interface UserEligibility {
   referral_code?: string
   email?: string
   is_paid?: boolean  // Indicates if questions are from paid transactions vs free/referral
+  credit_balance?: number
 }
 
 interface BountyChatInterfaceProps {
@@ -206,7 +207,8 @@ export default function BountyChatInterface({
           questions_used: data.questions_used,
           referral_code: data.referral_code,
           email: data.email,
-          is_paid: data.is_paid || false  // Include is_paid from API response
+          is_paid: data.is_paid || false,  // Include is_paid from API response
+          credit_balance: data.credit_balance || 0
         }
         
         setUserEligibility(eligibility)
@@ -530,21 +532,59 @@ export default function BountyChatInterface({
       console.log('Payment verified:', verifyData)
 
       if (verifyData.success) {
-        // Refresh eligibility first
+        const grantedQuestions = typeof verifyData.questions_granted === 'number'
+          ? verifyData.questions_granted
+          : 0
+        const creditRemainder = typeof verifyData.credit_remainder === 'number'
+          ? verifyData.credit_remainder
+          : 0
+        const perQuestionCostRaw = verifyData.question_cost_usd
+        const perQuestionCost = typeof perQuestionCostRaw === 'number'
+          ? perQuestionCostRaw
+          : perQuestionCostRaw !== undefined
+            ? Number(perQuestionCostRaw)
+            : undefined
+        const hasValidCost = typeof perQuestionCost === 'number' && Number.isFinite(perQuestionCost)
+
+        // Refresh user eligibility and bounty status so UI stays aligned with backend state
         await checkUserEligibility()
-        
-        // Force state update - paid questions should say "questions remaining"
+        await fetchBountyStatus()
+
+        const hasUnlockedQuestions = grantedQuestions > 0
+        const eligibilityMessage = hasUnlockedQuestions
+          ? `You have ${grantedQuestions} ${grantedQuestions === 1 ? 'question' : 'questions'} remaining.`
+          : creditRemainder > 0
+            ? `Payment received! You have $${creditRemainder.toFixed(2)} credit toward your next question.`
+            : 'Payment received.'
+
         setUserEligibility({
-          eligible: true,
-          type: 'free_questions',
-          message: `You have ${verifyData.questions_granted || 1} questions remaining.`,
-          questions_remaining: verifyData.questions_granted || 1,
+          eligible: hasUnlockedQuestions,
+          type: hasUnlockedQuestions ? 'free_questions' : 'payment_required',
+          message: eligibilityMessage,
+          questions_remaining: grantedQuestions,
           questions_used: 0,
-          is_paid: true
+          is_paid: hasUnlockedQuestions,
+          credit_balance: creditRemainder
         })
-        
-        setIsParticipating(true)
-        addSystemMessage('✅ Payment successful! You can now participate in the bounty.')
+
+        setIsParticipating(hasUnlockedQuestions)
+
+        if (hasUnlockedQuestions) {
+          const costSuffix = hasValidCost
+            ? ` Current price per question: $${perQuestionCost!.toFixed(2)}.`
+            : ''
+          addSystemMessage(`✅ Payment successful! ${grantedQuestions} ${grantedQuestions === 1 ? 'question' : 'questions'} unlocked.${costSuffix}`)
+        } else if (creditRemainder > 0) {
+          const remainingToUnlock = hasValidCost
+            ? Math.max(perQuestionCost! - creditRemainder, 0)
+            : 0
+          const warningMessage = remainingToUnlock > 0
+            ? `⚠️ Payment warning: Add $${remainingToUnlock.toFixed(2)} more to unlock your next question.`
+            : '⚠️ Payment warning: Credit stored, but no questions unlocked yet.'
+          addSystemMessage(warningMessage)
+        } else {
+          addSystemMessage('✅ Payment successful! Payment verified with no questions unlocked.')
+        }
       } else {
         throw new Error(verifyData.error || 'Payment verification failed')
       }
