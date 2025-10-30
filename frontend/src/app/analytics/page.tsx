@@ -189,7 +189,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-gray-600 text-sm">Current Jackpot</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-2xl font-bold text-gray-900 break-words break-all">
                           {formatCurrency(overviewData.lottery_status.current_jackpot_usdc)}
                         </p>
                       </div>
@@ -209,7 +209,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-gray-600 text-sm">Total Users</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-2xl font-bold text-gray-900 break-words break-all">
                           {formatNumber(overviewData.platform_stats.total_users)}
                         </p>
                       </div>
@@ -226,7 +226,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-gray-600 text-sm">Research Attempts</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-2xl font-bold text-gray-900 break-words break-all">
                           {formatNumber(overviewData.platform_stats.total_attempts)}
                         </p>
                       </div>
@@ -243,7 +243,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-gray-600 text-sm">Success Rate</p>
-                        <p className="text-2xl font-bold text-gray-900">
+                        <p className="text-2xl font-bold text-gray-900 break-words break-all">
                           {overviewData.platform_stats.success_rate.toFixed(3)}%
                         </p>
                       </div>
@@ -329,44 +329,46 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Target Jackpot</span>
-                        <span className="text-gray-900 font-mono">
+                        <span className="text-gray-900 font-mono break-words break-all">
                           {formatCurrency(fundData.lottery_funds.current_jackpot_usdc)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">On-Chain Balance</span>
-                        <span className="text-gray-900 font-mono">
+                        <span className="text-gray-900 font-mono break-words break-all">
                           {formatCurrency(fundData.lottery_funds.jackpot_balance_usdc)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Coverage</span>
-                        <span className={cn(
-                          "font-medium",
-                          fundData.lottery_funds.fund_verified ? "text-green-600" : "text-red-600"
-                        )}>
+                        <span
+                          className={cn(
+                            "font-medium break-words break-all",
+                            fundData.lottery_funds.fund_verified ? "text-green-600" : "text-red-600"
+                          )}
+                        >
                           {fundData.lottery_funds.fund_verified ? '✅ Fully Verified' : '❌ Shortfall Detected'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Difference</span>
-                        <span className="font-medium">
+                        <span className="font-medium break-words break-all">
                           {(() => {
                             if (fundData.lottery_funds.balance_gap_usdc > 0) {
                               return (
-                                <span className="text-red-600">
+                                <span className="text-red-600 break-words break-all">
                                   -{formatCurrency(fundData.lottery_funds.balance_gap_usdc)} (Shortfall)
                                 </span>
                               )
                             }
                             if (fundData.lottery_funds.surplus_usdc > 0) {
                               return (
-                                <span className="text-green-600">
+                                <span className="text-green-600 break-words break-all">
                                   +{formatCurrency(fundData.lottery_funds.surplus_usdc)} (Surplus)
                                 </span>
                               )
                             }
-                            return <span className="text-gray-500">Balanced</span>
+                            return <span className="text-gray-500 break-words break-all">Balanced</span>
                           })()}
                         </span>
                       </div>
@@ -383,25 +385,25 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     <div className="space-y-3">
                       <div>
                         <p className="text-gray-600 text-sm">Wallet Address</p>
-                        <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                        <div className="font-mono text-xs text-gray-900 break-words break-all">
                           {fundData.jackpot_wallet.address || 'Not configured'}
-                        </p>
+                        </div>
                       </div>
                       <div>
                         <p className="text-gray-600 text-sm">Token Account</p>
-                        <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                        <div className="font-mono text-xs text-gray-900 break-words break-all">
                           {fundData.jackpot_wallet.token_account || 'Not detected'}
-                        </p>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">USDC Balance</span>
-                        <span className="text-gray-900 font-mono">
+                        <span className="text-gray-900 font-mono break-words break-all">
                           {formatCurrency(fundData.jackpot_wallet.balance_usdc)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">SOL Balance</span>
-                        <span className="text-gray-900 font-mono">
+                        <span className="text-gray-900 font-mono break-words break-all">
                           {fundData.jackpot_wallet.balance_sol !== null
                             ? `${fundData.jackpot_wallet.balance_sol.toFixed(4)} SOL`
                             : 'N/A'}
@@ -429,13 +431,13 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                       <div className="space-y-3">
                         <div>
                           <p className="text-gray-600 text-sm">Address</p>
-                          <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                          <div className="font-mono text-xs text-gray-900 break-words break-all">
                             {fundData.treasury_wallet.address}
-                          </p>
+                          </div>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">SOL Balance</span>
-                          <span className="text-gray-900 font-mono">
+                          <span className="text-gray-900 font-mono break-words break-all">
                             {fundData.treasury_wallet.balance_sol !== null
                               ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
                               : 'N/A'}
@@ -443,7 +445,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">USD Estimate</span>
-                          <span className="text-gray-900 font-mono">
+                          <span className="text-gray-900 font-mono break-words break-all">
                             {fundData.treasury_wallet.balance_usd !== null
                               ? formatCurrency(fundData.treasury_wallet.balance_usd)
                               : 'N/A'}
@@ -462,27 +464,27 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
                       <p className="text-sm text-gray-600">Completed Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900">
+                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
                         {formatCurrency(fundData.fund_activity.total_completed_usdc)}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
                       <p className="text-sm text-gray-600">Pending Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900">
+                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
                         {formatCurrency(fundData.fund_activity.total_pending_usdc)}
                       </p>
                       <p className="text-sm text-gray-500">{fundData.fund_activity.pending_count} pending</p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
                       <p className="text-sm text-gray-600">Failed Contributions</p>
-                      <p className="text-xl font-semibold text-gray-900">
+                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
                         {formatCurrency(fundData.fund_activity.total_failed_usdc)}
                       </p>
                       <p className="text-sm text-gray-500">{fundData.fund_activity.failed_count} failed</p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
                       <p className="text-sm text-gray-600">Recorded Entries</p>
-                      <p className="text-xl font-semibold text-gray-900">
+                      <p className="text-xl font-semibold text-gray-900 break-words break-all">
                         {formatNumber(fundData.fund_activity.total_entries_recorded)}
                       </p>
                     </div>

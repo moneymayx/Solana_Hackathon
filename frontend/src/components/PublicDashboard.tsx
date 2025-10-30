@@ -248,20 +248,20 @@ export default function PublicDashboard() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-400">Current Jackpot:</span>
-                    <span className="text-white font-mono">
+                    <span className="text-white font-mono break-words break-all">
                       {formatCurrency(fundData.lottery_funds.current_jackpot_usdc)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Actual Balance:</span>
-                    <span className="text-white font-mono">
+                    <span className="text-white font-mono break-words break-all">
                       {formatCurrency(fundData.lottery_funds.jackpot_balance_usdc)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Verification:</span>
                     <span className={cn(
-                      "font-medium",
+                      "font-medium break-words break-all",
                       fundData.lottery_funds.fund_verified ? "text-green-400" : "text-red-400"
                     )}>
                       {fundData.lottery_funds.fund_verified ? '✅ Verified' : '❌ Unverified'}
@@ -275,7 +275,7 @@ export default function PublicDashboard() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-400">SOL Balance:</span>
-                      <span className="text-white font-mono">
+                      <span className="text-white font-mono break-words break-all">
                         {fundData.treasury_wallet.balance_sol !== null
                           ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
                           : 'N/A'}
@@ -283,7 +283,7 @@ export default function PublicDashboard() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">USD Value:</span>
-                      <span className="text-white font-mono">
+                      <span className="text-white font-mono break-words break-all">
                         {fundData.treasury_wallet.balance_usd !== null
                           ? formatCurrency(fundData.treasury_wallet.balance_usd)
                           : 'N/A'}
