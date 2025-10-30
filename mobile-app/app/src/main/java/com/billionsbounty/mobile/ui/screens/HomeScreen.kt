@@ -976,7 +976,7 @@ fun FAQSection() {
         val faqs = listOf(
             FAQItem(
                 "What is BILLION\$?",
-                "BILLION\$ is an educational AI security research platform where participants attempt to outsmart AI models programmed to protect funds. It's designed for cybersecurity research and education, not gambling. The platform uses smart contracts for transparent, autonomous fund management."
+                "Human ingenuity vs Ai SuperIntelligence\n\nBILLION\$ is an AI platform that challenges participants to 'jailbreak' AI agents using psychological manipulation and social engineering. Built with autonomous smart contracts, the platform features a self-learning AI defense system with escalating bounties for successful exploits. Unlike traditional static challenges, our AI continuously adapts from each interaction, creating a dynamic educational environment for studying AI vulnerabilities, advancing cybersecurity skills, and contributing to academic research on AI safety.... Also ... its fun, educational and you can win money $$$"
             ),
             FAQItem(
                 "How does the question pricing work?",
@@ -987,12 +987,12 @@ fun FAQSection() {
                 "Each AI bot with a bounty has been battle-tested against other competing LLM models. We rank the bots from Easy to Expert based on the average number of questions other LLMs needed to ask before getting the bot to transfer the funds. The harder the difficulty, the larger the starting bounty and question price, reflecting the increased challenge and potential reward."
             ),
             FAQItem(
-                "What is \$100Bs and how does it benefit me?",
-                "\$100Bs is BILLION\$'s memecoin that provides discounts on question fees. Hold 1M tokens for 10% off, 10M for 25% off, or 100M for 50% off. The platform uses 10% of revenue to buy back and burn \$100Bs tokens monthly, creating deflationary pressure and long-term value."
-            ),
-            FAQItem(
                 "How is platform revenue distributed?",
                 "Every question payment is split: 60% goes to the bounty pool to increase jackpots, 20% covers operational costs (development, infrastructure, security), 10% is used to buy back and burn \$100Bs tokens, and 10% goes to \$100Bs stakers as rewards."
+            ),
+            FAQItem(
+                "What is \$100Bs and how does it benefit me?",
+                "\$100Bs is BILLION\$'s memecoin that provides discounts on question fees. Hold 1M tokens for 10% off, 10M for 25% off, or 100M for 50% off. The platform also uses 10% of revenue to buy back and burn \$100Bs tokens monthly, creating deflationary pressure and long-term value."
             ),
             FAQItem(
                 "What happens if no one asks a question?",
@@ -1000,7 +1000,7 @@ fun FAQSection() {
             ),
             FAQItem(
                 "How do I get free questions?",
-                "You get 2 free questions when you first visit the platform anonymously. When you connect your wallet and provide an email, you receive 5 additional free questions. Using a referral code grants another 5 free questions. After that, you pay per question."
+                "Free questions are only available if you either hold the Solana Seeker Genesis NFT or refer someone who signs up and completes their 5 free questions first."
             ),
             FAQItem(
                 "How do smart contracts ensure fairness?",

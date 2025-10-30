@@ -18,7 +18,9 @@ export default function FAQSection({ className }: FAQSectionProps) {
   const faqs: FAQItem[] = [
     {
       question: "What is BILLION$?",
-      answer: "BILLION$ is an educational AI security research platform where participants attempt to outsmart AI models programmed to protect funds. It's designed for cybersecurity research and education, not gambling. The platform uses smart contracts for transparent, autonomous fund management."
+      answer: `Human ingenuity vs Ai SuperIntelligence
+
+BILLION$ is an AI platform that challenges participants to 'jailbreak' AI agents using psychological manipulation and social engineering. Built with autonomous smart contracts, the platform features a self-learning AI defense system with escalating bounties for successful exploits. Unlike traditional static challenges, our AI continuously adapts from each interaction, creating a dynamic educational environment for studying AI vulnerabilities, advancing cybersecurity skills, and contributing to academic research on AI safety.... Also ... its fun, educational and you can win money $$$`
     },
     {
       question: "How does the question pricing work?",
@@ -29,12 +31,12 @@ export default function FAQSection({ className }: FAQSectionProps) {
       answer: "Each AI bot with a bounty has been battle-tested against other competing LLM models. We rank the bots from Easy to Expert based on the average number of questions other LLMs needed to ask before getting the bot to transfer the funds. The harder the difficulty, the larger the starting bounty and question price, reflecting the increased challenge and potential reward."
     },
     {
-      question: "What is $100Bs and how does it benefit me?",
-      answer: "$100Bs is BILLION$'s memecoin that you can stake to earn rewards. Stake your tokens to receive 10% of platform revenue distributed to all stakers. The platform uses 10% of revenue to buy back and burn $100Bs tokens monthly, creating deflationary pressure and long-term value."
-    },
-    {
       question: "How is platform revenue distributed?",
       answer: "Every question payment is split: 60% goes to the bounty pool to increase jackpots, 20% covers operational costs (development, infrastructure, security), 10% is used to buy back and burn $100Bs tokens, and 10% goes to $100Bs stakers as rewards."
+    },
+    {
+      question: "What is $100Bs and how does it benefit me?",
+      answer: "$100Bs is BILLION$'s memecoin that you can stake to earn rewards. Stake your tokens to receive 10% of platform revenue distributed to all stakers. The platform also uses 10% of revenue to buy back and burn $100Bs tokens monthly, creating deflationary pressure and long-term value."
     },
     {
       question: "What happens if no one asks a question for 24 hours?",
@@ -42,7 +44,7 @@ export default function FAQSection({ className }: FAQSectionProps) {
     },
     {
       question: "How do I get free questions?",
-      answer: "You get 2 free questions when you first visit the platform anonymously. When you connect your wallet and provide an email, you receive 5 additional free questions. Using a referral code grants another 5 free questions. After that, you pay per question."
+      answer: "Free questions are only available if you either hold the Solana Seeker Genesis NFT or refer someone who signs up and completes their 5 free questions first."
     },
     {
       question: "Can I use NFTs instead of paying?",

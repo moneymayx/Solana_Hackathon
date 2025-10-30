@@ -4602,6 +4602,8 @@ async def get_free_questions_by_wallet(wallet_address: str, session: AsyncSessio
     try:
         from src.services.free_question_service import free_question_service
         
+        logger.info(f"🔍 Checking free questions for wallet: {wallet_address}")
+        
         # Get user by wallet address
         user_repo = UserRepository(session)
         result = await session.execute(
@@ -4611,6 +4613,7 @@ async def get_free_questions_by_wallet(wallet_address: str, session: AsyncSessio
         
         if not user:
             # No user yet, return default eligibility
+            logger.info(f"📭 No user found for wallet {wallet_address} - returning 0 questions")
             return {
                 "success": True,
                 "questions_remaining": 0,
@@ -4619,12 +4622,16 @@ async def get_free_questions_by_wallet(wallet_address: str, session: AsyncSessio
                 "source": None
             }
         
+        logger.info(f"👤 Found user {user.id} for wallet {wallet_address}")
+        
         # Check eligibility
         # Users with wallet addresses are NOT anonymous (even without email)
         is_anonymous = not user.email and not user.wallet_address
         eligibility = await free_question_service.check_user_question_eligibility(
             session, user.id, is_anonymous=is_anonymous, referral_code=None
         )
+        
+        logger.info(f"📊 Eligibility for user {user.id}: {eligibility.get('questions_remaining', 0)} questions remaining, source: {eligibility.get('source')}")
         
         return {
             "success": True,
