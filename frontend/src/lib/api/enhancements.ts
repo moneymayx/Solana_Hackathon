@@ -10,7 +10,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Simple fetch wrapper with error handling
-async function apiCall<T>(
+async function apiCall<T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -163,12 +163,79 @@ export const tokenAPI = {
 // PHASE 3: TEAM COLLABORATION API
 // =====================================================================
 
+export interface TeamSummary {
+  id: number
+  name: string
+  description?: string
+  leader_id: number
+  max_members: number
+  total_pool: number
+  total_attempts: number
+  total_spent?: number
+  total_entries?: number
+  member_count: number
+  created_at: string
+  is_public?: boolean
+  is_active?: boolean
+}
+
+export interface TeamDetails extends TeamSummary {
+  invite_code?: string
+}
+
+export interface TeamMember {
+  user_id: number
+  display_name: string
+  role: string
+  total_contributed: number
+  contribution_percentage: number
+  joined_at: string
+}
+
+export interface TeamMembersResponse {
+  members: TeamMember[]
+}
+
+export interface TeamBrowseResponse {
+  teams: TeamSummary[]
+  total?: number
+  limit?: number
+  offset?: number
+}
+
+export interface TeamCreateResponse {
+  team: TeamDetails & { invite_code: string }
+  message?: string
+}
+
+export interface TeamJoinResponse {
+  membership: {
+    team_id: number
+    team_name: string
+    role?: string
+    joined_at?: string
+  }
+  message?: string
+}
+
+export interface TeamStatsResponse {
+  team_id: number
+  name: string
+  member_count: number
+  total_pool: number
+  total_attempts: number
+  successful_attempts: number
+  success_rate: number
+  total_spent: number
+  avg_cost_per_attempt: number
+}
+
 export const teamAPI = {
   /**
    * Create a new team
    */
   create: (leaderId: number, name: string, description?: string, maxMembers = 5, isPublic = true) =>
-    apiCall('/api/teams/create', {
+    apiCall<TeamCreateResponse>('/api/teams/create', {
       method: 'POST',
       body: JSON.stringify({
         leader_id: leaderId,
@@ -182,13 +249,13 @@ export const teamAPI = {
   /**
    * Get team details
    */
-  get: (teamId: number) => apiCall(`/api/teams/${teamId}`),
+  get: (teamId: number) => apiCall<TeamDetails>(`/api/teams/${teamId}`),
   
   /**
    * Browse all public teams
    */
   browse: (limit = 50, offset = 0) =>
-    apiCall(`/api/teams/?limit=${limit}&offset=${offset}`),
+    apiCall<TeamBrowseResponse>(`/api/teams/?limit=${limit}&offset=${offset}`),
   
   /**
    * Update team settings (leader only)
@@ -202,13 +269,13 @@ export const teamAPI = {
   /**
    * Get team members
    */
-  getMembers: (teamId: number) => apiCall(`/api/teams/${teamId}/members`),
+  getMembers: (teamId: number) => apiCall<TeamMembersResponse>(`/api/teams/${teamId}/members`),
   
   /**
    * Join team by invite code
    */
   joinByCode: (inviteCode: string, userId: number) =>
-    apiCall('/api/teams/join', {
+    apiCall<TeamJoinResponse>('/api/teams/join', {
       method: 'POST',
       body: JSON.stringify({ invite_code: inviteCode, user_id: userId }),
     }),
@@ -257,7 +324,7 @@ export const teamAPI = {
   /**
    * Get team statistics
    */
-  getStats: (teamId: number) => apiCall(`/api/teams/${teamId}/stats`),
+  getStats: (teamId: number) => apiCall<TeamStatsResponse>(`/api/teams/${teamId}/stats`),
   
   /**
    * Check team service health
