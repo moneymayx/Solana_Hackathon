@@ -863,6 +863,10 @@ class StakingPosition(Base):
     # Staking details
     staked_amount: Mapped[float] = mapped_column(Float, default=0.0)
     staking_period_days: Mapped[int] = mapped_column(Integer)  # 30, 60, or 90 day lock
+    # Legacy APY column now mirrors the 60/20/10 lottery share so older clients keep working.
+    apy_rate: Mapped[float] = mapped_column(Float, default=0.0)
+    # Aggregated projection used by the mock revenue share to keep Solana interactions deterministic locally.
+    estimated_rewards: Mapped[float] = mapped_column(Float, default=0.0)
     tier_allocation_percentage: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Status + reward tracking
