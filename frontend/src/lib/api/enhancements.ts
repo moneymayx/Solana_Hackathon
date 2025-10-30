@@ -9,8 +9,27 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+/**
+ * Rich error type so callers can distinguish transport issues (e.g. 404 mocks)
+ * without parsing message strings.
+ */
+export class ApiError extends Error {
+  status: number
+  endpoint: string
+  details?: unknown
+
+  constructor(message: string, status: number, endpoint: string, details?: unknown) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.endpoint = endpoint
+    this.details = details
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
 // Simple fetch wrapper with error handling
-async function apiCall<T = any>(
+async function apiCall<T = unknown>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -32,15 +51,35 @@ async function apiCall<T = any>(
     console.log(`✅ Response: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(error.detail || `HTTP ${response.status}`);
+      const errorBody = await response.json().catch(() => ({ detail: 'Unknown error' })) as {
+        detail?: string
+        error?: string
+        [key: string]: unknown
+      }
+      const message = errorBody.detail || errorBody.error || `HTTP ${response.status}`;
+      throw new ApiError(message, response.status, endpoint, errorBody);
     }
     
     const data = await response.json();
     console.log(`📦 Data:`, data);
     return data;
   } catch (error) {
-    console.error(`❌ API call failed: ${endpoint}`, error);
+    if (error instanceof ApiError) {
+      const logContext = {
+        endpoint: error.endpoint,
+        status: error.status,
+        message: error.message,
+        details: error.details,
+      };
+
+      if (error.status === 404) {
+        console.warn(`⚠️ API endpoint not available (likely disabled in this environment): ${endpoint}`, logContext);
+      } else {
+        console.error(`❌ API call failed: ${endpoint}`, logContext);
+      }
+    } else {
+      console.error(`❌ API call failed: ${endpoint}`, error);
+    }
     throw error;
   }
 }
@@ -191,6 +230,13 @@ export interface TokenPlatformRevenueResponse {
   [key: string]: unknown
 }
 
+export interface ClaimRewardsResponse {
+  success?: boolean
+  amount_claimed?: number
+  error?: string
+  [key: string]: unknown
+}
+
 export const tokenAPI = {
   /**
    * Check user's token balance (on-chain verification)
@@ -249,6 +295,18 @@ export const tokenAPI = {
     apiCall(`/api/token/staking/unstake/${positionId}`, {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
+    }),
+
+  /**
+   * Claim staking rewards
+   */
+  claimRewards: (userId: number, walletAddress: string) =>
+    apiCall<ClaimRewardsResponse>('/api/token/staking/claim', {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: userId,
+        wallet_address: walletAddress,
+      }),
     }),
   
   /**
