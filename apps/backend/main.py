@@ -23,6 +23,7 @@ env_path = project_root / ".env"
 load_dotenv(dotenv_path=env_path)
 logger.info(f"✅ Loaded .env from: {env_path}")
 logger.info(f"🗄️  DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT SET')[:80]}...")
+logger.info(f"💳 PAYMENT_MODE: {os.getenv('PAYMENT_MODE', 'NOT SET')}")
 
 # NOW Import from reorganized src package (after .env is loaded)
 from src import (
