@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.billionsbounty.mobile.data.api.*
+import com.billionsbounty.mobile.data.api.Team as ApiTeam
 import com.billionsbounty.mobile.ui.viewmodel.BountyDetailViewModel
 import com.billionsbounty.mobile.ui.viewmodel.ChatMessage
 import com.billionsbounty.mobile.wallet.WalletAdapter
@@ -127,22 +128,24 @@ fun BountyDetailScreen(
         return
     }
     
+    Scaffold(
+        topBar = {
+            com.billionsbounty.mobile.ui.screens.WebStyleHeader(
+                onScrollToHome = onBackClick,
+                onScrollToBounties = onBackClick,
+                onScrollToHowItWorks = onBackClick,
+                onScrollToFAQs = onBackClick,
+                onNavigateToStaking = {} // TODO: Navigate to staking if needed
+            )
+        }
+    ) { paddingValues ->
     LazyColumn(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-    ) {
-        // Header Section
-        item {
-            BountyHeader(
-                bounty = bounty,
-                onBackClick = onBackClick,
-                isWalletConnected = isWalletConnected,
-                onWalletClick = { showWalletDialog = true }
-            )
-        }
-        
+                .padding(paddingValues)
+        ) {
         // Wallet Connection Banner
         if (!isWalletConnected) {
             item {
@@ -219,6 +222,7 @@ fun BountyDetailScreen(
             WinningPromptsSection(
                 prompts = winningPrompts
             )
+        }
         }
     }
     
@@ -793,21 +797,60 @@ fun ChatInterfaceSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Title
                     Text(
                         text = if (isWatching) "Watch Mode" else "Beat the Bot",
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
+                        color = Color(0xFF111827),
+                        modifier = Modifier.weight(1f)
                     )
+                    
+                    // Prize Pool and Difficulty Badge
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Prize Pool
+                        Column(
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = "$${bountyStatus?.current_pool?.toInt()?.toString()?.replace(Regex("(\\d)(?=(\\d{3})+$)"), "$1,") ?: "0"}",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFCA8A04) // yellow-600
+                            )
+                            Text(
+                                text = "Prize Pool",
+                                fontSize = 10.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                        
+                        // Difficulty Badge
+                        bounty?.difficulty_level?.let { difficulty ->
+                            val (bgColor, textColor, _) = when (difficulty.lowercase()) {
+                                "expert" -> Triple(Color(0xFFFEE2E2), Color(0xFFDC2626), Icons.Default.Star)
+                                "hard" -> Triple(Color(0xFFFFEDD5), Color(0xFFEA580C), Icons.Default.Warning)
+                                "medium" -> Triple(Color(0xFFDBEAFE), Color(0xFF2563EB), Icons.Default.Info)
+                                "easy" -> Triple(Color(0xFFD1FAE5), Color(0xFF059669), Icons.Default.CheckCircle)
+                                else -> Triple(Color(0xFFF1F5F9), Color(0xFF64748B), Icons.Default.Info)
+                            }
+                            
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isWatching) Color(0xFFDBEAFE) else Color(0xFFFEF3C7)
+                                shape = RoundedCornerShape(20.dp),
+                                color = bgColor,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, textColor.copy(alpha = 0.3f))
                     ) {
                         Text(
-                            text = if (isWatching) "Watching" else "Active",
+                                    text = difficulty.uppercase(),
                             fontSize = 12.sp,
-                            color = if (isWatching) Color(0xFF1E40AF) else Color(0xFF92400E),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    color = textColor,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
+                            }
+                        }
                     }
                 }
             }
@@ -1802,7 +1845,7 @@ fun ReferralFlowDialog(
 
 @Composable
 fun TeamBrowseDialog(
-    teams: List<Team>,
+    teams: List<ApiTeam>,
     onDismiss: () -> Unit,
     onJoinTeam: (String) -> Unit
 ) {
