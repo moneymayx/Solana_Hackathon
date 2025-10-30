@@ -33,7 +33,7 @@ export default function TopNavigation() {
               <img 
                 src="/images/billions-logo.png"
                 alt="BILLIONS$"
-                className="h-24 w-auto"
+                className="h-12 w-auto object-contain"
               />
             </Link>
 
