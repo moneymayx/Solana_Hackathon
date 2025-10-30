@@ -7,6 +7,7 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getBackendUrl } from '@/lib/api/client';
 
 // NFT mint address that grants access
 export const AUTHORIZED_NFT_MINT = '9dBdXMB3WuTy638W1a1tTygWCzosUmALhRLksrX8oQVa';
@@ -39,7 +40,7 @@ export async function checkNftOwnership(
 ): Promise<boolean> {
   try {
     // First check with backend to see if we're in mock mode
-    const statusResponse = await fetch(`http://localhost:8000/api/nft/status/${walletAddress}`);
+    const statusResponse = await fetch(`${getBackendUrl()}/api/nft/status/${walletAddress}`);
     const statusData = await statusResponse.json();
     
     // If backend is in mock mode, use its response
@@ -76,7 +77,7 @@ export async function checkNftOwnership(
  */
 export async function getNftStatus(walletAddress: string): Promise<NftStatusResult> {
   try {
-    const response = await fetch(`http://localhost:8000/api/nft/status/${walletAddress}`);
+    const response = await fetch(`${getBackendUrl()}/api/nft/status/${walletAddress}`);
     const data = await response.json();
     
     return {
@@ -206,7 +207,7 @@ export async function verifyNftOwnership(
     }
     
     // Call backend to verify and grant questions
-    const response = await fetch('http://localhost:8000/api/nft/verify', {
+    const response = await fetch(`${getBackendUrl()}/api/nft/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -250,7 +251,7 @@ export async function checkNftOwnershipViaBackend(
 ): Promise<boolean> {
   try {
     const response = await fetch(
-      `http://localhost:8000/api/nft/check-ownership/${walletAddress}/${nftMint}`
+      `${getBackendUrl()}/api/nft/check-ownership/${walletAddress}/${nftMint}`
     );
     const data = await response.json();
     return data.owns_nft || false;
