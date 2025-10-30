@@ -49,6 +49,10 @@ interface TeamStats {
   avg_cost_per_attempt: number
 }
 
+interface TeamMembersResponse {
+  members: TeamMember[]
+}
+
 export default function TeamDashboardPage() {
   const params = useParams()
   const teamId = parseInt(params.teamId as string)
@@ -73,11 +77,11 @@ export default function TeamDashboardPage() {
       setTeam(teamData)
 
       // Fetch members
-      const membersData = await teamAPI.getMembers(teamId)
+      const membersData = await teamAPI.getMembers(teamId) as TeamMembersResponse
       setMembers(membersData.members || [])
 
       // Fetch stats
-      const statsData = await teamAPI.getStats(teamId)
+      const statsData = await teamAPI.getStats(teamId) as TeamStats
       setStats(statsData)
     } catch (err) {
       console.error('Failed to fetch team data:', err)
