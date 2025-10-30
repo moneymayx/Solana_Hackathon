@@ -1,4 +1,4 @@
-import { sumBountyPools } from '@/app/analytics/page'
+import { sumBountyPools } from '@/lib/analytics'
 import type { Bounty } from '@/lib/api/bounties'
 
 describe('sumBountyPools', () => {

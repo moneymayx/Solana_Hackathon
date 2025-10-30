@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { sumBountyPools } from '@/lib/analytics'
 import {
   fetchDashboardOverview,
   fetchFundVerification,
@@ -10,7 +11,7 @@ import {
   FundVerificationData,
   SecurityStatusData,
 } from '@/lib/api/dashboard'
-import { fetchBounties, Bounty } from '@/lib/api/bounties'
+import { fetchBounties } from '@/lib/api/bounties'
 import ContractActivityMonitor from '@/components/ContractActivityMonitor'
 import TopNavigation from '@/components/TopNavigation'
 
@@ -22,15 +23,6 @@ const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string; icon: string }> =
   { id: 'security', label: 'Security Status', icon: '🔒' },
   { id: 'contracts', label: 'Contract Activity', icon: '⚡' },
 ]
-
-export const sumBountyPools = (bountyList: Bounty[] | null): number => {
-  // Combining every active bounty pool keeps the analytics jackpot view aligned with the underlying payout treasury logic.
-  if (!bountyList?.length) {
-    return 0
-  }
-
-  return bountyList.reduce((accumulator: number, bounty: Bounty) => accumulator + (bounty.current_pool || 0), 0)
-}
 
 export default function Analytics() {
   const [overviewData, setOverviewData] = useState<DashboardOverviewData | null>(null)
