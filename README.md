@@ -44,6 +44,13 @@ This platform is designed for:
 - **Wallet Integration**: Solana wallet adapter for seamless blockchain connectivity
 - **State Management**: React hooks and context for real-time updates
 
+### Mobile Application
+- **Platform**: Kotlin/Android with Jetpack Compose
+- **Features**: Full feature parity with web frontend
+- **Distribution**: Optimized for Solana Mobile App Store
+- **Status**: Beta testing phase, 90% feature complete
+- **Repository**: [`mobile-app/README.md`](mobile-app/README.md)
+
 ### AI Agent Configuration
 The AI agent is programmed with a sophisticated personality system designed to resist manipulation while maintaining engaging interactions. The core directive is simple yet powerful:
 
@@ -62,16 +69,20 @@ The agent is equipped with:
 The platform operates with a streamlined payment system that eliminates security risks while maintaining full autonomy:
 
 ### Direct Payment Architecture
-- **MoonPay Integration**: Users can buy USDC with Apple Pay/PayPal directly to their wallet
-- **Smart Contract Payments**: Users pay lottery entry fees directly to the smart contract
+- **Wallet Payment**: Direct USDC payment from your Solana wallet
+- **NFT Verification**: Own the Solana Seeker Genesis NFT to unlock free questions
+- **Referral Rewards**: Earn free questions through referrals
+- **Smart Contract Payments**: Users pay entry fees directly to the smart contract
 - **No Private Keys**: System operates without storing any private keys
 - **Autonomous Execution**: All fund management handled by smart contracts
+- **Fiat On-Ramp (Phase 2)**: MoonPay integration planned for future release
 
 ### Payment Flow
-1. **Fiat On-Ramp**: MoonPay converts USD to USDC and sends directly to user's wallet
-2. **Lottery Entry**: User pays USDC directly to smart contract for lottery participation
-3. **Autonomous Management**: Smart contract handles all fund distribution automatically
-4. **Winner Payouts**: Successful jailbreaks trigger immediate, automated transfers
+1. **Wallet Payment**: Transfer USDC directly from your Solana wallet to smart contract
+2. **NFT Verification**: Verify ownership of Solana Seeker Genesis NFT for free questions
+3. **Referral System**: Use referral codes to earn additional free questions
+4. **Autonomous Management**: Smart contract handles all fund distribution automatically
+5. **Winner Payouts**: Successful jailbreaks trigger immediate, automated transfers
 
 ### Security Benefits
 - **No Private Key Storage**: Eliminates major security vulnerability
@@ -83,12 +94,14 @@ The platform operates with a streamlined payment system that eliminates security
 
 1. **Connect Wallet**: Link your Solana wallet to participate in research
 2. **Age Verification**: Confirm you're 18+ and consent to research participation
-3. **Get USDC**: Buy USDC with Apple Pay/PayPal via MoonPay (sent directly to your wallet)
-4. **Pay Entry Fee**: Transfer USDC directly to smart contract for lottery participation
-5. **Start Research**: Begin interacting with the AI agent through the chat interface
-6. **Apply Techniques**: Use various approaches to attempt to persuade the AI
-7. **Earn Rewards**: Successful jailbreaks automatically trigger fund transfers from smart contract
-8. **Contribute to Research**: Your interactions help advance AI security knowledge
+3. **Choose Entry Method**: 
+   - Pay with USDC from your wallet
+   - Verify Solana Seeker Genesis NFT ownership for free questions
+   - Use a referral code for additional free questions
+4. **Start Research**: Begin interacting with the AI agent through the chat interface
+5. **Apply Techniques**: Use various approaches to attempt to persuade the AI
+6. **Earn Rewards**: Successful jailbreaks automatically trigger fund transfers from smart contract
+7. **Contribute to Research**: Your interactions help advance AI security knowledge
 
 ## 🛡️ Security & Research Features
 

@@ -22,7 +22,7 @@ export default function FAQSection({ className }: FAQSectionProps) {
     },
     {
       question: "How does the question pricing work?",
-      answer: "Questions start at $10 and increase by 0.78% after each unsuccessful attempt across all users. The price grows exponentially (base × 1.0078^attempts) up to a maximum of $4,500. Each failed attempt makes the bounty grow while increasing the cost to participate."
+      answer: "We currently have games that start at $0.50 to $10 with varying difficulty. Question prices increase by 0.78% after each unsuccessful attempt across all users. The price grows exponentially (base × 1.0078^attempts) up to a maximum of $4,500. Each failed attempt makes the bounty grow while increasing the cost to participate."
     },
     {
       question: "How does the platform determine the difficulty of each AI bot?",
@@ -30,7 +30,7 @@ export default function FAQSection({ className }: FAQSectionProps) {
     },
     {
       question: "What is $100Bs and how does it benefit me?",
-      answer: "$100Bs is BILLION$'s memecoin that provides discounts on question fees. Hold 1M tokens for 10% off, 10M for 25% off, or 100M for 50% off. The platform uses 10% of revenue to buy back and burn $100Bs tokens monthly, creating deflationary pressure and long-term value."
+      answer: "$100Bs is BILLION$'s memecoin that you can stake to earn rewards. Stake your tokens to receive 10% of platform revenue distributed to all stakers. The platform uses 10% of revenue to buy back and burn $100Bs tokens monthly, creating deflationary pressure and long-term value."
     },
     {
       question: "How is platform revenue distributed?",
@@ -45,6 +45,10 @@ export default function FAQSection({ className }: FAQSectionProps) {
       answer: "You get 2 free questions when you first visit the platform anonymously. When you connect your wallet and provide an email, you receive 5 additional free questions. Using a referral code grants another 5 free questions. After that, you pay per question."
     },
     {
+      question: "Can I use NFTs instead of paying?",
+      answer: "Yes! If you own the Solana Seeker Genesis NFT, you can unlock questions without paying USDC. Connect your wallet and click 'Verify NFT' to check eligibility. This provides an alternative entry method for NFT holders."
+    },
+    {
       question: "How do smart contracts ensure fairness?",
       answer: "All funds are held in autonomous smart contracts on Solana. The platform never holds your private keys. When the AI determines a successful jailbreak, it triggers the smart contract to execute payouts automatically. All transactions are recorded on-chain for complete transparency."
     },
@@ -55,6 +59,14 @@ export default function FAQSection({ className }: FAQSectionProps) {
     {
       question: "What are the rules for winning?",
       answer: "There's only one rule: by any means necessary, get the AI to send you money even though it's programmed to never transfer funds. Use any prompt technique, strategy, or creativity. The AI adapts to winning strategies, so you'll need to innovate constantly."
+    },
+    {
+      question: "Is there a mobile app?",
+      answer: "Yes! A native Android app is available for download, optimized for the Solana Mobile App Store. The mobile app offers full feature parity with the web version, including chat, staking, teams, and referrals. iOS support is planned for future releases."
+    },
+    {
+      question: "Is this live on mainnet?",
+      answer: "Currently running on Solana Devnet for testing and development. All smart contract addresses shown are devnet addresses. Mainnet launch will be announced once all security audits are complete and the platform reaches production-ready status."
     },
     {
       question: "Is BILLION$ gambling?",
