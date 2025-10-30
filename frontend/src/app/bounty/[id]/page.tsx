@@ -369,7 +369,7 @@ export default function BountyPage() {
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                 <Trophy className="h-5 w-5 mr-2" />
-                Winning Prompts (Unusable)
+                Unusable Winning Prompts
               </h3>
               <div className="space-y-3">
                 <div className="text-sm text-slate-500 italic">

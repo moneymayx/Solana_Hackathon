@@ -1267,7 +1267,7 @@ fun WinningPromptsSection(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "Winning Prompts (Unusable)",
+                    text = "Unusable Winning Prompts",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
