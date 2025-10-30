@@ -198,12 +198,16 @@ export default function BountyChatInterface({
       const data = await response.json()
       
       if (data.success) {
+        // Calculate dynamic question cost
+        const startingCost = bountyStatus ? getStartingQuestionCost(bountyStatus.difficulty_level || 'easy') : 0.50
+        const currentCost = bountyStatus ? getCurrentQuestionCost(startingCost, bountyStatus.total_entries || 0) : 10
+        
         const eligibility: UserEligibility = {
           eligible: data.questions_remaining > 0,
           type: data.questions_remaining > 0 ? 'free_questions' : 'payment_required',
           message: data.questions_remaining > 0 
             ? `You have ${data.questions_remaining} free questions remaining.`
-            : 'No free questions remaining. Please pay $10 to continue.',
+            : `No free questions remaining. Please pay $${currentCost.toFixed(2)} to continue.`,
           questions_remaining: data.questions_remaining,
           questions_used: data.questions_used,
           referral_code: data.referral_code,
@@ -352,7 +356,12 @@ export default function BountyChatInterface({
           if (newEligibility.questions_remaining === 0) {
             newEligibility.eligible = false
             newEligibility.type = 'payment_required'
-            newEligibility.message = 'No questions remaining. Please pay $10 for your next question.'
+            
+            // Calculate dynamic question cost based on bounty difficulty and entries
+            const startingCost = bountyStatus ? getStartingQuestionCost(bountyStatus.difficulty_level || 'easy') : 0.50
+            const currentCost = bountyStatus ? getCurrentQuestionCost(startingCost, bountyStatus.total_entries || 0) : 10
+            
+            newEligibility.message = `No questions remaining. Please pay $${currentCost.toFixed(2)} for your next question.`
             setIsParticipating(false)
           } else {
             newEligibility.message = isPaid
