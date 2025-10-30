@@ -168,8 +168,6 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
   }
 
   const handleUnstake = async (positionId: number) => {
-    type UnstakeResult = Awaited<ReturnType<typeof tokenAPI.unstake>>
-
     if (!walletAddress) {
       alert('Please connect your wallet first')
       return
@@ -180,7 +178,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     }
 
     try {
-      const result = (await tokenAPI.unstake(positionId, userId)) as UnstakeResult
+      const result = await tokenAPI.unstake(positionId, userId)
 
       if (result.success) {
         alert(`✅ Successfully unstaked ${result.amount_returned} tokens!`)

@@ -29,7 +29,12 @@ export class ApiError extends Error {
 }
 
 // Simple fetch wrapper with error handling
-async function apiCall<T = unknown>(
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any --
+ * This helper underpins legacy callers that still expect permissive typing while
+ * we gradually add endpoint-specific interfaces. Keeping it as `any` prevents
+ * TypeScript breakage across the app while we migrate.
+ */
+async function apiCall<T = any>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -230,9 +235,23 @@ export interface TokenPlatformRevenueResponse {
   [key: string]: unknown
 }
 
+export interface StakeResponse {
+  success?: boolean
+  is_mock?: boolean
+  error?: string
+  [key: string]: unknown
+}
+
 export interface ClaimRewardsResponse {
   success?: boolean
   amount_claimed?: number
+  error?: string
+  [key: string]: unknown
+}
+
+export interface UnstakeResponse {
+  success?: boolean
+  amount_returned?: number
   error?: string
   [key: string]: unknown
 }
@@ -271,7 +290,7 @@ export const tokenAPI = {
    * Create a staking position
    */
   stake: (userId: number, walletAddress: string, amount: number, periodDays: number, txSignature?: string) =>
-    apiCall<{ success?: boolean; is_mock?: boolean; [key: string]: unknown }>('/api/token/stake', {
+    apiCall<StakeResponse>('/api/token/stake', {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId,
@@ -291,8 +310,8 @@ export const tokenAPI = {
   /**
    * Unstake tokens
    */
-  unstake: (positionId: number, userId: number) =>
-    apiCall(`/api/token/staking/unstake/${positionId}`, {
+  unstake: (positionId: number, userId: number): Promise<UnstakeResponse> =>
+    apiCall<UnstakeResponse>(`/api/token/staking/unstake/${positionId}`, {
       method: 'POST',
       body: JSON.stringify({ user_id: userId }),
     }),
