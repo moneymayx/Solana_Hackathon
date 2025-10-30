@@ -592,8 +592,16 @@ export default function BountyChatInterface({
 
     } catch (err: any) {
       console.error('Payment error:', err)
-      setError(err.message || 'Payment failed. Please try again.')
-      addSystemMessage(`❌ Payment failed: ${err.message}`)
+      
+      // Provide helpful message for common errors
+      let errorMessage = err.message || 'Payment failed. Please try again.'
+      if (errorMessage.includes('403') || errorMessage.includes('forbidden') || errorMessage.includes('recent blockhash')) {
+        errorMessage = '⚠️ RPC endpoint issue detected. Please restart your backend server to enable mock payment mode, or get a proper RPC endpoint.'
+      }
+      
+      setError(errorMessage)
+      addSystemMessage(`❌ Payment failed: ${errorMessage}`)
+      showToast(errorMessage, 'error')
     } finally {
       setIsProcessingPayment(false)
     }
