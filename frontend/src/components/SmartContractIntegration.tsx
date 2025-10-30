@@ -12,7 +12,8 @@ import {
   Lock,
   Unlock,
   Trophy,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react'
 
 interface LotteryState {
@@ -251,14 +252,25 @@ export default function SmartContractIntegration({
           {entryStatus === 'success' && lastEntry && (
             <div className="flex items-center space-x-3 bg-green-500/20 border border-green-500/30 rounded-lg p-4">
               <CheckCircle className="h-5 w-5 text-green-400" />
-              <div>
+              <div className="flex-1">
                 <p className="text-green-300 font-medium">Entry Successful!</p>
                 <p className="text-green-200 text-sm">
-                  Transaction: {lastEntry.transaction_signature?.slice(0, 8)}...
+                  Transaction: {lastEntry.transaction_signature?.slice(0, 8)}...{lastEntry.transaction_signature?.slice(-8)}
                 </p>
                 <p className="text-green-200 text-sm">
                   Research contribution: {formatCurrency(lastEntry.research_contribution || 8)}
                 </p>
+                {lastEntry.transaction_signature && (
+                  <a
+                    href={`https://explorer.solana.com/tx/${lastEntry.transaction_signature}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 text-xs flex items-center space-x-1 mt-2"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>View on Solana Explorer</span>
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -291,7 +303,7 @@ export default function SmartContractIntegration({
           {winnerStatus === 'selected' && lastWinner && (
             <div className="flex items-center space-x-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
               <Trophy className="h-5 w-5 text-yellow-400" />
-              <div>
+              <div className="flex-1">
                 <p className="text-yellow-300 font-medium">Winner Selected!</p>
                 <p className="text-yellow-200 text-sm">
                   Winner: {lastWinner.winner_wallet?.slice(0, 8)}...{lastWinner.winner_wallet?.slice(-8)}
@@ -299,6 +311,17 @@ export default function SmartContractIntegration({
                 <p className="text-yellow-200 text-sm">
                   Jackpot: {formatCurrency(lastWinner.jackpot_amount || 0)}
                 </p>
+                {lastWinner.transaction_signature && (
+                  <a
+                    href={`https://explorer.solana.com/tx/${lastWinner.transaction_signature}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 text-xs flex items-center space-x-1 mt-2"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>View Payout on Solana Explorer</span>
+                  </a>
+                )}
               </div>
             </div>
           )}

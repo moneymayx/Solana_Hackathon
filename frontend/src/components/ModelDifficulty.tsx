@@ -271,7 +271,7 @@ export default function ModelDifficulty({ className, limit = 10 }: ModelDifficul
   }
 
   return (
-    <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-lg shadow-slate-200/30", className)}>
+    <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">

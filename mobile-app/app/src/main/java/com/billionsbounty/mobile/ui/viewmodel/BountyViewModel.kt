@@ -33,6 +33,10 @@ class BountyViewModel @Inject constructor(
     // Alias for error to match web naming convention
     val errorMessage: StateFlow<String?> = _error.asStateFlow()
     
+    // Cache timestamp for bounties to prevent excessive API calls
+    private var lastBountyFetchTime: Long = 0
+    private val CACHE_DURATION_MS = 30000L // 30 seconds cache, matching web
+    
     init {
         loadData()
     }
@@ -43,11 +47,23 @@ class BountyViewModel @Inject constructor(
     }
     
     fun refresh() {
-        loadData()
+        // Force refresh bypasses cache
+        loadBounties(forceRefresh = true)
+        loadLotteryStatus()
     }
     
     // Make loadBounties public so it can be called from UI
-    fun loadBounties() {
+    // Now includes caching to prevent excessive API calls
+    fun loadBounties(forceRefresh: Boolean = false) {
+        val currentTime = System.currentTimeMillis()
+        
+        // Skip fetch if cache is still valid and not forcing refresh
+        if (!forceRefresh && 
+            _bounties.value.isNotEmpty() && 
+            (currentTime - lastBountyFetchTime) < CACHE_DURATION_MS) {
+            return
+        }
+        
         _isLoading.value = true
         _error.value = null
         
@@ -58,6 +74,7 @@ class BountyViewModel @Inject constructor(
                 onSuccess = { response ->
                     _bounties.value = response.bounties
                     _isLoading.value = false
+                    lastBountyFetchTime = currentTime
                 },
                 onFailure = { exception ->
                     _error.value = exception.message ?: "Failed to load bounties"

@@ -1,7 +1,7 @@
 'use client'
 
 import { useWallet } from '@solana/wallet-adapter-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '@/components/layouts/AppLayout'
 import ScrollingBanner from '@/components/ScrollingBanner'
 import BountyGrid from '@/components/BountyGrid'
@@ -10,32 +10,48 @@ import HowItWorksSection from '@/components/HowItWorksSection'
 import WinnersSection from '@/components/WinnersSection'
 import FAQSection from '@/components/FAQSection'
 import { Target, Crown, Zap, Users, TrendingUp } from 'lucide-react'
+import { fetchBounties, Bounty } from '@/lib/api/bounties'
 
 export default function Home() {
   const { connected } = useWallet()
   const [totalBountyAmount, setTotalBountyAmount] = useState(0)
+  const [bounties, setBounties] = useState<Bounty[]>([])
+
+  const loadBounties = useCallback(async () => {
+    console.log('🏠 [HomePage] loadBounties called')
+    try {
+      console.log('🏠 [HomePage] Fetching bounties...')
+      const bountyList = await fetchBounties()
+      console.log('🏠 [HomePage] Received bounties:', bountyList.length, bountyList)
+      setBounties(bountyList)
+      const total = bountyList.reduce((sum: number, bounty: Bounty) => sum + (bounty.current_pool || 0), 0)
+      console.log('🏠 [HomePage] Total bounty amount:', total)
+      setTotalBountyAmount(total)
+    } catch (error) {
+      console.error('🏠 [HomePage] Failed to fetch bounty amount:', error)
+    }
+  }, [])
 
   useEffect(() => {
+    console.log('🏠 [HomePage] Effect triggered, window:', typeof window !== 'undefined' ? 'client' : 'server')
     // Only fetch on client-side
-    if (typeof window === 'undefined') return
-
-    const fetchTotalBountyAmount = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/bounties')
-        const data = await response.json()
-        const bounties = data.bounties || []
-        const total = bounties.reduce((sum: number, bounty: any) => sum + (bounty.current_pool || 0), 0)
-        setTotalBountyAmount(total)
-      } catch (error) {
-        console.error('Failed to fetch bounty amount:', error)
-      }
+    if (typeof window === 'undefined') {
+      console.log('🏠 [HomePage] Skipping fetch (server-side)')
+      return
     }
 
-    fetchTotalBountyAmount()
-    // Update every 5 seconds
-    const interval = setInterval(fetchTotalBountyAmount, 5000)
-    return () => clearInterval(interval)
-  }, [])
+    console.log('🏠 [HomePage] Starting initial fetch and setting up interval')
+    loadBounties()
+    // Update every 30 seconds instead of 5 (reduce server load)
+    const interval = setInterval(() => {
+      console.log('🏠 [HomePage] Interval triggered, fetching bounties...')
+      loadBounties()
+    }, 30000)
+    return () => {
+      console.log('🏠 [HomePage] Cleanup: clearing interval')
+      clearInterval(interval)
+    }
+  }, [loadBounties])
 
   return (
     <AppLayout>
@@ -79,7 +95,7 @@ export default function Home() {
               </p>
             </div>
             
-            <BountyGrid />
+            <BountyGrid initialBounties={bounties} />
           </div>
         </section>
 

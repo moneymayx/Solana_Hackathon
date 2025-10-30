@@ -9,7 +9,7 @@ interface RulesModalProps {
 export default function RulesModal({ onClose }: RulesModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl shadow-slate-900/20 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center space-x-3">
@@ -29,7 +29,7 @@ export default function RulesModal({ onClose }: RulesModalProps) {
         {/* Content */}
         <div className="p-8 space-y-6">
           {/* The Rule */}
-          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 shadow-lg">
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 shadow-lg shadow-yellow-900/10">
             <p className="text-lg font-bold text-yellow-900 mb-3 text-center">
               There is only one rule:
             </p>

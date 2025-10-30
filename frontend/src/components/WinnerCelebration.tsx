@@ -26,7 +26,7 @@ export default function WinnerCelebration({ winnerData, onClose }: WinnerCelebra
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-8 max-w-md w-full relative overflow-hidden">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full relative overflow-hidden shadow-2xl shadow-slate-900/20">
         {/* Confetti Effect */}
         {showConfetti && (
           <div className="absolute inset-0 pointer-events-none">

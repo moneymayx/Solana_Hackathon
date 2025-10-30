@@ -3,12 +3,17 @@ Revenue Distribution Service
 
 Handles monthly distribution of platform revenue to stakers
 based on the tiered revenue-share model
+
+⚠️ WARNING: This service depends on StakingPosition model which was removed.
+This service will need to be updated or removed if staking functionality is discontinued.
 """
 from typing import Dict, List, Any
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
+# ⚠️ StakingPosition model removed - this import will fail
+# TODO: Remove or update this service if staking is discontinued
 from ..models import StakingPosition, User
 from ..config.token_config import (
     StakingPeriod,

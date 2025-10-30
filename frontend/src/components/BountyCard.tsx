@@ -107,18 +107,14 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
   return (
     <div
       className={cn(
-        "group relative bg-white border-2 rounded-xl p-6 transition-all duration-300 hover:scale-110 hover:-translate-y-2",
-        "hover:shadow-2xl hover:shadow-gray-500/30",
-        "shadow-2xl shadow-gray-500/40",
-        "h-64 flex flex-col", // Reduced height from h-80 to h-64
-        "transform-gpu", // Hardware acceleration for smooth animations
+        "group relative bg-white border-2 rounded-xl p-6 transition-all duration-200 hover:scale-105 hover:-translate-y-1",
+        "shadow-lg hover:shadow-xl",
+        "h-64 flex flex-col",
+        "will-change-transform", // Optimize for animations
         className
       )}
       style={{
         borderColor: colors.border,
-        boxShadow: isHovered 
-          ? `0 50px 100px -20px ${colors.primary}60, 0 25px 50px -12px ${colors.primary}40, 0 0 0 1px ${colors.primary}30` 
-          : `0 25px 50px -12px ${colors.primary}40, 0 15px 30px -8px ${colors.primary}30, 0 8px 16px -8px ${colors.primary}20, 0 0 0 1px ${colors.primary}15`
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -139,6 +135,7 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
                 src={providerIcons[bounty.llm_provider as keyof typeof providerIcons] || '/images/logos/claude-ai.svg'} 
                 alt={`${bounty.llm_provider} logo`}
                 className="w-6 h-6"
+                loading="eager"
               />
             </div>
             <div>

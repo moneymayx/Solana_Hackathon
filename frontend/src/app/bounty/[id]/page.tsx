@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Users, Trophy, Clock, Target, Zap, Shield, Crown, Gift, Plus, UserPlus } from 'lucide-react'
 import BountyChatInterface from '@/components/BountyChatInterface'
@@ -10,36 +10,9 @@ import ReferralCodeClaim from '@/components/ReferralCodeClaim'
 import TeamBrowse from '@/components/TeamBrowse'
 import CreateTeamModal from '@/components/CreateTeamModal'
 import RulesModal from '@/components/RulesModal'
+import TopNavigation from '@/components/TopNavigation'
 import { cn } from '@/lib/utils'
-import dynamic from 'next/dynamic'
-
-// Dynamically import WalletButton to avoid hydration issues
-const DynamicWalletButton = dynamic(
-  () => import('@/components/WalletButton'),
-  { 
-    ssr: false,
-    loading: () => (
-      <button className="wallet-adapter-button wallet-adapter-button-trigger" disabled>
-        Loading...
-      </button>
-    )
-  }
-)
-
-interface Bounty {
-  id: number
-  name: string
-  description: string
-  llm_provider: string
-  difficulty_level: string
-  current_pool: number
-  starting_pool?: number
-  total_entries: number
-  win_rate: number
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
+import { Bounty, fetchBountyById } from '@/lib/api/bounties'
 
 interface Message {
   id: number
@@ -118,26 +91,21 @@ export default function BountyPage() {
   }, [searchParams])
 
   // Fetch bounty details
-  const fetchBounty = async () => {
+  const loadBounty = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/bounty/${bountyId}`)
-      const data = await response.json()
-      
-      if (data.success) {
-        setBounty(data.bounty)
-      } else {
-        setError('Bounty not found')
-      }
+      const data = await fetchBountyById(bountyId)
+      setBounty(data)
+      setError(null)
     } catch (err) {
-      setError('Failed to load bounty')
+      setError(err instanceof Error ? err.message : 'Failed to load bounty')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [bountyId])
 
   useEffect(() => {
-    fetchBounty()
-  }, [bountyId])
+    loadBounty()
+  }, [loadBounty])
 
   const handleWinner = (winnerData: any) => {
     setWinnerData(winnerData)
@@ -220,54 +188,8 @@ export default function BountyPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/')}
-                className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="h-6 w-6" />
-              </button>
-              <div className="flex items-center space-x-3">
-                <img 
-                  src={getProviderIcon(bounty.llm_provider)} 
-                  alt={`${bounty.llm_provider} logo`}
-                  className="w-8 h-8"
-                />
-                <div className="flex-1">
-                  <h1 className="text-2xl font-bold">{bounty.name}</h1>
-                  <p className="text-slate-300 text-xs whitespace-nowrap">{bounty.description}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-3xl font-bold text-yellow-400">
-                  ${bounty.current_pool.toLocaleString()}
-                </div>
-                <div className="text-sm text-slate-300">Prize Pool</div>
-              </div>
-              <div className={cn(
-                "px-3 py-1 rounded-full border text-sm font-medium flex items-center space-x-1",
-                getDifficultyColor(bounty.difficulty_level)
-              )}>
-                {getDifficultyIcon(bounty.difficulty_level)}
-                <span className="capitalize">{bounty.difficulty_level}</span>
-              </div>
-              {/* Wallet Button */}
-              <div className="ml-2 max-w-[200px]">
-                <div className="wallet-button-wrapper">
-                  <DynamicWalletButton />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Standard Header */}
+      <TopNavigation />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -307,7 +229,7 @@ export default function BountyPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Bounty Stats */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Bounty Stats</h3>
               <div className="space-y-4">
                 {/* Total Entries */}
@@ -367,7 +289,7 @@ export default function BountyPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Actions</h3>
               <div className="space-y-3">
                 <button
@@ -392,7 +314,7 @@ export default function BountyPage() {
             </div>
 
             {/* Team Section */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                 <Users className="h-5 w-5 mr-2" />
                 Team Collaboration
@@ -444,7 +366,7 @@ export default function BountyPage() {
             </div>
 
             {/* Winning Prompts */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-lg">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                 <Trophy className="h-5 w-5 mr-2" />
                 Winning Prompts (Unusable)
@@ -453,7 +375,7 @@ export default function BountyPage() {
                 <div className="text-sm text-slate-500 italic">
                   Prompts that successfully jailbroke the bot will appear here once a winner is declared.
                 </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 shadow-md shadow-slate-900/5">
                   <div className="flex items-start space-x-3">
                     <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">1</span>
@@ -483,7 +405,7 @@ export default function BountyPage() {
       {/* Team Options Modal */}
       {showTeamOptions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden shadow-2xl shadow-slate-900/20">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">Team Options</h2>
               <button

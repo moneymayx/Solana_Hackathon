@@ -119,7 +119,7 @@ export default function GlobalChat({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-lg">
+    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-2xl shadow-slate-900/10">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
         <div className="flex items-center space-x-3">

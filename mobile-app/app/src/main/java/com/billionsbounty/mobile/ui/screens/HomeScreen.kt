@@ -83,9 +83,8 @@ fun HomeScreen(
     val faqIndex = 4
     val winnersIndex = 5
 
-    LaunchedEffect(Unit) {
-        viewModel.loadBounties()
-    }
+    // Note: ViewModel already loads bounties in init, no need to call again here
+    // This prevents redundant API calls on screen composition
 
     Scaffold(
         topBar = {
@@ -105,16 +104,12 @@ fun HomeScreen(
                         listState.animateScrollToItem(howItWorksIndex)
                     }
                 },
-                onScrollToWinners = {
-                    scope.launch {
-                        listState.animateScrollToItem(winnersIndex)
-                    }
-                },
                 onScrollToFAQs = {
                     scope.launch {
                         listState.animateScrollToItem(faqIndex)
                     }
-                }
+                },
+                onNavigateToStaking = onNavigateToStaking
             )
         }
     ) { paddingValues ->
@@ -182,8 +177,8 @@ fun WebStyleHeader(
     onScrollToHome: () -> Unit,
     onScrollToBounties: () -> Unit,
     onScrollToHowItWorks: () -> Unit,
-    onScrollToWinners: () -> Unit,
-    onScrollToFAQs: () -> Unit
+    onScrollToFAQs: () -> Unit,
+    onNavigateToStaking: () -> Unit = {}
 ) {
     Surface(
         modifier = Modifier
@@ -194,7 +189,7 @@ fun WebStyleHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
+                .padding(horizontal = 4.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.Start, // Left-aligned like website
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -203,7 +198,7 @@ fun WebStyleHeader(
                 painter = painterResource(id = com.billionsbounty.mobile.R.drawable.billions_logo),
                 contentDescription = "BILLION$ Logo - Home",
                 modifier = Modifier
-                    .height(90.dp)
+                    .height(75.dp)
                     .clickable { onScrollToHome() },
                 contentScale = ContentScale.Fit
             )
@@ -212,46 +207,51 @@ fun WebStyleHeader(
             Text(
                 text = "|",
                 color = Color.White.copy(alpha = 0.5f),
-                fontSize = 16.sp,
-                modifier = Modifier.padding(horizontal = 6.dp)
+                fontSize = 14.sp,
+                modifier = Modifier.padding(horizontal = 2.dp)
             )
             
-            // Navigation Menu - All same font size
+            // Navigation Menu - All same font size with proportional spacing
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val uriHandler = LocalUriHandler.current
                 
                 TextButton(
                     onClick = onScrollToBounties,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp)
                 ) {
-                    Text("Bounties", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 14.sp)
+                    Text("Bounties", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 12.sp)
                 }
                 TextButton(
                     onClick = onScrollToHowItWorks,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp)
                 ) {
-                    Text("How it Works", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 14.sp)
+                    Text("How it Works", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 12.sp)
                 }
                 TextButton(
                     onClick = onScrollToFAQs,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp)
                 ) {
-                    Text("FAQs", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 14.sp)
+                    Text("FAQs", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 12.sp)
                 }
                 TextButton(
-                    onClick = onScrollToWinners,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                    onClick = onNavigateToStaking,
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp)
                 ) {
-                    Text("Winners", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 14.sp)
+                    Text("Staking", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 12.sp)
                 }
                 TextButton(
                     onClick = { uriHandler.openUri("https://100billioncapital.com/") },
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp)
                 ) {
-                    Text("\$100Bs", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 14.sp)
+                    Text("\$100Bs", color = Color.White, fontWeight = FontWeight.Normal, fontSize = 12.sp)
                 }
             }
         }
@@ -450,7 +450,10 @@ fun BountyCard(
             .height(220.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 8.dp,  // Reduced from 12dp for better performance
+            pressedElevation = 12.dp  // Only elevate more on press
+        ),
         border = androidx.compose.foundation.BorderStroke(2.dp, providerColors)
     ) {
         Column(
@@ -775,8 +778,11 @@ fun FeatureCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
-        shape = RoundedCornerShape(12.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 12.dp
+        )
     ) {
         Row(
             modifier = Modifier
@@ -875,7 +881,9 @@ fun WinnersSection(
                         .width(150.dp)
                         .height(200.dp),
                     shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 12.dp
+                    )
                 ) {
                     Image(
                         painter = painterResource(
@@ -987,7 +995,7 @@ fun FAQSection() {
                 "Every question payment is split: 60% goes to the bounty pool to increase jackpots, 20% covers operational costs (development, infrastructure, security), 10% is used to buy back and burn \$100Bs tokens, and 10% goes to \$100Bs stakers as rewards."
             ),
             FAQItem(
-                "What happens if no one asks a question for 24 hours?",
+                "What happens if no one asks a question?",
                 "If 24 hours pass without any questions, the 'escape plan' triggers automatically. The bounty is distributed: 80% is split equally among all participants from that period, and 20% goes to the last person who asked a question before the timeout."
             ),
             FAQItem(
@@ -1043,7 +1051,10 @@ fun FAQItemCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 12.dp
+        )
     ) {
         Column(
             modifier = Modifier

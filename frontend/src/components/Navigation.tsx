@@ -35,7 +35,7 @@ export default function Navigation() {
     { href: '/token', label: 'Token', icon: '💎' },
     { href: '/staking', label: 'Staking', icon: '📈' },
     { href: '/teams', label: 'Teams', icon: '👥' },
-    { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+    { href: '/analytics', label: 'Analytics', icon: '📊' },
     { href: '/test-api', label: 'Test API', icon: '🧪' },
   ]
 

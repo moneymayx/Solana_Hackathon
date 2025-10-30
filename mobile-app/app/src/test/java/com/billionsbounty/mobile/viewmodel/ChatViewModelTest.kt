@@ -12,6 +12,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -32,13 +33,17 @@ class ChatViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         closeable = MockitoAnnotations.openMocks(this)
-        viewModel = ChatViewModel(apiRepository)
+        resetViewModel()
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
         closeable.close()
+    }
+
+    private fun resetViewModel() {
+        viewModel = ChatViewModel(apiRepository)
     }
 
     @Test
@@ -53,7 +58,8 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendBountyMessage adds user message to list`() = runTest {
+    fun `sendBountyMessage adds user message to list`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = BountyChatResponse(
             success = true,
             response = "AI response",
@@ -86,7 +92,8 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendBountyMessage updates questions remaining`() = runTest {
+    fun `sendBountyMessage updates questions remaining`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = BountyChatResponse(
             success = true,
             response = "AI response",
@@ -115,11 +122,18 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendBountyMessage updates question cost from bounty status`() = runTest {
+    fun `sendBountyMessage updates question cost from bounty status`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = BountyChatResponse(
             success = true,
             response = "AI response",
             questions_remaining = 5,
+            free_questions = FreeQuestionsData(
+                eligible = true,
+                questions_remaining = 5,
+                questions_used = 0,
+                is_paid = false
+            ),
             bounty_status = BountyStatusData(
                 current_pool = 1000.0,
                 total_entries = 100,
@@ -144,12 +158,19 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendBountyMessage sets winner state`() = runTest {
+    fun `sendBountyMessage sets winner state`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = BountyChatResponse(
             success = true,
             response = "Congratulations!",
             is_winner = true,
-            questions_remaining = 0
+            questions_remaining = 0,
+            free_questions = FreeQuestionsData(
+                eligible = true,
+                questions_remaining = 0,
+                questions_used = 0,
+                is_paid = false
+            )
         )
         
         whenever(apiRepository.sendBountyChatMessage(any(), any(), any(), any()))
@@ -167,7 +188,8 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendBountyMessage handles errors gracefully`() = runTest {
+    fun `sendBountyMessage handles errors gracefully`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         whenever(apiRepository.sendBountyChatMessage(any(), any(), any(), any()))
             .thenReturn(Result.failure(Exception("Network error")))
 
@@ -184,14 +206,15 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `sendMessage adds messages for general chat`() = runTest {
+    fun `sendMessage adds messages for general chat`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = ChatResponse(
             response = "General chat response",
             user_id = 123,
             session_id = "session123"
         )
         
-        whenever(apiRepository.sendChatMessage(any(), any(), any()))
+        whenever(apiRepository.sendChatMessage(any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull()))
             .thenReturn(Result.success(mockResponse))
 
         viewModel.sendMessage("Hello", userId = 123)
@@ -206,6 +229,7 @@ class ChatViewModelTest {
 
     @Test
     fun `updateQuestionsRemaining updates state correctly`() {
+        resetViewModel()
         viewModel.updateQuestionsRemaining(7, isPaid = true)
         
         assertEquals(7, viewModel.questionsRemaining.value)
@@ -214,6 +238,7 @@ class ChatViewModelTest {
 
     @Test
     fun `getQuestionsRemainingMessage returns correct format for paid`() {
+        resetViewModel()
         viewModel.updateQuestionsRemaining(3, isPaid = true)
         
         assertEquals("3 questions remaining", viewModel.getQuestionsRemainingMessage())
@@ -221,6 +246,7 @@ class ChatViewModelTest {
 
     @Test
     fun `getQuestionsRemainingMessage returns correct format for free`() {
+        resetViewModel()
         viewModel.updateQuestionsRemaining(5, isPaid = false)
         
         assertEquals("5 free questions remaining", viewModel.getQuestionsRemainingMessage())
@@ -228,17 +254,25 @@ class ChatViewModelTest {
 
     @Test
     fun `getQuestionsRemainingMessage handles singular`() {
+        resetViewModel()
         viewModel.updateQuestionsRemaining(1, isPaid = true)
         
         assertEquals("1 question remaining", viewModel.getQuestionsRemainingMessage())
     }
 
     @Test
-    fun `clearMessages removes all messages`() = runTest {
+    fun `clearMessages removes all messages`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         val mockResponse = BountyChatResponse(
             success = true,
             response = "AI response",
-            questions_remaining = 5
+            questions_remaining = 5,
+            free_questions = FreeQuestionsData(
+                eligible = true,
+                questions_remaining = 5,
+                questions_used = 0,
+                is_paid = false
+            )
         )
         
         whenever(apiRepository.sendBountyChatMessage(any(), any(), any(), any()))
@@ -255,7 +289,8 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `clearError removes error state`() = runTest {
+    fun `clearError removes error state`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         whenever(apiRepository.sendBountyChatMessage(any(), any(), any(), any()))
             .thenReturn(Result.failure(Exception("Error")))
 
@@ -271,12 +306,14 @@ class ChatViewModelTest {
 
     @Test
     fun `clearWinnerState resets winner flag`() {
+        resetViewModel()
         viewModel.clearWinnerState()
         assertFalse(viewModel.isWinner.value)
     }
 
     @Test
-    fun `blank message is not sent`() = runTest {
+    fun `blank message is not sent`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         viewModel.sendBountyMessage(1, "", "wallet")
         advanceUntilIdle()
 
@@ -284,7 +321,8 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `whitespace-only message is not sent`() = runTest {
+    fun `whitespace-only message is not sent`() = runTest(testDispatcher.scheduler) {
+        resetViewModel()
         viewModel.sendBountyMessage(1, "   ", "wallet")
         advanceUntilIdle()
 

@@ -82,29 +82,29 @@ export default function TeamChat({ teamId, userId, currentUserName = 'You' }: Te
   const getMessageTypeColor = (type: string) => {
     switch (type) {
       case 'strategy':
-        return 'bg-purple-900/30 border-purple-500/30'
+        return 'bg-purple-50 border-purple-200 text-purple-900'
       case 'system':
-        return 'bg-gray-700/30 border-gray-500/30'
+        return 'bg-slate-50 border-slate-200 text-slate-900'
       case 'attempt_result':
-        return 'bg-yellow-900/30 border-yellow-500/30'
+        return 'bg-yellow-50 border-yellow-200 text-yellow-900'
       default:
-        return 'bg-gray-700/30 border-gray-600'
+        return 'bg-slate-50 border-slate-200 text-slate-900'
     }
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-700 flex flex-col h-[600px]">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-2xl shadow-slate-900/10 flex flex-col h-[600px]">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+      <div className="p-4 border-b border-slate-200 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white">Team Chat</h3>
-          <p className="text-sm text-gray-400">
+          <h3 className="text-lg font-bold text-slate-900">Team Chat</h3>
+          <p className="text-sm text-slate-600">
             {messages.length} messages • Updates every 3s
           </p>
         </div>
         <button
           onClick={fetchMessages}
-          className="text-blue-400 hover:text-blue-300 text-sm"
+          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
         >
           🔄 Refresh
         </button>
@@ -114,14 +114,14 @@ export default function TeamChat({ teamId, userId, currentUserName = 'You' }: Te
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="text-gray-400">Loading messages...</div>
+            <div className="text-slate-600">Loading messages...</div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-center">
             <div>
               <div className="text-4xl mb-2">💬</div>
-              <p className="text-gray-400">No messages yet</p>
-              <p className="text-sm text-gray-500">Be the first to say hello!</p>
+              <p className="text-slate-600">No messages yet</p>
+              <p className="text-sm text-slate-500">Be the first to say hello!</p>
             </div>
           </div>
         ) : (
@@ -138,19 +138,19 @@ export default function TeamChat({ teamId, userId, currentUserName = 'You' }: Te
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold opacity-90">
+                  <span className={`text-xs font-semibold ${message.user_id === userId ? 'text-white opacity-90' : 'text-slate-900'}`}>
                     {message.user_id === userId ? currentUserName : message.display_name}
                   </span>
                   {message.message_type === 'strategy' && (
-                    <span className="px-2 py-0.5 bg-purple-500/30 rounded text-xs">
+                    <span className="px-2 py-0.5 bg-purple-100 border border-purple-200 rounded text-xs text-purple-700">
                       Strategy
                     </span>
                   )}
                 </div>
-                <div className={message.user_id === userId ? 'text-white' : 'text-gray-200'}>
+                <div className={message.user_id === userId ? 'text-white' : 'text-slate-900'}>
                   {message.content}
                 </div>
-                <div className={`text-xs mt-1 ${message.user_id === userId ? 'text-blue-200' : 'text-gray-500'}`}>
+                <div className={`text-xs mt-1 ${message.user_id === userId ? 'text-blue-200' : 'text-slate-500'}`}>
                   {new Date(message.created_at).toLocaleTimeString()}
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function TeamChat({ teamId, userId, currentUserName = 'You' }: Te
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-slate-200">
         <div className="flex gap-2">
           <input
             type="text"
@@ -169,18 +169,18 @@ export default function TeamChat({ teamId, userId, currentUserName = 'You' }: Te
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message... (Press Enter to send)"
-            className="flex-1 bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="flex-1 bg-white text-slate-900 rounded-lg px-4 py-3 border border-slate-300 focus:border-blue-500 focus:outline-none"
             disabled={sending}
           />
           <button
             onClick={sendMessage}
             disabled={sending || !newMessage.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
           >
             {sending ? '⏳' : '📤'}
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-slate-500 mt-2">
           💡 Tip: Share strategies, coordinate attempts, and plan together
         </p>
       </div>

@@ -69,8 +69,8 @@ export default function Sidebar({ isAdmin = false, freeQuestionsCount = 0 }: Sid
       icon: <Users className="h-5 w-5" />
     },
     {
-      label: 'Dashboard',
-      href: '/dashboard',
+      label: 'Analytics',
+      href: '/analytics',
       icon: <LayoutDashboard className="h-5 w-5" />
     },
     {

@@ -35,7 +35,7 @@ from .services.gdpr_compliance import GDPRComplianceService, ConsentType
 from .services.kyc_service import KYCService
 from .services.moonpay_service import MoonpayService
 from .services.payment_flow_service import payment_flow_service
-from .services.payment_service_with_discounts import PaymentServiceWithDiscounts
+# PaymentServiceWithDiscounts removed - token discount functionality discontinued
 from .services.referral_service import ReferralService
 from .services.regulatory_compliance import regulatory_compliance_service
 from .services.smart_contract_service import smart_contract_service, SmartContractService
@@ -48,8 +48,7 @@ from .services.semantic_search_service import SemanticSearchService
 from .services.pattern_detector_service import PatternDetectorService
 from .services.context_builder_service import ContextBuilderService
 
-# Token economics services
-from .services.token_economics_service import TokenEconomicsService
+# Token economics services - TokenEconomicsService removed (token discount functionality discontinued)
 from .services.revenue_distribution_service import RevenueDistributionService
 from .services.team_service import TeamService, team_service
 
@@ -66,21 +65,8 @@ from .services.celery_app import celery_app
 from .services.celery_tasks import *
 
 # Configuration (now in config/ subdirectory)
-from .config.token_config import (
-    TOKEN_MINT_ADDRESS,
-    TOKEN_SYMBOL,
-    TOKEN_DECIMALS,
-    TOKEN_TOTAL_SUPPLY,
-    BASE_QUERY_COST,
-    DISCOUNT_TIERS,
-    STAKING_REVENUE_PERCENTAGE,
-    BUYBACK_PERCENTAGE,
-    StakingPeriod,
-    get_discount_for_balance,
-    get_tier_info,
-    calculate_staking_share,
-    TIER_ALLOCATIONS
-)
+# token_config removed - token discount functionality discontinued
+# Note: BASE_QUERY_COST may still be needed elsewhere, import individually if needed
 from .config.simulation_logger import SimulationLogger
 from .config.simulation_models import *
 
@@ -114,7 +100,7 @@ __all__ = [
     'KYCService',
     'MoonpayService',
     'payment_flow_service',
-    'PaymentServiceWithDiscounts',
+    # PaymentServiceWithDiscounts removed - token discount functionality discontinued
     'ReferralService',
     'regulatory_compliance_service',
     'smart_contract_service',
@@ -126,7 +112,7 @@ __all__ = [
     'SemanticSearchService',
     'PatternDetectorService',
     'ContextBuilderService',
-    'TokenEconomicsService',
+    # TokenEconomicsService removed - token discount functionality discontinued
     'RevenueDistributionService',
     'TeamService',
     'team_service',
@@ -140,18 +126,6 @@ __all__ = [
     'celery_app',
     
     # Config
-    'TOKEN_MINT_ADDRESS',
-    'TOKEN_SYMBOL',
-    'TOKEN_DECIMALS',
-    'TOKEN_TOTAL_SUPPLY',
-    'BASE_QUERY_COST',
-    'DISCOUNT_TIERS',
-    'STAKING_REVENUE_PERCENTAGE',
-    'BUYBACK_PERCENTAGE',
-    'StakingPeriod',
-    'get_discount_for_balance',
-    'get_tier_info',
-    'calculate_staking_share',
-    'TIER_ALLOCATIONS',
+    # Token config removed - token discount functionality discontinued
     'SimulationLogger',
 ]

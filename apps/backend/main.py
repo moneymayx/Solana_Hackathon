@@ -165,6 +165,7 @@ class TransactionVerifyRequest(BaseModel):
     payment_method: str
     wallet_address: str
     amount_usd: Optional[float] = 10.0  # Default to $10
+    bounty_id: Optional[int] = None  # Optional bounty ID for per-bounty tracking
 
 @app.get("/")
 async def read_root():
@@ -1643,9 +1644,42 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                         questions_to_grant=questions_to_grant,
                         source=f"mock_payment_${result.get('amount_usd', 0)}",
                         credit_remainder=credit_remainder,
-                        bounty_id=None  # Could be passed from request
+                        bounty_id=request.bounty_id  # Pass bounty_id from request
                     )
                     logger.info(f"✅ Granted {questions_to_grant} questions + ${credit_remainder:.2f} credit to user {user.id}")
+                
+                # Update bounty pool if bounty_id is provided
+                if request.bounty_id:
+                    amount_usd = result.get("amount_usd", request.amount_usd or 10.0)
+                    contribution = amount_usd * 0.60  # 60% to bounty pool
+                    
+                    from src.models import Bounty, BountyEntry
+                    
+                    # Update bounty
+                    bounty_result = await session.execute(
+                        select(Bounty).where(Bounty.id == request.bounty_id)
+                    )
+                    bounty = bounty_result.scalar_one_or_none()
+                    
+                    if bounty:
+                        bounty.current_pool += contribution
+                        bounty.total_entries += 1
+                        bounty.updated_at = datetime.utcnow()
+                        
+                        # Create BountyEntry record for tracking
+                        entry = BountyEntry(
+                            user_id=user.id,
+                            entry_fee_usd=amount_usd,
+                            pool_contribution=contribution,
+                            operational_fee=amount_usd * 0.20,
+                            created_at=datetime.utcnow()
+                        )
+                        session.add(entry)
+                        
+                        await session.commit()
+                        logger.info(f"💰 Updated bounty {request.bounty_id}: +${contribution:.2f} to pool (total: ${bounty.current_pool:.2f}), entries: {bounty.total_entries}")
+                    else:
+                        logger.warning(f"⚠️ Bounty {request.bounty_id} not found, skipping pool update")
             
             return result
         
@@ -1665,7 +1699,7 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                 
                 if user:
                     # Grant questions based on payment: $10 per question
-                    amount_usd = result.get("amount_usd", 10.0)
+                    amount_usd = result.get("amount_usd", request.amount_usd or 10.0)
                     COST_PER_QUESTION = 10.0
                     questions_to_grant = max(1, int(amount_usd / COST_PER_QUESTION))
                     
@@ -1673,10 +1707,43 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                         session=session,
                         user_id=user.id,
                         questions_to_grant=questions_to_grant,
-                        source=f"wallet_payment_${amount_usd}"
+                        source=f"wallet_payment_${amount_usd}",
+                        bounty_id=request.bounty_id
                     )
                     
                     result["questions_granted"] = questions_to_grant
+                    
+                    # Update bounty pool if bounty_id is provided
+                    if request.bounty_id:
+                        contribution = amount_usd * 0.60  # 60% to bounty pool
+                        
+                        from src.models import Bounty, BountyEntry
+                        
+                        # Update bounty
+                        bounty_result = await session.execute(
+                            select(Bounty).where(Bounty.id == request.bounty_id)
+                        )
+                        bounty = bounty_result.scalar_one_or_none()
+                        
+                        if bounty:
+                            bounty.current_pool += contribution
+                            bounty.total_entries += 1
+                            bounty.updated_at = datetime.utcnow()
+                            
+                            # Create BountyEntry record for tracking
+                            entry = BountyEntry(
+                                user_id=user.id,
+                                entry_fee_usd=amount_usd,
+                                pool_contribution=contribution,
+                                operational_fee=amount_usd * 0.20,
+                                created_at=datetime.utcnow()
+                            )
+                            session.add(entry)
+                            
+                            await session.commit()
+                            logger.info(f"💰 Updated bounty {request.bounty_id}: +${contribution:.2f} to pool (total: ${bounty.current_pool:.2f}), entries: {bounty.total_entries}")
+                        else:
+                            logger.warning(f"⚠️ Bounty {request.bounty_id} not found, skipping pool update")
             
             return result
     
@@ -2239,19 +2306,7 @@ async def get_bounties(session: AsyncSession = Depends(get_db)):
     """Get all available bounties"""
     try:
         from datetime import datetime
-        from sqlalchemy import select, func
-        from src.models import Transaction
-        
-        # Get lottery state
-        lottery_state = await smart_contract_service.get_lottery_state()
-        
-        # Get total entries
-        result = await session.execute(
-            select(func.count(Transaction.id)).where(
-                Transaction.transaction_type == 'query_fee'
-            )
-        )
-        total_entries = result.scalar() or 0
+        from src.models import Bounty
         
         # Helper functions for bounty calculations
         def get_starting_bounty(difficulty: str) -> float:
@@ -2274,29 +2329,6 @@ async def get_bounties(session: AsyncSession = Depends(get_db)):
             }
             return difficulty_map.get(difficulty.lower(), 0.50)
         
-        def calculate_current_bounty(starting_bounty: float, starting_cost: float, total_entries: int) -> float:
-            """
-            Calculate current bounty with exponential growth from contributions
-            Each question costs: startingCost * (1.0078 ^ entry_number)
-            60% of each question goes to the bounty pool
-            Revenue split: 60% bounty, 20% operational, 10% buyback, 10% staking
-            Formula: starting_bounty + sum of (question_cost * 0.60) for all entries
-            """
-            if total_entries == 0:
-                return starting_bounty
-            
-            # Sum of geometric series: a * (r^n - 1) / (r - 1)
-            # where a = starting_cost, r = 1.0078, n = total_entries
-            growth_rate = 1.0078
-            contribution_rate = 0.60  # 60% to bounty pool
-            
-            # Calculate total contributions from all questions
-            total_contributions = starting_cost * contribution_rate * (
-                (growth_rate ** total_entries - 1) / (growth_rate - 1)
-            )
-            
-            return starting_bounty + total_contributions
-        
         # Define available bounties with correct provider names and difficulty levels
         # Provider names: "claude", "gpt-4", "gemini", "llama" (lowercase)
         # Difficulty levels: "easy", "medium", "hard", "expert" (lowercase)
@@ -2310,9 +2342,34 @@ async def get_bounties(session: AsyncSession = Depends(get_db)):
             {"id": 3, "name": "Gemini Challenge", "provider": "gemini", "difficulty": "medium"},
             {"id": 4, "name": "Llama Quest", "provider": "llama", "difficulty": "easy"},
         ]:
-            starting_bounty = get_starting_bounty(bounty_config["difficulty"])
-            starting_cost = get_starting_question_cost(bounty_config["difficulty"])
-            current_pool = calculate_current_bounty(starting_bounty, starting_cost, total_entries)
+            # Query bounty from database
+            bounty_result = await session.execute(
+                select(Bounty).where(Bounty.id == bounty_config["id"])
+            )
+            bounty_db = bounty_result.scalar_one_or_none()
+            
+            # Use database values if exists, otherwise use calculated defaults
+            if bounty_db:
+                current_pool = bounty_db.current_pool if bounty_db.current_pool > 0 else get_starting_bounty(bounty_config["difficulty"])
+                total_entries = bounty_db.total_entries
+            else:
+                # Initialize with starting values if bounty doesn't exist in DB
+                starting_bounty = get_starting_bounty(bounty_config["difficulty"])
+                current_pool = starting_bounty
+                total_entries = 0
+                
+                # Create bounty record if it doesn't exist
+                new_bounty = Bounty(
+                    id=bounty_config["id"],
+                    name=bounty_config["name"],
+                    llm_provider=bounty_config["provider"],
+                    current_pool=starting_bounty,
+                    total_entries=0,
+                    difficulty_level=bounty_config["difficulty"],
+                    is_active=True
+                )
+                session.add(new_bounty)
+                await session.commit()
             
             bounties_list.append({
                 "id": bounty_config["id"],
@@ -2650,15 +2707,13 @@ async def get_bounty_by_id(bounty_id: int, session: AsyncSession = Depends(get_d
         })
         
         from sqlalchemy import select, func
-        from src.models import Transaction
+        from src.models import Transaction, Bounty
         
-        # Get total entries
-        result = await session.execute(
-            select(func.count(Transaction.id)).where(
-                Transaction.transaction_type == 'query_fee'
-            )
+        # Query bounty from database
+        bounty_result = await session.execute(
+            select(Bounty).where(Bounty.id == bounty_id)
         )
-        total_entries = result.scalar() or 0
+        bounty_db = bounty_result.scalar_one_or_none()
         
         # Helper functions for bounty calculations
         def get_starting_bounty(difficulty: str) -> float:
@@ -2681,36 +2736,41 @@ async def get_bounty_by_id(bounty_id: int, session: AsyncSession = Depends(get_d
             }
             return difficulty_map.get(difficulty.lower(), 0.50)
         
-        def calculate_current_bounty(starting_bounty: float, starting_cost: float, total_entries: int) -> float:
-            """
-            Calculate current bounty with exponential growth from contributions
-            Each question costs: startingCost * (1.0078 ^ entry_number)
-            60% of each question goes to the bounty pool
-            Revenue split: 60% bounty, 20% operational, 10% buyback, 10% staking
-            """
-            if total_entries == 0:
-                return starting_bounty
+        # Use database values if exists, otherwise use calculated defaults
+        if bounty_db:
+            current_pool = bounty_db.current_pool if bounty_db.current_pool > 0 else get_starting_bounty(config["difficulty_level"])
+            total_entries = bounty_db.total_entries
+            # Use stored difficulty if available
+            difficulty = bounty_db.difficulty_level if bounty_db.difficulty_level else config["difficulty_level"]
+        else:
+            # Initialize with starting values if bounty doesn't exist in DB
+            difficulty = config["difficulty_level"]
+            starting_pool = get_starting_bounty(difficulty)
+            current_pool = starting_pool
+            total_entries = 0
             
-            # Sum of geometric series: a * (r^n - 1) / (r - 1)
-            growth_rate = 1.0078
-            contribution_rate = 0.60  # 60% to bounty pool
-            
-            total_contributions = starting_cost * contribution_rate * (
-                (growth_rate ** total_entries - 1) / (growth_rate - 1)
+            # Create bounty record if it doesn't exist
+            new_bounty = Bounty(
+                id=bounty_id,
+                name=config["name"],
+                llm_provider=config["llm_provider"],
+                current_pool=starting_pool,
+                total_entries=0,
+                difficulty_level=difficulty,
+                is_active=True
             )
-            
-            return starting_bounty + total_contributions
+            session.add(new_bounty)
+            await session.commit()
         
-        starting_pool = get_starting_bounty(config["difficulty_level"])
-        starting_cost = get_starting_question_cost(config["difficulty_level"])
-        current_pool = calculate_current_bounty(starting_pool, starting_cost, total_entries)
+        starting_pool = get_starting_bounty(difficulty)
+        starting_cost = get_starting_question_cost(difficulty)
         
         bounty_data = {
             "id": bounty_id,
             "name": config["name"],
             "description": config["description"],
             "llm_provider": config["llm_provider"],
-            "difficulty_level": config["difficulty_level"],
+            "difficulty_level": difficulty,
             "current_pool": round(current_pool, 2),
             "starting_pool": starting_pool,
             "total_entries": total_entries,
@@ -4303,6 +4363,171 @@ async def determine_research_success(request: dict, session: AsyncSession = Depe
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to determine research success: {str(e)}")
+
+@app.get("/api/contract/activity")
+async def get_contract_activity(
+    limit: int = 10,
+    session: AsyncSession = Depends(get_db)
+):
+    """
+    Get recent smart contract transactions for demo/monitoring purposes.
+    Shows lottery entries, winner payouts, staking transactions, etc.
+    """
+    try:
+        from sqlalchemy import select, union_all, literal
+        from src.models import FundDeposit, Winner, StakingDeposit, StakingWithdrawal, TeamContribution
+        
+        transactions = []
+        
+        # 1. Lottery entries (FundDeposit with transaction_signature)
+        entries_query = select(
+            FundDeposit.id,
+            literal("lottery_entry").label("type"),
+            FundDeposit.transaction_signature,
+            FundDeposit.wallet_address,
+            FundDeposit.amount_usd,
+            FundDeposit.status,
+            FundDeposit.created_at
+        ).where(
+            FundDeposit.transaction_signature.isnot(None),
+            FundDeposit.transaction_signature != ""
+        ).order_by(FundDeposit.created_at.desc()).limit(limit)
+        
+        entries = await session.execute(entries_query)
+        for row in entries:
+            transactions.append({
+                "id": row.id,
+                "type": "lottery_entry",
+                "transaction_signature": row.transaction_signature,
+                "wallet_address": row.wallet_address or "Unknown",
+                "amount": float(row.amount_usd or 0),
+                "status": "confirmed" if row.status == "completed" else "pending",
+                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+            })
+        
+        # 2. Winner payouts
+        winners_query = select(
+            Winner.id,
+            literal("winner_payout").label("type"),
+            Winner.transaction_hash.label("transaction_signature"),
+            Winner.wallet_address,
+            Winner.prize_amount,
+            literal("confirmed").label("status"),
+            Winner.created_at
+        ).where(
+            Winner.transaction_hash.isnot(None),
+            Winner.transaction_hash != ""
+        ).order_by(Winner.created_at.desc()).limit(limit)
+        
+        winners = await session.execute(winners_query)
+        for row in winners:
+            transactions.append({
+                "id": row.id,
+                "type": "winner_payout",
+                "transaction_signature": row.transaction_signature,
+                "wallet_address": row.wallet_address or "Unknown",
+                "amount": float(row.prize_amount or 0),
+                "status": "confirmed",
+                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+            })
+        
+        # 3. Staking deposits
+        staking_query = select(
+            StakingDeposit.id,
+            literal("staking").label("type"),
+            StakingDeposit.transaction_signature,
+            StakingDeposit.wallet_address,
+            StakingDeposit.amount,
+            literal("confirmed").label("status"),
+            StakingDeposit.created_at
+        ).where(
+            StakingDeposit.transaction_signature.isnot(None),
+            StakingDeposit.transaction_signature != ""
+        ).order_by(StakingDeposit.created_at.desc()).limit(limit)
+        
+        stakes = await session.execute(staking_query)
+        for row in stakes:
+            transactions.append({
+                "id": row.id,
+                "type": "staking",
+                "transaction_signature": row.transaction_signature,
+                "wallet_address": row.wallet_address or "Unknown",
+                "amount": float(row.amount or 0),
+                "status": "confirmed",
+                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+            })
+        
+        # 4. Staking withdrawals
+        unstaking_query = select(
+            StakingWithdrawal.id,
+            literal("unstaking").label("type"),
+            StakingWithdrawal.transaction_signature,
+            StakingWithdrawal.wallet_address,
+            StakingWithdrawal.amount,
+            literal("confirmed").label("status"),
+            StakingWithdrawal.created_at
+        ).where(
+            StakingWithdrawal.transaction_signature.isnot(None),
+            StakingWithdrawal.transaction_signature != ""
+        ).order_by(StakingWithdrawal.created_at.desc()).limit(limit)
+        
+        unstakes = await session.execute(unstaking_query)
+        for row in unstakes:
+            transactions.append({
+                "id": row.id,
+                "type": "unstaking",
+                "transaction_signature": row.transaction_signature,
+                "wallet_address": row.wallet_address or "Unknown",
+                "amount": float(row.amount or 0),
+                "status": "confirmed",
+                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+            })
+        
+        # 5. Team contributions
+        team_query = select(
+            TeamContribution.id,
+            literal("team_contribution").label("type"),
+            TeamContribution.transaction_signature,
+            TeamContribution.wallet_address,
+            TeamContribution.amount,
+            literal("confirmed").label("status"),
+            TeamContribution.created_at
+        ).where(
+            TeamContribution.transaction_signature.isnot(None),
+            TeamContribution.transaction_signature != ""
+        ).order_by(TeamContribution.created_at.desc()).limit(limit)
+        
+        contributions = await session.execute(team_query)
+        for row in contributions:
+            transactions.append({
+                "id": row.id,
+                "type": "team_contribution",
+                "transaction_signature": row.transaction_signature,
+                "wallet_address": row.wallet_address or "Unknown",
+                "amount": float(row.amount or 0),
+                "status": "confirmed",
+                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+            })
+        
+        # Sort by created_at descending and limit
+        transactions.sort(key=lambda x: x["created_at"], reverse=True)
+        transactions = transactions[:limit]
+        
+        return {
+            "success": True,
+            "transactions": transactions,
+            "total": len(transactions),
+            "network": os.getenv("SOLANA_NETWORK", "devnet")
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching contract activity: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "transactions": [],
+            "total": 0
+        }
 
 if __name__ == "__main__":
     import uvicorn

@@ -51,7 +51,7 @@ export default function WinnerShowcase({ className, limit = 5 }: WinnerShowcaseP
 
   if (loading) {
     return (
-      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-md shadow-slate-200/30", className)}>
+      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10", className)}>
         <div className="flex items-center justify-center py-8">
           <div className="animate-pulse text-slate-600">Loading winners...</div>
         </div>
@@ -61,7 +61,7 @@ export default function WinnerShowcase({ className, limit = 5 }: WinnerShowcaseP
 
   if (error) {
     return (
-      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-md shadow-slate-200/30", className)}>
+      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10", className)}>
         <div className="text-center py-8">
           <div className="text-4xl mb-2">⚠️</div>
           <p className="text-slate-600">{error}</p>
@@ -72,7 +72,7 @@ export default function WinnerShowcase({ className, limit = 5 }: WinnerShowcaseP
 
   if (winners.length === 0) {
     return (
-      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-md shadow-slate-200/30", className)}>
+      <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10", className)}>
         <div className="flex items-center space-x-2 mb-6">
           <Crown className="h-6 w-6 text-yellow-500" />
           <h3 className="text-slate-900 text-xl font-semibold">Recent Winners</h3>
@@ -92,7 +92,7 @@ export default function WinnerShowcase({ className, limit = 5 }: WinnerShowcaseP
   }
 
   return (
-    <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-md shadow-slate-200/30", className)}>
+    <div className={cn("bg-white border border-slate-200 rounded-xl p-6 shadow-2xl shadow-slate-900/10", className)}>
       <div className="flex items-center space-x-2 mb-6">
           <Crown className="h-6 w-6 text-yellow-500" />
         <h3 className="text-slate-900 text-xl font-semibold">Recent Winners</h3>

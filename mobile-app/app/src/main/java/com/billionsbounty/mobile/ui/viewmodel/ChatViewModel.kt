@@ -80,46 +80,46 @@ class ChatViewModel @Inject constructor(
                 sessionId = sessionId
             )
             
-            result.fold(
-                onSuccess = { response ->
-                    // Add AI response to UI
-                    addMessage(
-                        ChatMessage(
-                            id = "${System.currentTimeMillis()}-ai",
-                            content = response.response,
-                            isUser = false,
-                            isWinner = response.is_winner
-                        )
+            if (result.isSuccess) {
+                val response = result.getOrThrow()
+                
+                // Add AI response to UI
+                addMessage(
+                    ChatMessage(
+                        id = "${System.currentTimeMillis()}-ai",
+                        content = response.response,
+                        isUser = false,
+                        isWinner = response.is_winner
                     )
-                    
-                    // Update questions remaining from response
-                    _questionsRemaining.value = response.questions_remaining
-                    
-                    // Update paid/free questions flag
-                    response.free_questions?.let { freeQuestions ->
-                        _isPaidQuestions.value = freeQuestions.is_paid
-                    }
-                    
-                    // Update current question cost if bounty status available
-                    response.bounty_status?.let { bountyStatus ->
-                        // Calculate current cost based on difficulty and entries
-                        val startingCost = getStartingQuestionCost(bountyStatus.difficulty_level ?: "easy")
-                        val currentCost = startingCost * Math.pow(1.0078, bountyStatus.total_entries.toDouble())
-                        _currentQuestionCost.value = currentCost
-                    }
-                    
-                    // Show winner celebration if applicable
-                    if (response.is_winner) {
-                        _isWinner.value = true
-                    }
-                    
-                    _isLoading.value = false
-                },
-                onFailure = { exception ->
-                    _error.value = exception.message ?: "Failed to send message"
-                    _isLoading.value = false
+                )
+                
+                // Update questions remaining from response
+                _questionsRemaining.value = response.questions_remaining
+                
+                // Update paid/free questions flag
+                response.free_questions?.let { freeQuestions ->
+                    _isPaidQuestions.value = freeQuestions.is_paid
                 }
-            )
+                
+                // Update current question cost if bounty status available
+                response.bounty_status?.let { bountyStatus ->
+                    // Calculate current cost based on difficulty and entries
+                    val startingCost = getStartingQuestionCost(bountyStatus.difficulty_level ?: "easy")
+                    val currentCost = startingCost * Math.pow(1.0078, bountyStatus.total_entries.toDouble())
+                    _currentQuestionCost.value = currentCost
+                }
+                
+                // Show winner celebration if applicable
+                if (response.is_winner) {
+                    _isWinner.value = true
+                }
+                
+                _isLoading.value = false
+            } else {
+                val exception = result.exceptionOrNull() ?: Exception("Unknown error")
+                _error.value = exception.message ?: "Failed to send message"
+                _isLoading.value = false
+            }
         }
     }
     
@@ -148,35 +148,35 @@ class ChatViewModel @Inject constructor(
                 sessionId = sessionId
             )
             
-            result.fold(
-                onSuccess = { response ->
-                    // Update session ID if provided
-                    sessionId = response.session_id
-                    
-                    // Add AI response to UI
-                    addMessage(
-                        ChatMessage(
-                            id = "${System.currentTimeMillis()}-ai",
-                            content = response.response,
-                            isUser = false,
-                            isWinner = response.is_winner,
-                            blacklisted = response.blacklisted,
-                            winnerPrize = response.winner_prize
-                        )
+            if (result.isSuccess) {
+                val response = result.getOrThrow()
+                
+                // Update session ID if provided
+                sessionId = response.session_id
+                
+                // Add AI response to UI
+                addMessage(
+                    ChatMessage(
+                        id = "${System.currentTimeMillis()}-ai",
+                        content = response.response,
+                        isUser = false,
+                        isWinner = response.is_winner,
+                        blacklisted = response.blacklisted,
+                        winnerPrize = response.winner_prize
                     )
-                    
-                    // Show winner celebration if applicable
-                    if (response.is_winner) {
-                        _isWinner.value = true
-                    }
-                    
-                    _isLoading.value = false
-                },
-                onFailure = { exception ->
-                    _error.value = exception.message ?: "Failed to send message"
-                    _isLoading.value = false
+                )
+                
+                // Show winner celebration if applicable
+                if (response.is_winner) {
+                    _isWinner.value = true
                 }
-            )
+                
+                _isLoading.value = false
+            } else {
+                val exception = result.exceptionOrNull() ?: Exception("Unknown error")
+                _error.value = exception.message ?: "Failed to send message"
+                _isLoading.value = false
+            }
         }
     }
     
