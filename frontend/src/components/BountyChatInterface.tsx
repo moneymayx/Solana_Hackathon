@@ -11,6 +11,7 @@ import NftVerification from './NftVerification'
 import Toast from './Toast'
 import PaymentAmountModal from './PaymentAmountModal'
 import { cn } from '@/lib/utils'
+import { getBackendUrl } from '@/lib/api/client'
 
 // Dynamically import WalletButton to avoid hydration issues and ensure proper cleanup
 const DynamicWalletButton = dynamic(
@@ -193,7 +194,7 @@ export default function BountyChatInterface({
     try {
       if (!publicKey) return
       
-      const response = await fetch(`http://localhost:8000/api/free-questions/${publicKey.toString()}`)
+      const response = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey.toString()}`)
       const data = await response.json()
       
       if (data.success) {
@@ -221,7 +222,7 @@ export default function BountyChatInterface({
 
   const fetchBountyStatus = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/bounty/${bountyId}`)
+      const response = await fetch(`${getBackendUrl()}/api/bounty/${bountyId}`)
       const data = await response.json()
       
       if (data.success) {
@@ -235,7 +236,7 @@ export default function BountyChatInterface({
   const loadConversationHistory = async () => {
     try {
       console.log(`Loading conversation history for bounty ${bountyId}...`)
-      const response = await fetch(`http://localhost:8000/api/bounty/${bountyId}/messages/public?limit=20`)
+      const response = await fetch(`${getBackendUrl()}/api/bounty/${bountyId}/messages/public?limit=20`)
       
       if (!response.ok) {
         console.error(`Failed to fetch messages: ${response.status} ${response.statusText}`)
@@ -298,7 +299,7 @@ export default function BountyChatInterface({
     setError(null)
 
     try {
-      const response = await fetch(`http://localhost:8000/api/bounty/${bountyId}/chat`, {
+      const response = await fetch(`${getBackendUrl()}/api/bounty/${bountyId}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -419,7 +420,7 @@ export default function BountyChatInterface({
       console.log(`Initiating payment: $${currentCost.toFixed(2)} USDC`)
 
       // Step 1: Create payment transaction via backend
-      const createResponse = await fetch('http://localhost:8000/api/payment/create', {
+      const createResponse = await fetch(`${getBackendUrl()}/api/payment/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -510,7 +511,7 @@ export default function BountyChatInterface({
       }
 
       // Step 6: Verify with backend
-      const verifyResponse = await fetch('http://localhost:8000/api/payment/verify', {
+      const verifyResponse = await fetch(`${getBackendUrl()}/api/payment/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -634,7 +635,7 @@ export default function BountyChatInterface({
             showToast(`🎉 Your referral code is: ${referralCode}`, 'success')
             
             // Force refresh the eligibility state
-            const eligibility = await fetch(`http://localhost:8000/api/free-questions/${publicKey?.toString()}`)
+            const eligibility = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey?.toString()}`)
             if (eligibility.ok) {
               const data = await eligibility.json()
               console.log('🎉 Referral eligibility data:', data)
@@ -898,7 +899,7 @@ export default function BountyChatInterface({
             showToast('✅ NFT verified! 5 free questions granted', 'success')
             
             // Force refresh the eligibility state
-            const eligibility = await fetch(`http://localhost:8000/api/free-questions/${publicKey?.toString()}`)
+            const eligibility = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey?.toString()}`)
             if (eligibility.ok) {
               const data = await eligibility.json()
               console.log('🎨 NFT eligibility data:', data)

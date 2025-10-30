@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Send, Users, MessageCircle, Trophy, Clock } from 'lucide-react'
+import { getBackendUrl } from '@/lib/api/client'
 
 interface Message {
   id: number
@@ -53,7 +54,7 @@ export default function GlobalChat({
   // Fetch messages for this bounty
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/api/bounty/${bountyId}/messages/public?limit=50`)
+      const response = await fetch(`${getBackendUrl()}/api/bounty/${bountyId}/messages/public?limit=50`)
       const data = await response.json()
       
       if (data.success) {

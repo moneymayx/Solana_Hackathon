@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Mail, Share2, Copy, Check } from 'lucide-react'
+import { getBackendUrl } from '@/lib/api/client'
 
 interface ReferralFlowProps {
   onSuccess: (referralCode: string) => void
@@ -28,7 +29,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
       }
 
       try {
-        const response = await fetch(`http://localhost:8000/api/free-questions/${publicKey.toString()}`)
+        const response = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey.toString()}`)
         const data = await response.json()
         
         if (data.success && data.referral_code) {
@@ -65,7 +66,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/referral/submit-email', {
+      const response = await fetch(`${getBackendUrl()}/api/referral/submit-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Gift, Mail } from 'lucide-react'
+import { getBackendUrl } from '@/lib/api/client'
 
 interface ReferralCodeClaimProps {
   referralCode: string
@@ -32,7 +33,7 @@ export default function ReferralCodeClaim({ referralCode, onClaimed }: ReferralC
     setError(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/referral/use-code', {
+      const response = await fetch(`${getBackendUrl()}/api/referral/use-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

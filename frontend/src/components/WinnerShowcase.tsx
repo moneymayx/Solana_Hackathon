@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Crown, Trophy, Star, TrendingUp, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getBackendUrl } from '@/lib/api/client'
 
 interface Winner {
   id: number
@@ -30,7 +31,7 @@ export default function WinnerShowcase({ className, limit = 5 }: WinnerShowcaseP
         setLoading(true)
         setError(null)
         
-        const response = await fetch(`http://localhost:8000/api/winners/recent?limit=${limit}`)
+        const response = await fetch(`${getBackendUrl()}/api/winners/recent?limit=${limit}`)
         const data = await response.json()
         
         if (data.success) {
