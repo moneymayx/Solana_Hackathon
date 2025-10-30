@@ -27,11 +27,11 @@ from src import (
     BillionsAgent,
     get_db, create_tables,
     UserRepository, PrizePoolRepository, ConversationRepository,
-    User,
+    User, Conversation, BountyEntry, Winner, FundDeposit,
     RateLimiter, SecurityMonitor,
     ReferralService,
     WalletConnectSolanaService, PaymentOrchestrator,
-    smart_contract_service,
+    smart_contract_service, solana_service,
     regulatory_compliance_service,
     payment_flow_service,
     ai_decision_integration,
@@ -1969,8 +1969,6 @@ async def connect_wallet(request: WalletConnectRequest, http_request: Request, s
 @app.get("/api/wallet/balance/{wallet_address}")
 async def get_wallet_balance(wallet_address: str):
     """Get SOL balance for a wallet address"""
-    from src.solana_service import solana_service
-    
     try:
         balance = await solana_service.get_balance(wallet_address)
         return {
@@ -1984,8 +1982,6 @@ async def get_wallet_balance(wallet_address: str):
 @app.post("/api/transfer/token")
 async def transfer_token(request: TransferRequest):
     """Transfer token (SOL, USDC, USDT) from treasury to recipient (admin only)"""
-    from src.solana_service import solana_service
-    
     try:
         result = await solana_service.transfer_token(
             to_address=request.to_address,
@@ -2011,8 +2007,6 @@ async def transfer_token(request: TransferRequest):
 @app.get("/api/transfer/verify/{signature}")
 async def verify_transfer(signature: str):
     """Verify a SOL transfer transaction"""
-    from src.solana_service import solana_service
-    
     try:
         is_verified = await solana_service.verify_transaction(signature)
         return {
@@ -2025,8 +2019,6 @@ async def verify_transfer(signature: str):
 @app.get("/api/treasury/balance")
 async def get_treasury_balance():
     """Get treasury wallet balance"""
-    from src.solana_service import solana_service
-    
     try:
         balance = await solana_service.get_treasury_balance()
         return {
@@ -2044,56 +2036,127 @@ async def get_treasury_balance():
 async def get_dashboard_overview(session: AsyncSession = Depends(get_db)):
     """Get comprehensive dashboard overview data"""
     try:
-        # Get lottery status from smart contract
-        lottery_status = await smart_contract_service.get_lottery_status()
-        
-        # Get platform statistics
-        stats_query = select(
-            func.count(User.id).label('total_users'),
-            func.sum(User.total_questions_asked).label('total_questions'),
-            func.sum(User.total_research_attempts).label('total_attempts'),
-            func.sum(User.total_successful_research).label('total_successes')
+        # Get lottery status from smart contract and backfill defaults so the UI always has predictable keys.
+        # Aggregate platform statistics against the current schema.
+        total_users_result = await session.execute(select(func.count(User.id)))
+        total_users = int(total_users_result.scalar() or 0)
+
+        total_questions_result = await session.execute(
+            select(func.count(Conversation.id)).where(Conversation.message_type == "user")
         )
-        stats_result = await session.execute(stats_query)
-        stats = stats_result.first()
-        
-        # Get recent activity (last 24 hours)
+        total_questions = int(total_questions_result.scalar() or 0)
+
+        total_attempts_result = await session.execute(select(func.count(BountyEntry.id)))
+        total_attempts = int(total_attempts_result.scalar() or 0)
+
+        total_successes_result = await session.execute(select(func.count(Winner.id)))
+        total_successes = int(total_successes_result.scalar() or 0)
+
         from datetime import datetime, timedelta
         yesterday = datetime.utcnow() - timedelta(days=1)
-        
-        recent_activity_query = select(
-            func.count(User.id).label('new_users_24h'),
-            func.sum(User.total_questions_asked).label('questions_24h'),
-            func.sum(User.total_research_attempts).label('attempts_24h')
-        ).where(User.created_at >= yesterday)
-        
-        recent_result = await session.execute(recent_activity_query)
-        recent_stats = recent_result.first()
-        
-        # Get system health indicators
-        system_health = {
-            "ai_agent_active": True,  # AI agent is always active
-            "smart_contract_connected": lottery_status.get("success", False),
-            "database_connected": True,  # If we got here, DB is working
-            "rate_limiter_active": True,
-            "sybil_detection_active": True
+
+        new_users_result = await session.execute(
+            select(func.count(User.id)).where(User.created_at >= yesterday)
+        )
+        new_users_24h = int(new_users_result.scalar() or 0)
+
+        questions_24h_result = await session.execute(
+            select(func.count(Conversation.id)).where(
+                Conversation.message_type == "user",
+                Conversation.timestamp >= yesterday
+            )
+        )
+        questions_24h = int(questions_24h_result.scalar() or 0)
+
+        attempts_24h_result = await session.execute(
+            select(func.count(BountyEntry.id)).where(BountyEntry.created_at >= yesterday)
+        )
+        attempts_24h = int(attempts_24h_result.scalar() or 0)
+
+        # Compute success rate defensively to avoid division by zero when there are no attempts recorded yet.
+        success_rate = (total_successes / total_attempts * 100.0) if total_attempts > 0 else 0.0
+
+        # Pull on-chain state and the latest prize-pool snapshot so metrics come from live data rather than placeholders.
+        lottery_status_raw = await smart_contract_service.get_lottery_status()
+        jackpot_balance_info = await smart_contract_service.get_jackpot_balance()
+        prize_pool_repo = PrizePoolRepository(session)
+        prize_pool = await prize_pool_repo.get_current_prize_pool()
+
+        target_jackpot_usdc = float(
+            prize_pool.current_amount
+        ) if prize_pool else float(lottery_status_raw.get("current_jackpot_usdc", 0.0) or 0.0)
+
+        jackpot_balance_usdc = float(
+            jackpot_balance_info.get("balance_usdc", 0.0) or 0.0
+        ) if jackpot_balance_info.get("success", False) else 0.0
+
+        total_entries_snapshot = max(
+            total_attempts,
+            int(prize_pool.total_queries) if prize_pool and prize_pool.total_queries is not None else 0,
+            int(lottery_status_raw.get("total_entries", 0) or 0)
+        )
+
+        fund_verified = (
+            jackpot_balance_info.get("success", False)
+            and target_jackpot_usdc > 0
+            and jackpot_balance_usdc >= target_jackpot_usdc
+        )
+
+        balance_gap_usdc = max(0.0, target_jackpot_usdc - jackpot_balance_usdc)
+        surplus_usdc = max(0.0, jackpot_balance_usdc - target_jackpot_usdc)
+
+        lottery_status = {
+            "success": lottery_status_raw.get("success", False),
+            "target_jackpot_usdc": target_jackpot_usdc,
+            "current_jackpot_usdc": target_jackpot_usdc,
+            "jackpot_balance_usdc": jackpot_balance_usdc,
+            "fund_verified": fund_verified,
+            "balance_gap_usdc": balance_gap_usdc,
+            "surplus_usdc": surplus_usdc,
+            "total_entries": total_entries_snapshot,
+            "is_active": lottery_status_raw.get("is_active", bool(total_entries_snapshot)),
+            "lottery_pda": lottery_status_raw.get("lottery_pda", ""),
+            "jackpot_token_account": jackpot_balance_info.get("token_account", ""),
+            "program_id": lottery_status_raw.get("program_id", ""),
+            "jackpot_wallet_address": os.getenv("JACKPOT_WALLET_ADDRESS", ""),
+            "last_prize_pool_update": (
+                prize_pool.last_updated.isoformat() if prize_pool and prize_pool.last_updated else None
+            ),
+            "onchain_balance_success": jackpot_balance_info.get("success", False),
         }
-        
+        if "error" in lottery_status_raw:
+            lottery_status["error"] = lottery_status_raw["error"]
+        if "error" in jackpot_balance_info:
+            lottery_status["balance_error"] = jackpot_balance_info.get("error")
+
+        # Get system health indicators with explicit defaults so the dashboard stays informative.
+        system_health = {
+            "ai_agent_active": True,  # AI agent remains available in production
+            # Mark the smart contract healthy only when both the status and balance queries succeed.
+            "smart_contract_connected": (
+                lottery_status_raw.get("success", False)
+                and jackpot_balance_info.get("success", False)
+            ),
+            "database_connected": True,  # If this handler executed we connected successfully
+            "rate_limiter_active": True,
+            "sybil_detection_active": True,
+        }
+
         return {
             "success": True,
             "data": {
                 "lottery_status": lottery_status,
                 "platform_stats": {
-                    "total_users": stats.total_users or 0,
-                    "total_questions": stats.total_questions or 0,
-                    "total_attempts": stats.total_attempts or 0,
-                    "total_successes": stats.total_successes or 0,
-                    "success_rate": (stats.total_successes / stats.total_attempts * 100) if stats.total_attempts and stats.total_attempts > 0 else 0
+                    "total_users": total_users,
+                    "total_questions": total_questions,
+                    "total_attempts": total_attempts,
+                    "total_successes": total_successes,
+                    "success_rate": success_rate,
                 },
                 "recent_activity": {
-                    "new_users_24h": recent_stats.new_users_24h or 0,
-                    "questions_24h": recent_stats.questions_24h or 0,
-                    "attempts_24h": recent_stats.attempts_24h or 0
+                    "new_users_24h": new_users_24h,
+                    "questions_24h": questions_24h,
+                    "attempts_24h": attempts_24h,
                 },
                 "system_health": system_health,
                 "last_updated": datetime.utcnow().isoformat()
@@ -2107,38 +2170,149 @@ async def get_dashboard_overview(session: AsyncSession = Depends(get_db)):
         }
 
 @app.get("/api/dashboard/fund-verification")
-async def get_fund_verification():
+async def get_fund_verification(session: AsyncSession = Depends(get_db)):
     """Get detailed fund verification data"""
     try:
-        # Get lottery status with fund verification
+        from datetime import datetime
+
+        # Blend on-chain balances with internal accounting so fund transparency reflects real movements.
         lottery_status = await smart_contract_service.get_lottery_status()
-        
-        # Get jackpot balance
         jackpot_balance = await smart_contract_service.get_jackpot_balance()
-        
-        # Get treasury balance
-        from src.solana_service import solana_service
-        treasury_balance = await solana_service.get_treasury_balance()
-        
+        prize_pool_repo = PrizePoolRepository(session)
+        prize_pool = await prize_pool_repo.get_current_prize_pool()
+
+        target_jackpot_usdc = float(
+            prize_pool.current_amount
+        ) if prize_pool else float(lottery_status.get("current_jackpot_usdc", 0.0) or 0.0)
+
+        jackpot_balance_usdc = float(
+            jackpot_balance.get("balance_usdc", 0.0) or 0.0
+        ) if jackpot_balance.get("success", False) else 0.0
+
+        fund_verified = (
+            jackpot_balance.get("success", False)
+            and target_jackpot_usdc > 0
+            and jackpot_balance_usdc >= target_jackpot_usdc
+        )
+
+        balance_gap_usdc = max(0.0, target_jackpot_usdc - jackpot_balance_usdc)
+        surplus_usdc = max(0.0, jackpot_balance_usdc - target_jackpot_usdc)
+
+        jackpot_wallet_address = os.getenv("JACKPOT_WALLET_ADDRESS", "")
+        jackpot_wallet_sol: Optional[float] = None
+        if jackpot_wallet_address:
+            try:
+                # Track SOL held on the jackpot wallet for operational visibility.
+                jackpot_wallet_sol = await solana_service.get_balance(jackpot_wallet_address)
+            except Exception as exc:  # pragma: no cover - network calls may fail in CI
+                logger.warning("Failed to fetch jackpot wallet SOL balance: %s", exc)
+                jackpot_wallet_sol = None
+
+        treasury_wallet_address = os.getenv("TREASURY_SOLANA_ADDRESS", "")
+        treasury_balance_sol: Optional[float] = None
+        if treasury_wallet_address:
+            try:
+                treasury_balance_sol = await solana_service.get_treasury_balance()
+            except Exception as exc:  # pragma: no cover - network calls may fail in CI
+                logger.warning("Failed to fetch treasury balance: %s", exc)
+                treasury_balance_sol = None
+
+        total_completed_usdc_result = await session.execute(
+            select(func.coalesce(func.sum(FundDeposit.amount_usdc), 0.0)).where(FundDeposit.status == "completed")
+        )
+        total_completed_usdc = float(total_completed_usdc_result.scalar() or 0.0)
+
+        total_pending_usdc_result = await session.execute(
+            select(func.coalesce(func.sum(FundDeposit.amount_usdc), 0.0)).where(FundDeposit.status == "pending")
+        )
+        total_pending_usdc = float(total_pending_usdc_result.scalar() or 0.0)
+
+        total_failed_usdc_result = await session.execute(
+            select(func.coalesce(func.sum(FundDeposit.amount_usdc), 0.0)).where(FundDeposit.status == "failed")
+        )
+        total_failed_usdc = float(total_failed_usdc_result.scalar() or 0.0)
+
+        pending_count_result = await session.execute(
+            select(func.count(FundDeposit.id)).where(FundDeposit.status == "pending")
+        )
+        pending_count = int(pending_count_result.scalar() or 0)
+
+        failed_count_result = await session.execute(
+            select(func.count(FundDeposit.id)).where(FundDeposit.status == "failed")
+        )
+        failed_count = int(failed_count_result.scalar() or 0)
+
+        total_entries_recorded_result = await session.execute(select(func.count(FundDeposit.id)))
+        total_entries_recorded = int(total_entries_recorded_result.scalar() or 0)
+
+        last_deposit_result = await session.execute(
+            select(FundDeposit.created_at).order_by(desc(FundDeposit.created_at)).limit(1)
+        )
+        last_deposit_at_dt = last_deposit_result.scalar_one_or_none()
+
+        explorer_suffix = "?cluster=devnet" if os.getenv("SOLANA_NETWORK", "devnet").lower() != "mainnet" else ""
+        timestamp_now = datetime.utcnow().isoformat()
+
+        treasury_payload = None
+        if treasury_wallet_address:
+            treasury_payload = {
+                "address": treasury_wallet_address,
+                "balance_sol": treasury_balance_sol,
+                "balance_usd": (treasury_balance_sol * 100.0) if treasury_balance_sol is not None else None,
+                "last_balance_check": timestamp_now,
+            }
+
         return {
             "success": True,
             "data": {
                 "lottery_funds": {
-                    "current_jackpot_usdc": lottery_status.get("current_jackpot_usdc", 0),
-                    "jackpot_balance_usdc": jackpot_balance.get("balance_usdc", 0),
-                    "fund_verified": lottery_status.get("fund_verified", False),
+                    "current_jackpot_usdc": target_jackpot_usdc,
+                    "jackpot_balance_usdc": jackpot_balance_usdc,
+                    "fund_verified": fund_verified,
+                    "balance_gap_usdc": balance_gap_usdc,
+                    "surplus_usdc": surplus_usdc,
                     "lottery_pda": lottery_status.get("lottery_pda", ""),
-                    "program_id": lottery_status.get("program_id", "")
+                    "program_id": lottery_status.get("program_id", ""),
+                    "jackpot_token_account": jackpot_balance.get("token_account", ""),
+                    "last_prize_pool_update": (
+                        prize_pool.last_updated.isoformat() if prize_pool and prize_pool.last_updated else None
+                    ),
                 },
-                "treasury_funds": {
-                    "balance_sol": treasury_balance,
-                    "balance_usd": treasury_balance * 100  # Approximate
+                "jackpot_wallet": {
+                    "address": jackpot_wallet_address,
+                    "token_account": jackpot_balance.get("token_account", ""),
+                    "mint": jackpot_balance.get("mint", ""),
+                    "balance_usdc": jackpot_balance_usdc,
+                    "balance_sol": jackpot_wallet_sol,
+                    "verification_status": (
+                        "verified" if fund_verified else ("shortfall" if target_jackpot_usdc > 0 else "uninitialized")
+                    ),
+                    "last_balance_check": timestamp_now,
+                },
+                "treasury_wallet": treasury_payload,
+                "fund_activity": {
+                    "total_completed_usdc": total_completed_usdc,
+                    "total_pending_usdc": total_pending_usdc,
+                    "total_failed_usdc": total_failed_usdc,
+                    "pending_count": pending_count,
+                    "failed_count": failed_count,
+                    "total_entries_recorded": total_entries_recorded,
+                    "last_deposit_at": last_deposit_at_dt.isoformat() if last_deposit_at_dt else None,
                 },
                 "verification_links": {
-                    "solana_explorer": f"https://explorer.solana.com/address/{lottery_status.get('lottery_pda', '')}",
-                    "program_id": f"https://explorer.solana.com/address/{lottery_status.get('program_id', '')}"
+                    "solana_explorer": f"https://explorer.solana.com/address/{lottery_status.get('lottery_pda', '')}{explorer_suffix}",
+                    "program_id": f"https://explorer.solana.com/address/{lottery_status.get('program_id', '')}{explorer_suffix}",
+                    "jackpot_token_account": f"https://explorer.solana.com/address/{jackpot_balance.get('token_account', '')}{explorer_suffix}",
+                    "jackpot_wallet": (
+                        f"https://explorer.solana.com/address/{jackpot_wallet_address}{explorer_suffix}"
+                        if jackpot_wallet_address else None
+                    ),
+                    "treasury_wallet": (
+                        f"https://explorer.solana.com/address/{treasury_wallet_address}{explorer_suffix}"
+                        if treasury_wallet_address else None
+                    ),
                 },
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": timestamp_now
             }
         }
     except Exception as e:
@@ -4404,8 +4578,15 @@ async def get_contract_activity(
     Shows lottery entries, winner payouts, staking transactions, etc.
     """
     try:
-        from sqlalchemy import select, union_all, literal
-        from src.models import FundDeposit, Winner, StakingDeposit, StakingWithdrawal, TeamContribution
+        from sqlalchemy import select, literal
+        from src.models import FundDeposit, Winner
+
+        try:
+            from src.models import StakingDeposit, StakingWithdrawal, TeamContribution
+        except ImportError:
+            # Staking/team tables are optional in some deployments; skip gracefully when absent.
+            StakingDeposit = StakingWithdrawal = TeamContribution = None  # type: ignore
+            logger.info("Staking and team contribution models missing; omitting related contract activity entries.")
         
         transactions = []
         
@@ -4443,11 +4624,11 @@ async def get_contract_activity(
             Winner.wallet_address,
             Winner.prize_amount,
             literal("confirmed").label("status"),
-            Winner.created_at
+            Winner.won_at
         ).where(
             Winner.transaction_hash.isnot(None),
             Winner.transaction_hash != ""
-        ).order_by(Winner.created_at.desc()).limit(limit)
+        ).order_by(Winner.won_at.desc()).limit(limit)
         
         winners = await session.execute(winners_query)
         for row in winners:
@@ -4458,86 +4639,87 @@ async def get_contract_activity(
                 "wallet_address": row.wallet_address or "Unknown",
                 "amount": float(row.prize_amount or 0),
                 "status": "confirmed",
-                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+                "created_at": row.won_at.isoformat() if row.won_at else datetime.utcnow().isoformat()
             })
         
         # 3. Staking deposits
-        staking_query = select(
-            StakingDeposit.id,
-            literal("staking").label("type"),
-            StakingDeposit.transaction_signature,
-            StakingDeposit.wallet_address,
-            StakingDeposit.amount,
-            literal("confirmed").label("status"),
-            StakingDeposit.created_at
-        ).where(
-            StakingDeposit.transaction_signature.isnot(None),
-            StakingDeposit.transaction_signature != ""
-        ).order_by(StakingDeposit.created_at.desc()).limit(limit)
-        
-        stakes = await session.execute(staking_query)
-        for row in stakes:
-            transactions.append({
-                "id": row.id,
-                "type": "staking",
-                "transaction_signature": row.transaction_signature,
-                "wallet_address": row.wallet_address or "Unknown",
-                "amount": float(row.amount or 0),
-                "status": "confirmed",
-                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
-            })
-        
-        # 4. Staking withdrawals
-        unstaking_query = select(
-            StakingWithdrawal.id,
-            literal("unstaking").label("type"),
-            StakingWithdrawal.transaction_signature,
-            StakingWithdrawal.wallet_address,
-            StakingWithdrawal.amount,
-            literal("confirmed").label("status"),
-            StakingWithdrawal.created_at
-        ).where(
-            StakingWithdrawal.transaction_signature.isnot(None),
-            StakingWithdrawal.transaction_signature != ""
-        ).order_by(StakingWithdrawal.created_at.desc()).limit(limit)
-        
-        unstakes = await session.execute(unstaking_query)
-        for row in unstakes:
-            transactions.append({
-                "id": row.id,
-                "type": "unstaking",
-                "transaction_signature": row.transaction_signature,
-                "wallet_address": row.wallet_address or "Unknown",
-                "amount": float(row.amount or 0),
-                "status": "confirmed",
-                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
-            })
-        
-        # 5. Team contributions
-        team_query = select(
-            TeamContribution.id,
-            literal("team_contribution").label("type"),
-            TeamContribution.transaction_signature,
-            TeamContribution.wallet_address,
-            TeamContribution.amount,
-            literal("confirmed").label("status"),
-            TeamContribution.created_at
-        ).where(
-            TeamContribution.transaction_signature.isnot(None),
-            TeamContribution.transaction_signature != ""
-        ).order_by(TeamContribution.created_at.desc()).limit(limit)
-        
-        contributions = await session.execute(team_query)
-        for row in contributions:
-            transactions.append({
-                "id": row.id,
-                "type": "team_contribution",
-                "transaction_signature": row.transaction_signature,
-                "wallet_address": row.wallet_address or "Unknown",
-                "amount": float(row.amount or 0),
-                "status": "confirmed",
-                "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
-            })
+        if StakingDeposit is not None:
+            staking_query = select(
+                StakingDeposit.id,
+                literal("staking").label("type"),
+                StakingDeposit.transaction_signature,
+                StakingDeposit.wallet_address,
+                StakingDeposit.amount,
+                literal("confirmed").label("status"),
+                StakingDeposit.created_at
+            ).where(
+                StakingDeposit.transaction_signature.isnot(None),
+                StakingDeposit.transaction_signature != ""
+            ).order_by(StakingDeposit.created_at.desc()).limit(limit)
+
+            stakes = await session.execute(staking_query)
+            for row in stakes:
+                transactions.append({
+                    "id": row.id,
+                    "type": "staking",
+                    "transaction_signature": row.transaction_signature,
+                    "wallet_address": row.wallet_address or "Unknown",
+                    "amount": float(row.amount or 0),
+                    "status": "confirmed",
+                    "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+                })
+
+        if StakingWithdrawal is not None:
+            unstaking_query = select(
+                StakingWithdrawal.id,
+                literal("unstaking").label("type"),
+                StakingWithdrawal.transaction_signature,
+                StakingWithdrawal.wallet_address,
+                StakingWithdrawal.amount,
+                literal("confirmed").label("status"),
+                StakingWithdrawal.created_at
+            ).where(
+                StakingWithdrawal.transaction_signature.isnot(None),
+                StakingWithdrawal.transaction_signature != ""
+            ).order_by(StakingWithdrawal.created_at.desc()).limit(limit)
+
+            unstakes = await session.execute(unstaking_query)
+            for row in unstakes:
+                transactions.append({
+                    "id": row.id,
+                    "type": "unstaking",
+                    "transaction_signature": row.transaction_signature,
+                    "wallet_address": row.wallet_address or "Unknown",
+                    "amount": float(row.amount or 0),
+                    "status": "confirmed",
+                    "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+                })
+
+        if TeamContribution is not None:
+            team_query = select(
+                TeamContribution.id,
+                literal("team_contribution").label("type"),
+                TeamContribution.transaction_signature,
+                TeamContribution.wallet_address,
+                TeamContribution.amount,
+                literal("confirmed").label("status"),
+                TeamContribution.created_at
+            ).where(
+                TeamContribution.transaction_signature.isnot(None),
+                TeamContribution.transaction_signature != ""
+            ).order_by(TeamContribution.created_at.desc()).limit(limit)
+
+            contributions = await session.execute(team_query)
+            for row in contributions:
+                transactions.append({
+                    "id": row.id,
+                    "type": "team_contribution",
+                    "transaction_signature": row.transaction_signature,
+                    "wallet_address": row.wallet_address or "Unknown",
+                    "amount": float(row.amount or 0),
+                    "status": "confirmed",
+                    "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+                })
         
         # Sort by created_at descending and limit
         transactions.sort(key=lambda x: x["created_at"], reverse=True)

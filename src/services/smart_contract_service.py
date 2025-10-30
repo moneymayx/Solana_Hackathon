@@ -121,7 +121,11 @@ class SmartContractService:
         try:
             # Derive jackpot token account address
             jackpot_token_account, _ = Pubkey.find_program_address(
-                [self.lottery_pda.to_bytes(), b"token", self.usdc_mint.to_bytes()],
+                [
+                    bytes(self.lottery_pda),  # solders Pubkey exposes bytes() instead of to_bytes()
+                    b"token",
+                    bytes(self.usdc_mint),
+                ],
                 Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")  # Associated Token Program
             )
             

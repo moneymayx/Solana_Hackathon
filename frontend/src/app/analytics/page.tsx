@@ -2,139 +2,59 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import {
+  fetchDashboardOverview,
+  fetchFundVerification,
+  fetchSecurityStatus,
+  DashboardOverviewData,
+  FundVerificationData,
+  SecurityStatusData,
+} from '@/lib/api/dashboard'
 import ContractActivityMonitor from '@/components/ContractActivityMonitor'
 import TopNavigation from '@/components/TopNavigation'
 
-interface DashboardData {
-  lottery_status: {
-    current_jackpot_usdc: number
-    total_entries: number
-    is_active: boolean
-    fund_verified: boolean
-  }
-  platform_stats: {
-    total_users: number
-    total_questions: number
-    total_attempts: number
-    total_successes: number
-    success_rate: number
-  }
-  recent_activity: {
-    new_users_24h: number
-    questions_24h: number
-    attempts_24h: number
-  }
-  system_health: {
-    ai_agent_active: boolean
-    smart_contract_connected: boolean
-    database_connected: boolean
-    rate_limiter_active: boolean
-    sybil_detection_active: boolean
-  }
-  last_updated: string
-}
+type AnalyticsTab = 'overview' | 'funds' | 'security' | 'contracts'
 
-interface FundVerificationData {
-  lottery_funds: {
-    current_jackpot_usdc: number
-    jackpot_balance_usdc: number
-    fund_verified: boolean
-    lottery_pda: string
-    program_id: string
-  }
-  treasury_funds: {
-    balance_sol: number
-    balance_usd: number
-  }
-  verification_links: {
-    solana_explorer: string
-    program_id: string
-  }
-  last_updated: string
-}
-
-interface SecurityStatusData {
-  rate_limiting: {
-    active: boolean
-    requests_per_minute: number
-    requests_per_hour: number
-    cooldown_seconds: number
-  }
-  sybil_detection: {
-    active: boolean
-    detection_methods: string[]
-    blacklisted_phrases: string
-  }
-  ai_security: {
-    personality_system: string
-    manipulation_detection: string
-    blacklisting_system: string
-    success_rate_target: string
-    learning_enabled: boolean
-  }
-  overall_security_score: string
-  last_updated: string
-}
+const ANALYTICS_TABS: Array<{ id: AnalyticsTab; label: string; icon: string }> = [
+  { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'funds', label: 'Fund Verification', icon: '💰' },
+  { id: 'security', label: 'Security Status', icon: '🔒' },
+  { id: 'contracts', label: 'Contract Activity', icon: '⚡' },
+]
 
 export default function Analytics() {
-  const [overviewData, setOverviewData] = useState<DashboardData | null>(null)
+  const [overviewData, setOverviewData] = useState<DashboardOverviewData | null>(null)
   const [fundData, setFundData] = useState<FundVerificationData | null>(null)
   const [securityData, setSecurityData] = useState<SecurityStatusData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'funds' | 'security' | 'contracts'>('overview')
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview')
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      
-      const [overviewRes, fundRes, securityRes] = await Promise.all([
-        fetch(`${backendUrl}/api/dashboard/overview`),
-        fetch(`${backendUrl}/api/dashboard/fund-verification`),
-        fetch(`${backendUrl}/api/dashboard/security-status`)
-      ])
-
-      // Check if responses are ok before parsing
-      if (!overviewRes.ok) {
-        console.error('Overview API error:', overviewRes.status, overviewRes.statusText)
-      }
-      if (!fundRes.ok) {
-        console.error('Fund verification API error:', fundRes.status, fundRes.statusText)
-      }
-      if (!securityRes.ok) {
-        console.error('Security status API error:', securityRes.status, securityRes.statusText)
-      }
-
       const [overview, fund, security] = await Promise.all([
-        overviewRes.ok ? overviewRes.json().catch(e => {
-          console.error('Failed to parse overview JSON:', e)
-          return { success: false, error: 'Invalid JSON response' }
-        }) : Promise.resolve({ success: false, error: `HTTP ${overviewRes.status}` }),
-        fundRes.ok ? fundRes.json().catch(e => {
-          console.error('Failed to parse fund JSON:', e)
-          return { success: false, error: 'Invalid JSON response' }
-        }) : Promise.resolve({ success: false, error: `HTTP ${fundRes.status}` }),
-        securityRes.ok ? securityRes.json().catch(e => {
-          console.error('Failed to parse security JSON:', e)
-          return { success: false, error: 'Invalid JSON response' }
-        }) : Promise.resolve({ success: false, error: `HTTP ${securityRes.status}` })
+        fetchDashboardOverview().catch((err: unknown) => {
+          console.warn('Overview fetch failed', err)
+          return null
+        }),
+        fetchFundVerification().catch((err: unknown) => {
+          console.warn('Fund verification fetch failed', err)
+          return null
+        }),
+        fetchSecurityStatus().catch((err: unknown) => {
+          console.warn('Security status fetch failed', err)
+          return null
+        }),
       ])
 
-      console.log('API Responses:', { overview, fund, security })
+      setOverviewData(overview)
+      setFundData(fund)
+      setSecurityData(security)
 
-      if (overview.success) setOverviewData(overview.data)
-      else console.warn('Overview failed:', overview.error || overview)
-      
-      if (fund.success) setFundData(fund.data)
-      else console.warn('Fund verification failed:', fund.error || fund)
-      
-      if (security.success) setSecurityData(security.data)
-      else console.warn('Security status failed:', security.error || security)
-
-      if (!overview.success && !fund.success && !security.success) {
+      if (!overview && !fund && !security) {
         setError('Failed to load analytics data. Check console for details.')
       }
     } catch (err) {
@@ -171,6 +91,12 @@ export default function Analytics() {
   const getStatusIcon = (status: boolean) => {
     return status ? '✅' : '❌'
   }
+
+const jackpotWalletStatusStyles: Record<string, { label: string; color: string }> = {
+  verified: { label: 'Verified coverage', color: 'text-green-600' },
+  shortfall: { label: 'Funding shortfall', color: 'text-red-600' },
+  uninitialized: { label: 'Awaiting initial funding', color: 'text-gray-500' }
+}
 
   if (loading) {
     return (
@@ -234,15 +160,10 @@ export default function Analytics() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex justify-center mb-8">
           <div className="bg-gray-100 rounded-lg p-1 flex gap-1">
-            {[
-              { id: 'overview', label: 'Overview', icon: '📊' },
-              { id: 'funds', label: 'Fund Verification', icon: '💰' },
-              { id: 'security', label: 'Security Status', icon: '🔒' },
-              { id: 'contracts', label: 'Contract Activity', icon: '⚡' }
-            ].map((tab) => (
+            {ANALYTICS_TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   "px-6 py-3 rounded-md font-medium transition-all duration-200 flex items-center gap-2",
                   activeTab === tab.id
@@ -402,83 +323,210 @@ export default function Analytics() {
           <div className="space-y-6">
             {fundData ? (
               <>
-                {/* Fund Status */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Fund Verification Status</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-3">Lottery Funds (USDC)</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Current Jackpot:</span>
-                          <span className="text-gray-900 font-mono">
-                            {formatCurrency(fundData.lottery_funds.current_jackpot_usdc)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Actual Balance:</span>
-                          <span className="text-gray-900 font-mono">
-                            {formatCurrency(fundData.lottery_funds.jackpot_balance_usdc)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Verification:</span>
-                          <span className={cn(
-                            "font-medium",
-                            fundData.lottery_funds.fund_verified ? "text-green-600" : "text-red-600"
-                          )}>
-                            {fundData.lottery_funds.fund_verified ? '✅ Verified' : '❌ Unverified'}
-                          </span>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Lottery Funds (USDC)</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Target Jackpot</span>
+                        <span className="text-gray-900 font-mono">
+                          {formatCurrency(fundData.lottery_funds.current_jackpot_usdc)}
+                        </span>
                       </div>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-3">Treasury Funds (SOL)</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">SOL Balance:</span>
-                          <span className="text-gray-900 font-mono">
-                            {fundData.treasury_funds.balance_sol.toFixed(4)} SOL
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">USD Value:</span>
-                          <span className="text-gray-900 font-mono">
-                            {formatCurrency(fundData.treasury_funds.balance_usd)}
-                          </span>
-                        </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">On-Chain Balance</span>
+                        <span className="text-gray-900 font-mono">
+                          {formatCurrency(fundData.lottery_funds.jackpot_balance_usdc)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Coverage</span>
+                        <span className={cn(
+                          "font-medium",
+                          fundData.lottery_funds.fund_verified ? "text-green-600" : "text-red-600"
+                        )}>
+                          {fundData.lottery_funds.fund_verified ? '✅ Fully Verified' : '❌ Shortfall Detected'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Difference</span>
+                        <span className="font-medium">
+                          {(() => {
+                            if (fundData.lottery_funds.balance_gap_usdc > 0) {
+                              return (
+                                <span className="text-red-600">
+                                  -{formatCurrency(fundData.lottery_funds.balance_gap_usdc)} (Shortfall)
+                                </span>
+                              )
+                            }
+                            if (fundData.lottery_funds.surplus_usdc > 0) {
+                              return (
+                                <span className="text-green-600">
+                                  +{formatCurrency(fundData.lottery_funds.surplus_usdc)} (Surplus)
+                                </span>
+                              )
+                            }
+                            return <span className="text-gray-500">Balanced</span>
+                          })()}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {fundData.lottery_funds.last_prize_pool_update
+                          ? `Last prize pool update: ${new Date(fundData.lottery_funds.last_prize_pool_update).toLocaleString()}`
+                          : 'No prize pool updates recorded yet.'}
                       </div>
                     </div>
                   </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Jackpot Wallet</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-gray-600 text-sm">Wallet Address</p>
+                        <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                          {fundData.jackpot_wallet.address || 'Not configured'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-sm">Token Account</p>
+                        <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                          {fundData.jackpot_wallet.token_account || 'Not detected'}
+                        </p>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">USDC Balance</span>
+                        <span className="text-gray-900 font-mono">
+                          {formatCurrency(fundData.jackpot_wallet.balance_usdc)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">SOL Balance</span>
+                        <span className="text-gray-900 font-mono">
+                          {fundData.jackpot_wallet.balance_sol !== null
+                            ? `${fundData.jackpot_wallet.balance_sol.toFixed(4)} SOL`
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        {(() => {
+                          const walletStatus = jackpotWalletStatusStyles[fundData.jackpot_wallet.verification_status] ?? jackpotWalletStatusStyles.uninitialized
+                          return (
+                            <span className={cn("text-sm font-medium", walletStatus.color)}>
+                              {walletStatus.label}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Balance checked: {new Date(fundData.jackpot_wallet.last_balance_check).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {fundData.treasury_wallet && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">Treasury Wallet</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-gray-600 text-sm">Address</p>
+                          <p className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 font-mono text-xs break-all">
+                            {fundData.treasury_wallet.address}
+                          </p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">SOL Balance</span>
+                          <span className="text-gray-900 font-mono">
+                            {fundData.treasury_wallet.balance_sol !== null
+                              ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">USD Estimate</span>
+                          <span className="text-gray-900 font-mono">
+                            {fundData.treasury_wallet.balance_usd !== null
+                              ? formatCurrency(fundData.treasury_wallet.balance_usd)
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Balance checked: {new Date(fundData.treasury_wallet.last_balance_check).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Verification Links */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Fund Activity Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                      <p className="text-sm text-gray-600">Completed Contributions</p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {formatCurrency(fundData.fund_activity.total_completed_usdc)}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                      <p className="text-sm text-gray-600">Pending Contributions</p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {formatCurrency(fundData.fund_activity.total_pending_usdc)}
+                      </p>
+                      <p className="text-sm text-gray-500">{fundData.fund_activity.pending_count} pending</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                      <p className="text-sm text-gray-600">Failed Contributions</p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {formatCurrency(fundData.fund_activity.total_failed_usdc)}
+                      </p>
+                      <p className="text-sm text-gray-500">{fundData.fund_activity.failed_count} failed</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                      <p className="text-sm text-gray-600">Recorded Entries</p>
+                      <p className="text-xl font-semibold text-gray-900">
+                        {formatNumber(fundData.fund_activity.total_entries_recorded)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-sm text-gray-500">
+                    {fundData.fund_activity.last_deposit_at
+                      ? `Last contribution observed: ${new Date(fundData.fund_activity.last_deposit_at).toLocaleString()}`
+                      : 'No fund contributions have been recorded yet.'}
+                  </div>
+                </div>
+
                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                   <h3 className="text-xl font-bold text-gray-900 mb-4">On-Chain Verification</h3>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-gray-600 text-sm mb-2">Lottery PDA Address:</p>
+                      <p className="text-gray-600 text-sm mb-2">Lottery PDA</p>
                       <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
                         {fundData.lottery_funds.lottery_pda || 'Not available'}
                       </div>
                     </div>
-                    <div className="flex gap-4">
-                      <a
-                        href={fundData.verification_links.solana_explorer}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        🔗 View on Solana Explorer
-                      </a>
-                      <a
-                        href={fundData.verification_links.program_id}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        🔗 View Program ID
-                      </a>
+                    <div>
+                      <p className="text-gray-600 text-sm mb-2">Jackpot Token Account</p>
+                      <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
+                        {fundData.lottery_funds.jackpot_token_account || 'Not available'}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { label: 'View Lottery PDA', href: fundData.verification_links.solana_explorer, tone: 'bg-blue-600 hover:bg-blue-700' },
+                        { label: 'Program ID', href: fundData.verification_links.program_id, tone: 'bg-purple-600 hover:bg-purple-700' },
+                        { label: 'Jackpot Token Account', href: fundData.verification_links.jackpot_token_account, tone: 'bg-emerald-600 hover:bg-emerald-700' },
+                        { label: 'Jackpot Wallet', href: fundData.verification_links.jackpot_wallet, tone: 'bg-orange-500 hover:bg-orange-600' },
+                        { label: 'Treasury Wallet', href: fundData.verification_links.treasury_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
+                      ].filter(link => link.href).map(link => (
+                        <a
+                          key={link.label}
+                          href={link.href as string}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(link.tone, "text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2")}
+                        >
+                          🔗 {link.label}
+                        </a>
+                      ))}
                     </div>
                   </div>
                 </div>

@@ -2,108 +2,56 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import {
+  fetchDashboardOverview,
+  fetchFundVerification,
+  fetchSecurityStatus,
+  DashboardOverviewData,
+  FundVerificationData,
+  SecurityStatusData,
+} from '@/lib/api/dashboard'
 
-interface DashboardData {
-  lottery_status: {
-    current_jackpot_usdc: number
-    total_entries: number
-    is_active: boolean
-    fund_verified: boolean
-  }
-  platform_stats: {
-    total_users: number
-    total_questions: number
-    total_attempts: number
-    total_successes: number
-    success_rate: number
-  }
-  recent_activity: {
-    new_users_24h: number
-    questions_24h: number
-    attempts_24h: number
-  }
-  system_health: {
-    ai_agent_active: boolean
-    smart_contract_connected: boolean
-    database_connected: boolean
-    rate_limiter_active: boolean
-    sybil_detection_active: boolean
-  }
-  last_updated: string
-}
+type DashboardTab = 'overview' | 'funds' | 'security'
 
-interface FundVerificationData {
-  lottery_funds: {
-    current_jackpot_usdc: number
-    jackpot_balance_usdc: number
-    fund_verified: boolean
-    lottery_pda: string
-    program_id: string
-  }
-  treasury_funds: {
-    balance_sol: number
-    balance_usd: number
-  }
-  verification_links: {
-    solana_explorer: string
-    program_id: string
-  }
-  last_updated: string
-}
-
-interface SecurityStatusData {
-  rate_limiting: {
-    active: boolean
-    requests_per_minute: number
-    requests_per_hour: number
-    cooldown_seconds: number
-  }
-  sybil_detection: {
-    active: boolean
-    detection_methods: string[]
-    blacklisted_phrases: string
-  }
-  ai_security: {
-    personality_system: string
-    manipulation_detection: string
-    blacklisting_system: string
-    success_rate_target: string
-    learning_enabled: boolean
-  }
-  overall_security_score: string
-  last_updated: string
-}
+const DASHBOARD_TABS: Array<{ id: DashboardTab; label: string; icon: string }> = [
+  { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'funds', label: 'Fund Verification', icon: '💰' },
+  { id: 'security', label: 'Security Status', icon: '🔒' },
+]
 
 export default function PublicDashboard() {
-  const [overviewData, setOverviewData] = useState<DashboardData | null>(null)
+  const [overviewData, setOverviewData] = useState<DashboardOverviewData | null>(null)
   const [fundData, setFundData] = useState<FundVerificationData | null>(null)
   const [securityData, setSecurityData] = useState<SecurityStatusData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'funds' | 'security'>('overview')
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview')
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const [overviewRes, fundRes, securityRes] = await Promise.all([
-        fetch('/api/dashboard/overview'),
-        fetch('/api/dashboard/fund-verification'),
-        fetch('/api/dashboard/security-status')
-      ])
-
       const [overview, fund, security] = await Promise.all([
-        overviewRes.json(),
-        fundRes.json(),
-        securityRes.json()
+        fetchDashboardOverview().catch((err: unknown) => {
+          console.warn('Overview fetch failed', err)
+          return null
+        }),
+        fetchFundVerification().catch((err: unknown) => {
+          console.warn('Fund verification fetch failed', err)
+          return null
+        }),
+        fetchSecurityStatus().catch((err: unknown) => {
+          console.warn('Security status fetch failed', err)
+          return null
+        }),
       ])
 
-      if (overview.success) setOverviewData(overview.data)
-      if (fund.success) setFundData(fund.data)
-      if (security.success) setSecurityData(security.data)
+      setOverviewData(overview)
+      setFundData(fund)
+      setSecurityData(security)
 
-      if (!overview.success && !fund.success && !security.success) {
+      if (!overview && !fund && !security) {
         setError('Failed to load dashboard data')
       }
     } catch (err) {
@@ -171,14 +119,10 @@ export default function PublicDashboard() {
       {/* Navigation Tabs */}
       <div className="flex justify-center">
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-1 flex gap-1">
-          {[
-            { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'funds', label: 'Fund Verification', icon: '💰' },
-            { id: 'security', label: 'Security Status', icon: '🔒' }
-          ].map((tab) => (
+          {DASHBOARD_TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "px-4 py-2 rounded-md font-medium transition-all duration-200 flex items-center gap-2 text-sm",
                 activeTab === tab.id

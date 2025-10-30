@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { clusterApiUrl } from '@solana/web3.js'
 
 // Default styles that can be overridden by your app
@@ -19,7 +19,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const wallets = useMemo(
     () => [
-      new PhantomWalletAdapter(),
+      // Phantom is already provided through Wallet Standard adapters, so we only instantiate Solflare explicitly.
       new SolflareWalletAdapter(),
     ],
     []

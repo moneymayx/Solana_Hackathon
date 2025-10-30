@@ -48,7 +48,8 @@ from .services.semantic_search_service import SemanticSearchService
 from .services.pattern_detector_service import PatternDetectorService
 from .services.context_builder_service import ContextBuilderService
 
-# Token economics services - TokenEconomicsService removed (token discount functionality discontinued)
+# Token economics services
+from .services.token_economics_service import TokenEconomicsService
 from .services.revenue_distribution_service import RevenueDistributionService
 from .services.team_service import TeamService, team_service
 
@@ -112,7 +113,7 @@ __all__ = [
     'SemanticSearchService',
     'PatternDetectorService',
     'ContextBuilderService',
-    # TokenEconomicsService removed - token discount functionality discontinued
+    'TokenEconomicsService',
     'RevenueDistributionService',
     'TeamService',
     'team_service',

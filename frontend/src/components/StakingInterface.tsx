@@ -63,7 +63,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
         setTierStats(null)
         setPlatformRevenue(null)
       } else {
-        console.error('Failed to fetch staking data:', err)
+      console.error('Failed to fetch staking data:', err)
         setApiNotice('Unable to load staking metrics right now. Please try again in a few minutes.')
       }
     } finally {
@@ -122,7 +122,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
         setApiNotice('Staking endpoints are offline, so we cannot create new positions right now.')
         alert('Staking service is not available in this environment yet.')
       } else {
-        console.error('Staking error:', err)
+      console.error('Staking error:', err)
         const message = err instanceof Error ? err.message : 'Unknown error'
         alert(`❌ Staking failed: ${message}`)
       }
@@ -146,7 +146,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
     setClaiming(true)
     try {
       const result = await tokenAPI.claimRewards(userId, walletAddress)
-
+      
       if (result.success) {
         alert(`✅ Successfully claimed ${result.amount_claimed} USDC in rewards!`)
         await fetchStakingData()
@@ -179,7 +179,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
 
     try {
       const result = await tokenAPI.unstake(positionId, userId)
-
+      
       if (result.success) {
         alert(`✅ Successfully unstaked ${result.amount_returned} tokens!`)
         await fetchStakingData()
@@ -518,15 +518,15 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
             {Object.entries(tierStats.tiers ?? {}).map(([tierName, tierData]) => {
               const stats = tierData as TokenTierStatsEntry
               return (
-                <div key={tierName} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5">
-                  <p className="text-slate-600 text-sm mb-1">{tierName.replace('_', ' ')}</p>
-                  <p className="text-slate-900 font-bold text-xl">
+              <div key={tierName} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5">
+                <p className="text-slate-600 text-sm mb-1">{tierName.replace('_', ' ')}</p>
+                <p className="text-slate-900 font-bold text-xl">
                     {stats.total_staked.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </p>
-                  <p className="text-sm text-slate-600">
+                </p>
+                <p className="text-sm text-slate-600">
                     {stats.staker_count} stakers • {stats.tier_allocation}% allocation
-                  </p>
-                </div>
+                </p>
+              </div>
               )
             })}
           </div>
