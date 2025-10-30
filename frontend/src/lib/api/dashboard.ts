@@ -38,17 +38,41 @@ export interface FundVerificationData {
     current_jackpot_usdc: number
     jackpot_balance_usdc: number
     fund_verified: boolean
+    balance_gap_usdc: number
+    surplus_usdc: number
     lottery_pda: string
     program_id: string
+    jackpot_token_account: string
+    last_prize_pool_update: string | null
   }
-  treasury_funds: {
-    balance_sol: number
-    balance_usd: number
+  jackpot_wallet: {
+    address: string
+    token_account: string
+    mint?: string
+    balance_usdc: number
+    balance_sol: number | null
+    verification_status: 'verified' | 'shortfall' | 'uninitialized'
+    last_balance_check: string
+  }
+  treasury_wallet?: {
+    address: string
+    balance_sol: number | null
+    balance_usd: number | null
+    last_balance_check: string
+  } | null
+  fund_activity: {
+    total_completed_usdc: number
+    total_pending_usdc: number
+    total_failed_usdc: number
+    pending_count: number
+    failed_count: number
+    total_entries_recorded: number
+    last_deposit_at: string | null
   }
   verification_links: {
     solana_explorer: string
     program_id: string
-    jackpot_token_account?: string
+    jackpot_token_account: string
     jackpot_wallet?: string | null
     treasury_wallet?: string | null
   }
