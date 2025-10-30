@@ -6,6 +6,10 @@ export const sumBountyPools = (bountyList: Bounty[] | null): number => {
     return 0
   }
 
-  return bountyList.reduce((accumulator: number, bounty: Bounty) => accumulator + (bounty.current_pool || 0), 0)
+  return bountyList.reduce((accumulator: number, bounty: Bounty) => {
+    const normalizedPool = Number(bounty.current_pool ?? bounty.starting_pool ?? 0)
+    // Normalizing the pool value guards against string responses and missing fields so the UI sum mirrors live bounty funding accurately.
+    return accumulator + (Number.isFinite(normalizedPool) ? normalizedPool : 0)
+  }, 0)
 }
 

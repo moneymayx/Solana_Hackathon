@@ -102,12 +102,6 @@ export default function Analytics() {
     return status ? '✅' : '❌'
   }
 
-const jackpotWalletStatusStyles: Record<string, { label: string; color: string }> = {
-  verified: { label: 'Verified coverage', color: 'text-green-600' },
-  shortfall: { label: 'Funding shortfall', color: 'text-red-600' },
-  uninitialized: { label: 'Awaiting initial funding', color: 'text-gray-500' }
-}
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -121,6 +115,11 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
       </div>
     )
   }
+
+  const displayedBountyTotal = totalBounties > 0
+    ? totalBounties
+    : overviewData?.lottery_status.current_jackpot_usdc ?? 0
+  // Falling back to the on-chain jackpot snapshot keeps the overview resilient while still prioritizing the live bounty aggregation across environments.
 
   return (
     <div className="min-h-screen bg-white">
@@ -198,9 +197,9 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                   <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-gray-600 text-sm">Current Jackpot</p>
+                        <p className="text-gray-600 text-sm">Total Bounty Amount</p>
                         <p className="text-2xl font-bold text-gray-900 break-words break-all">
-                          {formatCurrency(overviewData.lottery_status.current_jackpot_usdc)}
+                          {formatCurrency(displayedBountyTotal)}
                         </p>
                       </div>
                       <div className="text-3xl">💰</div>
@@ -310,30 +309,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
           <div className="space-y-6">
             {fundData ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Lottery Funds (USDC)</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-gray-600 text-sm uppercase tracking-wide">Total Bounties</p>
-                        <p
-                          className="text-5xl font-bold text-gray-900 break-words break-all"
-                          style={{ fontFamily: 'var(--font-gravitas), cursive' }}
-                        >
-                          {formatCurrency(totalBounties)}
-                        </p>
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        Combined prize pools across all active bounties.
-                      </p>
-                      {fundData.lottery_funds.last_prize_pool_update && (
-                        <p className="text-xs text-gray-400">
-                          {`Last prize pool update: ${new Date(fundData.lottery_funds.last_prize_pool_update).toLocaleString()}`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Jackpot Wallet</h3>
                     <div className="space-y-4">
@@ -352,24 +328,6 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                           {formatCurrency(fundData.jackpot_wallet.balance_usdc)}
                         </div>
                       </div>
-                      <div>
-                        <p className="text-gray-600 text-sm">SOL Balance</p>
-                        <div className="text-gray-900 font-mono break-words break-all">
-                          {fundData.jackpot_wallet.balance_sol !== null
-                            ? `${fundData.jackpot_wallet.balance_sol.toFixed(4)} SOL`
-                            : 'N/A'}
-                        </div>
-                      </div>
-                      <div>
-                        {(() => {
-                          const walletStatus = jackpotWalletStatusStyles[fundData.jackpot_wallet.verification_status] ?? jackpotWalletStatusStyles.uninitialized
-                          return (
-                            <span className={cn("text-sm font-medium", walletStatus.color)}>
-                              {walletStatus.label}
-                            </span>
-                          )
-                        })()}
-                      </div>
                       <div className="text-xs text-gray-500">
                         Balance checked: {new Date(fundData.jackpot_wallet.last_balance_check).toLocaleString()}
                       </div>
@@ -379,7 +337,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                   {fundData.staking_wallet && (
                     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                       <h3 className="text-xl font-bold text-gray-900 mb-4">Staking Wallet</h3>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div>
                           <p className="text-gray-600 text-sm">Address</p>
                           <div className="font-mono text-xs text-gray-900 break-words break-all">
@@ -389,6 +347,15 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                         <p className="text-sm text-gray-500">
                           On-chain staking reserve for reward distributions. View on explorer to confirm balances.
                         </p>
+                        <div>
+                          <p className="text-gray-600 text-sm">USDC Balance</p>
+                          <div className="text-gray-900 font-mono break-words break-all">
+                            {formatCurrency(fundData.staking_wallet.balance_usd ?? 0)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Balance checked: {new Date(fundData.staking_wallet.last_balance_check).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   )}
