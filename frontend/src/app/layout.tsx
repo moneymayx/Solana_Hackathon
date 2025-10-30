@@ -23,12 +23,12 @@ const gravitasOne = Gravitas_One({
 })
 
 export const metadata: Metadata = {
-  title: 'Billions Bounty - AI Security Research Platform',
+  title: 'BILLION$ AI',
   description: 'Educational platform for studying AI security vulnerabilities and human psychology. Research-based cybersecurity training system for academic and educational purposes.',
   keywords: ['AI security', 'cybersecurity research', 'educational platform', 'AI safety', 'research', 'academic', 'blockchain', 'Solana'],
   authors: [{ name: 'Billions Bounty Research Team' }],
   openGraph: {
-    title: 'Billions Bounty - AI Security Research Platform',
+    title: 'BILLION$ AI',
     description: 'Educational platform for studying AI security vulnerabilities and human psychology.',
     type: 'website',
   },
