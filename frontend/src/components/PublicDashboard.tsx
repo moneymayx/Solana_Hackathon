@@ -269,32 +269,16 @@ export default function PublicDashboard() {
                   </div>
                 </div>
               </div>
-              {fundData.treasury_wallet && (
+              {fundData.staking_wallet && (
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-3">Treasury Funds (SOL)</h4>
+                  <h4 className="text-lg font-semibold text-white mb-3">Staking Wallet</h4>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">SOL Balance:</span>
-                      <span className="text-white font-mono break-words break-all">
-                        {fundData.treasury_wallet.balance_sol !== null
-                          ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
-                          : 'N/A'}
-                      </span>
+                    <div className="text-sm text-gray-400 break-words break-all">
+                      {fundData.staking_wallet.address}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">USD Value:</span>
-                      <span className="text-white font-mono break-words break-all">
-                        {fundData.treasury_wallet.balance_usd !== null
-                          ? formatCurrency(fundData.treasury_wallet.balance_usd)
-                          : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Last Checked:</span>
-                      <span>
-                        {new Date(fundData.treasury_wallet.last_balance_check).toLocaleString()}
-                      </span>
-                    </div>
+                    <p className="text-xs text-gray-500">
+                      This address holds staking reserves. Use the explorer link below to verify balances.
+                    </p>
                   </div>
                 </div>
               )}
@@ -311,23 +295,23 @@ export default function PublicDashboard() {
                   {fundData.lottery_funds.lottery_pda || 'Not available'}
                 </div>
               </div>
-              <div className="flex gap-4">
-                <a
-                  href={fundData.verification_links.solana_explorer}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  🔗 View on Solana Explorer
-                </a>
-                <a
-                  href={fundData.verification_links.program_id}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  🔗 View Program ID
-                </a>
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { label: 'View Lottery PDA', href: fundData.verification_links.solana_explorer, tone: 'bg-blue-500 hover:bg-blue-600' },
+                  { label: 'View Program ID', href: fundData.verification_links.program_id, tone: 'bg-purple-500 hover:bg-purple-600' },
+                  { label: 'Jackpot Wallet', href: fundData.verification_links.jackpot_wallet, tone: 'bg-orange-500 hover:bg-orange-600' },
+                  { label: 'Staking Wallet', href: fundData.verification_links.staking_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
+                ].filter(link => link.href).map(link => (
+                  <a
+                    key={link.label}
+                    href={link.href as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${link.tone} text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2`}
+                  >
+                    🔗 {link.label}
+                  </a>
+                ))}
               </div>
             </div>
           </div>

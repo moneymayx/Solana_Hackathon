@@ -425,35 +425,19 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                     </div>
                   </div>
 
-                  {fundData.treasury_wallet && (
+                  {fundData.staking_wallet && (
                     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Treasury Wallet</h3>
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">Staking Wallet</h3>
                       <div className="space-y-3">
                         <div>
                           <p className="text-gray-600 text-sm">Address</p>
                           <div className="font-mono text-xs text-gray-900 break-words break-all">
-                            {fundData.treasury_wallet.address}
+                            {fundData.staking_wallet.address}
                           </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">SOL Balance</span>
-                          <span className="text-gray-900 font-mono break-words break-all">
-                            {fundData.treasury_wallet.balance_sol !== null
-                              ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
-                              : 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">USD Estimate</span>
-                          <span className="text-gray-900 font-mono break-words break-all">
-                            {fundData.treasury_wallet.balance_usd !== null
-                              ? formatCurrency(fundData.treasury_wallet.balance_usd)
-                              : 'N/A'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Balance checked: {new Date(fundData.treasury_wallet.last_balance_check).toLocaleString()}
-                        </div>
+                        <p className="text-sm text-gray-500">
+                          On-chain staking reserve for reward distributions. View on explorer to confirm balances.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -517,7 +501,7 @@ const jackpotWalletStatusStyles: Record<string, { label: string; color: string }
                         { label: 'Program ID', href: fundData.verification_links.program_id, tone: 'bg-purple-600 hover:bg-purple-700' },
                         { label: 'Jackpot Token Account', href: fundData.verification_links.jackpot_token_account, tone: 'bg-emerald-600 hover:bg-emerald-700' },
                         { label: 'Jackpot Wallet', href: fundData.verification_links.jackpot_wallet, tone: 'bg-orange-500 hover:bg-orange-600' },
-                        { label: 'Treasury Wallet', href: fundData.verification_links.treasury_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
+                        { label: 'Staking Wallet', href: fundData.verification_links.staking_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
                       ].filter(link => link.href).map(link => (
                         <a
                           key={link.label}

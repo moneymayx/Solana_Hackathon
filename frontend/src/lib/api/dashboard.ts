@@ -54,7 +54,7 @@ export interface FundVerificationData {
     verification_status: 'verified' | 'shortfall' | 'uninitialized'
     last_balance_check: string
   }
-  treasury_wallet?: {
+  staking_wallet?: {
     address: string
     balance_sol: number | null
     balance_usd: number | null
@@ -74,7 +74,7 @@ export interface FundVerificationData {
     program_id: string
     jackpot_token_account: string
     jackpot_wallet?: string | null
-    treasury_wallet?: string | null
+    staking_wallet?: string | null
   }
   last_updated: string
 }

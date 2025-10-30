@@ -2249,14 +2249,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                 logger.warning("Failed to fetch jackpot wallet SOL balance: %s", exc)
                 jackpot_wallet_sol = None
 
-        treasury_wallet_address = os.getenv("TREASURY_SOLANA_ADDRESS", "").strip() or None
-        treasury_balance_sol: Optional[float] = None
-        if treasury_wallet_address:
-            try:
-                treasury_balance_sol = await solana_service.get_treasury_balance()
-            except Exception as exc:  # pragma: no cover - network calls may fail in CI
-                logger.warning("Failed to fetch treasury balance: %s", exc)
-                treasury_balance_sol = None
+        staking_wallet_address = os.getenv("STAKING_WALLET_ADDRESS", "").strip() or None
 
         total_completed_usdc_result = await session.execute(
             select(func.coalesce(func.sum(FundDeposit.amount_usdc), 0.0)).where(FundDeposit.status == "completed")
@@ -2294,12 +2287,12 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         explorer_suffix = "?cluster=devnet" if os.getenv("SOLANA_NETWORK", "devnet").lower() != "mainnet" else ""
         timestamp_now = datetime.utcnow().isoformat()
 
-        treasury_payload = None
-        if treasury_wallet_address and treasury_balance_sol is not None:
-            treasury_payload = {
-                "address": treasury_wallet_address,
-                "balance_sol": treasury_balance_sol,
-                "balance_usd": treasury_balance_sol * 100.0,
+        staking_payload = None
+        if staking_wallet_address:
+            staking_payload = {
+                "address": staking_wallet_address,
+                "balance_sol": None,
+                "balance_usd": None,
                 "last_balance_check": timestamp_now,
             }
 
@@ -2330,7 +2323,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                     ),
                     "last_balance_check": timestamp_now,
                 },
-                "treasury_wallet": treasury_payload,
+                "staking_wallet": staking_payload,
                 "fund_activity": {
                     "total_completed_usdc": total_completed_usdc,
                     "total_pending_usdc": total_pending_usdc,
@@ -2348,9 +2341,9 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                         f"https://explorer.solana.com/address/{jackpot_wallet_address}{explorer_suffix}"
                         if jackpot_wallet_address else None
                     ),
-                    "treasury_wallet": (
-                        f"https://explorer.solana.com/address/{treasury_wallet_address}{explorer_suffix}"
-                        if treasury_wallet_address and treasury_payload else None
+                    "staking_wallet": (
+                        f"https://explorer.solana.com/address/{staking_wallet_address}{explorer_suffix}"
+                        if staking_wallet_address else None
                     ),
                 },
                 "last_updated": timestamp_now
