@@ -15,8 +15,8 @@ import {
   TokenPlatformRevenueResponse,
   ApiError,
   TokenTierStatsEntry,
-  UnstakeResponse,
 } from '@/lib/api/enhancements'
+import type { UnstakeResponse } from '@/lib/api/enhancements'
 
 interface StakingInterfaceProps {
   userId: number
