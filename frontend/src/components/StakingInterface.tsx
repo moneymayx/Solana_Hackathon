@@ -433,7 +433,13 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
               const isUnlocked = position.is_unlocked || false
               const canUnstake = isUnlocked && position.status === 'active'
               const key = position.position_id ?? position.id ?? index
+              const positionId = position.position_id ?? position.id
               
+              const unlockDate = position.unlocks_at ?? position.unlock_date
+              const formattedUnlockDate = unlockDate
+                ? new Date(unlockDate).toLocaleDateString()
+                : 'Pending'
+
               return (
                 <div key={key} className="bg-slate-50 rounded-lg p-4 border border-slate-200 shadow-md shadow-slate-900/5 hover:shadow-lg hover:shadow-slate-900/10 transition-all duration-200">
                   <div className="flex items-center justify-between mb-3">
@@ -469,9 +475,7 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
                     </div>
                     <div>
                       <span className="text-slate-600">Unlocks: </span>
-                      <span className="text-slate-900">
-                        {new Date(position.unlocks_at || position.unlock_date).toLocaleDateString()}
-                      </span>
+                      <span className="text-slate-900">{formattedUnlockDate}</span>
                     </div>
                     <div>
                       <span className={`${isUnlocked ? 'text-emerald-600' : 'text-slate-600'}`}>
@@ -480,9 +484,9 @@ export default function StakingInterface({ userId, walletAddress, currentBalance
                     </div>
                   </div>
 
-                  {canUnstake && (
+                  {canUnstake && positionId != null && (
                     <button
-                      onClick={() => handleUnstake(position.position_id || position.id)}
+                      onClick={() => handleUnstake(positionId)}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium text-sm transition-all"
                     >
                       Unstake Tokens
