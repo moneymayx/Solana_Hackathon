@@ -272,18 +272,36 @@ export default function PublicDashboard() {
               <div>
                 <h4 className="text-lg font-semibold text-white mb-3">Treasury Funds (SOL)</h4>
                 <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">SOL Balance:</span>
-                    <span className="text-white font-mono">
-                      {fundData.treasury_funds.balance_sol.toFixed(4)} SOL
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">USD Value:</span>
-                    <span className="text-white font-mono">
-                      {formatCurrency(fundData.treasury_funds.balance_usd)}
-                    </span>
-                  </div>
+                  {fundData.treasury_wallet ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">SOL Balance:</span>
+                        <span className="text-white font-mono">
+                          {fundData.treasury_wallet.balance_sol !== null
+                            ? `${fundData.treasury_wallet.balance_sol.toFixed(4)} SOL`
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">USD Value:</span>
+                        <span className="text-white font-mono">
+                          {fundData.treasury_wallet.balance_usd !== null
+                            ? formatCurrency(fundData.treasury_wallet.balance_usd)
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Last Checked:</span>
+                        <span>
+                          {new Date(fundData.treasury_wallet.last_balance_check).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400">
+                      Treasury wallet details are not available.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
