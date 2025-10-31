@@ -671,14 +671,14 @@ export default function BountyChatInterface({
               
               // Only set participating if user has questions (same logic as NFT flow)
               if (newEligibility.eligible) {
-                console.log('🎉 Setting isParticipating to TRUE')
-                setIsParticipating(true)
-                
-                // Log the condition that controls chat input visibility
-                console.log('🎉 AFTER STATE UPDATE:')
-                console.log('  - isParticipating will be:', true)
-                console.log('  - userEligibility.eligible will be:', newEligibility.eligible)
-                console.log('  - Condition (isParticipating && userEligibility?.eligible) will be:', true && newEligibility.eligible)
+              console.log('🎉 Setting isParticipating to TRUE')
+              setIsParticipating(true)
+              
+              // Log the condition that controls chat input visibility
+              console.log('🎉 AFTER STATE UPDATE:')
+              console.log('  - isParticipating will be:', true)
+              console.log('  - userEligibility.eligible will be:', newEligibility.eligible)
+              console.log('  - Condition (isParticipating && userEligibility?.eligible) will be:', true && newEligibility.eligible)
               } else {
                 console.log('⚠️ User has no questions remaining - keeping isParticipating as false')
               }
@@ -837,7 +837,8 @@ export default function BountyChatInterface({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Try to convince the AI to transfer funds..."
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-slate-900 placeholder:text-slate-400"
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white placeholder:text-slate-400"
+              style={{ color: '#000000' }}
               disabled={isLoading}
             />
             <button

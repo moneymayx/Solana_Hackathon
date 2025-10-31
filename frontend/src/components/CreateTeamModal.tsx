@@ -67,7 +67,8 @@ export default function CreateTeamModal({ userId, onClose, onSuccess }: CreateTe
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder:text-slate-400"
+              style={{ color: '#000000' }}
               required
               placeholder="Enter team name"
             />
@@ -78,7 +79,8 @@ export default function CreateTeamModal({ userId, onClose, onSuccess }: CreateTe
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder:text-slate-400"
+              style={{ color: '#000000' }}
               rows={3}
               required
               placeholder="Describe your team's purpose and strategy"

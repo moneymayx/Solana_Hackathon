@@ -298,13 +298,81 @@ data class RecentActivity(
 
 data class FundVerificationResponse(
     val success: Boolean,
-    val verification: FundVerification
+    val data: FundVerificationData? = null,
+    val error: String? = null
 )
 
-data class FundVerification(
-    val lottery_pda_address: String,
-    val current_balance: Double,
-    val on_chain_verification: Boolean
+data class FundVerificationData(
+    val lottery_funds: LotteryFundsData,
+    val jackpot_wallet: JackpotWalletData,
+    val staking_wallet: StakingWalletData? = null,
+    val v2_wallets: V2WalletsData? = null,
+    val fund_activity: FundActivityData,
+    val verification_links: VerificationLinksData,
+    val last_updated: String
+)
+
+data class LotteryFundsData(
+    val current_jackpot_usdc: Double,
+    val jackpot_balance_usdc: Double,
+    val fund_verified: Boolean,
+    val balance_gap_usdc: Double,
+    val surplus_usdc: Double,
+    val lottery_pda: String,
+    val program_id: String,
+    val jackpot_token_account: String,
+    val last_prize_pool_update: String? = null
+)
+
+data class JackpotWalletData(
+    val address: String,
+    val token_account: String,
+    val mint: String? = null,
+    val balance_usdc: Double,
+    val balance_sol: Double? = null,
+    val verification_status: String,
+    val last_balance_check: String
+)
+
+data class StakingWalletData(
+    val address: String,
+    val balance_sol: Double? = null,
+    val balance_usd: Double? = null,
+    val last_balance_check: String
+)
+
+data class V2WalletsData(
+    val bounty_pool: V2WalletInfo? = null,
+    val operational: V2WalletInfo? = null,
+    val buyback: V2WalletInfo? = null,
+    val staking: V2WalletInfo? = null
+)
+
+data class V2WalletInfo(
+    val address: String,
+    val label: String
+)
+
+data class FundActivityData(
+    val total_completed_usdc: Double,
+    val total_pending_usdc: Double,
+    val total_failed_usdc: Double,
+    val pending_count: Int,
+    val failed_count: Int,
+    val total_entries_recorded: Int,
+    val last_deposit_at: String? = null
+)
+
+data class VerificationLinksData(
+    val solana_explorer: String? = null,
+    val program_id: String? = null,
+    val jackpot_token_account: String? = null,
+    val jackpot_wallet: String? = null,
+    val staking_wallet: String? = null,
+    val bounty_pool_wallet: String? = null,
+    val operational_wallet: String? = null,
+    val buyback_wallet: String? = null,
+    val bounty_pda: String? = null
 )
 
 data class SecurityStatusResponse(

@@ -81,7 +81,8 @@ export default function TeamBrowse({ userId, onJoinTeam }: TeamBrowseProps) {
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             placeholder="Enter invite code (e.g., ABC12XYZ)"
-            className="flex-1 bg-white text-slate-900 rounded-lg px-4 py-3 border border-slate-300 focus:border-blue-500 focus:outline-none font-mono"
+            className="flex-1 bg-white rounded-lg px-4 py-3 border border-slate-300 focus:border-blue-500 focus:outline-none font-mono placeholder:text-slate-400"
+            style={{ color: '#000000' }}
             maxLength={8}
           />
           <button

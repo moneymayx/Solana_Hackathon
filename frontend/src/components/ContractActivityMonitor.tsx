@@ -45,24 +45,34 @@ export default function ContractActivityMonitor({
   // Fetch recent contract transactions
   const fetchTransactions = async () => {
     try {
+      setIsLoading(true)
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${backendUrl}/api/contract/activity`)
-      if (!response.ok) throw new Error('Failed to fetch transactions')
+      const response = await fetch(`${backendUrl}/api/contract/activity?limit=${maxTransactions}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch transactions: ${response.status}`)
+      }
       
       const data = await response.json()
       if (data.success && data.transactions) {
+        // Determine network from environment or default to devnet
+        const network: 'devnet' | 'mainnet' = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet' ? 'mainnet' : 'devnet'
+        
         // Add explorer URLs to each transaction
         const transactionsWithExplorer = data.transactions.map((tx: ContractTransaction) => ({
           ...tx,
           explorer_url: tx.transaction_signature 
-            ? getExplorerUrl(tx.transaction_signature) 
+            ? getExplorerUrl(tx.transaction_signature, network) 
             : undefined
         }))
         setTransactions(transactionsWithExplorer.slice(0, maxTransactions))
         setLastUpdate(new Date())
+      } else {
+        // If no transactions, still update last check time
+        setLastUpdate(new Date())
       }
     } catch (error) {
       console.error('Error fetching contract activity:', error)
+      // Don't set error state - just log it so UI still shows
     } finally {
       setIsLoading(false)
     }

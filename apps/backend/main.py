@@ -25,6 +25,13 @@ logger.info(f"✅ Loaded .env from: {env_path}")
 logger.info(f"🗄️  DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT SET')[:80]}...")
 logger.info(f"💳 PAYMENT_MODE: {os.getenv('PAYMENT_MODE', 'NOT SET')}")
 
+# Add project root to Python path so we can import from src
+import sys
+project_root_str = str(project_root.resolve())
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
+    logger.info(f"✅ Added project root to Python path: {project_root_str}")
+
 # NOW Import from reorganized src package (after .env is loaded)
 from src import (
     BillionsAgent,
@@ -2337,10 +2344,13 @@ async def get_dashboard_overview(session: AsyncSession = Depends(get_db)):
 
 @app.get("/api/dashboard/fund-verification")
 async def get_fund_verification(session: AsyncSession = Depends(get_db)):
-    """Get detailed fund verification data"""
+    """Get detailed fund verification data with V2 support"""
     try:
         from datetime import datetime
-
+        
+        # Check if V2 is enabled
+        use_v2 = os.getenv("USE_CONTRACT_V2", "false").lower() == "true"
+        
         # Blend on-chain balances with internal accounting so fund transparency reflects real movements.
         lottery_status = await smart_contract_service.get_lottery_status()
         jackpot_balance = await smart_contract_service.get_jackpot_balance()
@@ -2369,7 +2379,31 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         balance_gap_usdc = max(0.0, target_jackpot_usdc - jackpot_balance_usdc)
         surplus_usdc = max(0.0, jackpot_balance_usdc - target_jackpot_usdc)
 
-        jackpot_wallet_address = os.getenv("JACKPOT_WALLET_ADDRESS", "").strip() or None
+        # Get wallet addresses - use V2 if enabled, otherwise V1
+        if use_v2:
+            # V2 addresses (4-way split)
+            bounty_pool_wallet = os.getenv("V2_BOUNTY_POOL_WALLET", "").strip() or os.getenv("JACKPOT_WALLET_ADDRESS", "").strip()
+            operational_wallet = os.getenv("V2_OPERATIONAL_WALLET", "").strip() or os.getenv("OPERATIONAL_WALLET_ADDRESS", "").strip()
+            buyback_wallet = os.getenv("V2_BUYBACK_WALLET", "").strip() or os.getenv("BUYBACK_WALLET_ADDRESS", "").strip()
+            staking_wallet_address = os.getenv("V2_STAKING_WALLET", "").strip() or os.getenv("STAKING_WALLET_ADDRESS", "").strip()
+            # Use bounty pool as the primary wallet for display
+            jackpot_wallet_address = bounty_pool_wallet
+            
+            # V2 PDAs
+            global_pda = os.getenv("V2_GLOBAL_PDA", "").strip() or ""
+            bounty_pda = os.getenv("V2_BOUNTY_1_PDA", "").strip() or ""
+            program_id = os.getenv("LOTTERY_PROGRAM_ID_V2", "").strip() or lottery_status.get("program_id", "")
+            # Use global PDA as lottery PDA for V2
+            lottery_pda = global_pda or lottery_status.get("lottery_pda", "")
+        else:
+            # V1 addresses
+            jackpot_wallet_address = os.getenv("JACKPOT_WALLET_ADDRESS", "").strip() or None
+            staking_wallet_address = os.getenv("STAKING_WALLET_ADDRESS", "").strip() or None
+            operational_wallet = None
+            buyback_wallet = None
+            lottery_pda = lottery_status.get("lottery_pda", "")
+            program_id = lottery_status.get("program_id", "")
+        
         jackpot_wallet_sol: Optional[float] = None
         if jackpot_wallet_address:
             try:
@@ -2378,8 +2412,6 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
             except Exception as exc:  # pragma: no cover - network calls may fail in CI
                 logger.warning("Failed to fetch jackpot wallet SOL balance: %s", exc)
                 jackpot_wallet_sol = None
-
-        staking_wallet_address = os.getenv("STAKING_WALLET_ADDRESS", "").strip() or None
 
         total_completed_usdc_result = await session.execute(
             select(func.coalesce(func.sum(FundDeposit.amount_usdc), 0.0)).where(FundDeposit.status == "completed")
@@ -2417,6 +2449,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
         explorer_suffix = "?cluster=devnet" if os.getenv("SOLANA_NETWORK", "devnet").lower() != "mainnet" else ""
         timestamp_now = datetime.utcnow().isoformat()
 
+        # Build wallet information
         staking_payload = None
         if staking_wallet_address:
             staking_payload = {
@@ -2425,6 +2458,50 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                 "balance_usd": None,
                 "last_balance_check": timestamp_now,
             }
+        
+        # Build V2 wallet addresses info if enabled
+        v2_wallets = None
+        if use_v2:
+            v2_wallets = {
+                "bounty_pool": {
+                    "address": bounty_pool_wallet,
+                    "label": "Bounty Pool (60%)",
+                },
+                "operational": {
+                    "address": operational_wallet,
+                    "label": "Operational (20%)",
+                },
+                "buyback": {
+                    "address": buyback_wallet,
+                    "label": "Buyback (10%)",
+                },
+                "staking": {
+                    "address": staking_wallet_address,
+                    "label": "Staking (10%)",
+                },
+            }
+
+        # Build verification links
+        verification_links = {
+            "solana_explorer": f"https://explorer.solana.com/address/{lottery_pda}{explorer_suffix}" if lottery_pda else None,
+            "program_id": f"https://explorer.solana.com/address/{program_id}{explorer_suffix}" if program_id else None,
+            "jackpot_token_account": f"https://explorer.solana.com/address/{jackpot_balance.get('token_account', '')}{explorer_suffix}" if jackpot_balance.get('token_account') else None,
+            "jackpot_wallet": (
+                f"https://explorer.solana.com/address/{jackpot_wallet_address}{explorer_suffix}"
+                if jackpot_wallet_address else None
+            ),
+            "staking_wallet": (
+                f"https://explorer.solana.com/address/{staking_wallet_address}{explorer_suffix}"
+                if staking_wallet_address else None
+            ),
+        }
+        
+        # Add V2 wallet links if enabled
+        if use_v2 and v2_wallets:
+            verification_links["bounty_pool_wallet"] = f"https://explorer.solana.com/address/{bounty_pool_wallet}{explorer_suffix}" if bounty_pool_wallet else None
+            verification_links["operational_wallet"] = f"https://explorer.solana.com/address/{operational_wallet}{explorer_suffix}" if operational_wallet else None
+            verification_links["buyback_wallet"] = f"https://explorer.solana.com/address/{buyback_wallet}{explorer_suffix}" if buyback_wallet else None
+            verification_links["bounty_pda"] = f"https://explorer.solana.com/address/{bounty_pda}{explorer_suffix}" if bounty_pda else None
 
         return {
             "success": True,
@@ -2435,8 +2512,8 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                     "fund_verified": fund_verified,
                     "balance_gap_usdc": balance_gap_usdc,
                     "surplus_usdc": surplus_usdc,
-                    "lottery_pda": lottery_status.get("lottery_pda", ""),
-                    "program_id": lottery_status.get("program_id", ""),
+                    "lottery_pda": lottery_pda,
+                    "program_id": program_id,
                     "jackpot_token_account": jackpot_balance.get("token_account", ""),
                     "last_prize_pool_update": (
                         prize_pool.last_updated.isoformat() if prize_pool and prize_pool.last_updated else None
@@ -2454,6 +2531,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                     "last_balance_check": timestamp_now,
                 },
                 "staking_wallet": staking_payload,
+                "v2_wallets": v2_wallets,  # V2 wallet addresses
                 "fund_activity": {
                     "total_completed_usdc": total_completed_usdc,
                     "total_pending_usdc": total_pending_usdc,
@@ -2463,19 +2541,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
                     "total_entries_recorded": total_entries_recorded,
                     "last_deposit_at": last_deposit_at_dt.isoformat() if last_deposit_at_dt else None,
                 },
-                "verification_links": {
-                    "solana_explorer": f"https://explorer.solana.com/address/{lottery_status.get('lottery_pda', '')}{explorer_suffix}",
-                    "program_id": f"https://explorer.solana.com/address/{lottery_status.get('program_id', '')}{explorer_suffix}",
-                    "jackpot_token_account": f"https://explorer.solana.com/address/{jackpot_balance.get('token_account', '')}{explorer_suffix}",
-                    "jackpot_wallet": (
-                        f"https://explorer.solana.com/address/{jackpot_wallet_address}{explorer_suffix}"
-                        if jackpot_wallet_address else None
-                    ),
-                    "staking_wallet": (
-                        f"https://explorer.solana.com/address/{staking_wallet_address}{explorer_suffix}"
-                        if staking_wallet_address else None
-                    ),
-                },
+                "verification_links": verification_links,
                 "last_updated": timestamp_now
             }
         }
@@ -2484,6 +2550,115 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
             "success": False,
             "error": str(e),
             "data": None
+        }
+
+@app.get("/api/contract/activity")
+async def get_contract_activity(limit: int = 20):
+    """Get recent smart contract transactions from the blockchain"""
+    try:
+        from solders.pubkey import Pubkey
+        import asyncio
+        
+        # Check if V2 is enabled
+        use_v2 = os.getenv("USE_CONTRACT_V2", "false").lower() == "true"
+        
+        if use_v2:
+            program_id_str = os.getenv("LOTTERY_PROGRAM_ID_V2", "").strip()
+        else:
+            # Get from smart contract service if available
+            lottery_status_temp = await smart_contract_service.get_lottery_status()
+            program_id_str = os.getenv("LOTTERY_PROGRAM_ID", "").strip() or lottery_status_temp.get("program_id", "")
+        
+        if not program_id_str:
+            return {
+                "success": False,
+                "error": "Program ID not configured",
+                "transactions": []
+            }
+        
+        # Get Solana RPC client from smart_contract_service
+        program_id = Pubkey.from_string(program_id_str)
+        
+        # Query transactions for the program
+        # Get signatures for recent transactions
+        try:
+            # Use the RPC client from smart_contract_service
+            rpc_client = smart_contract_service.client
+            
+            # Get recent signatures for the program
+            signatures_response = await rpc_client.get_signatures_for_address(
+                program_id,
+                limit=limit
+            )
+            
+            transactions = []
+            if signatures_response.value:
+                # Fetch transaction details for each signature
+                for sig_info in signatures_response.value[:limit]:
+                    try:
+                        sig = sig_info.signature
+                        # Get transaction details
+                        tx_response = await rpc_client.get_transaction(
+                            sig,
+                            commitment="confirmed",
+                            max_supported_transaction_version=0
+                        )
+                        
+                        if tx_response.value:
+                            tx = tx_response.value
+                            # Extract relevant info
+                            timestamp = tx.block_time if tx.block_time else 0
+                            amount = 0.0
+                            wallet_address = ""
+                            
+                            # Try to extract amount and wallet from transaction
+                            if tx.transaction and tx.transaction.message:
+                                # Get account keys
+                                account_keys = tx.transaction.message.account_keys
+                                if account_keys and len(account_keys) > 0:
+                                    wallet_address = str(account_keys[0]) if account_keys[0] else ""
+                            
+                            # Determine transaction type
+                            tx_type = "lottery_entry"  # Default
+                            if "process_entry_payment" in str(sig_info):
+                                tx_type = "lottery_entry"
+                            elif "select_winner" in str(sig_info) or "winner" in str(sig_info):
+                                tx_type = "winner_payout"
+                            elif "staking" in str(sig_info) or "stake" in str(sig_info):
+                                tx_type = "staking"
+                            
+                            transactions.append({
+                                "id": len(transactions),
+                                "type": tx_type,
+                                "transaction_signature": str(sig),
+                                "wallet_address": wallet_address or "Unknown",
+                                "amount": amount,
+                                "status": "confirmed" if tx.meta and not tx.meta.err else "failed",
+                                "created_at": datetime.fromtimestamp(timestamp).isoformat() if timestamp else datetime.utcnow().isoformat(),
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch transaction details for {sig_info.signature}: {e}")
+                        continue
+            
+            return {
+                "success": True,
+                "transactions": transactions[:limit]
+            }
+            
+        except Exception as e:
+            logger.error(f"Error fetching contract transactions: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "transactions": []
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in contract activity endpoint: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "transactions": []
         }
 
 @app.get("/api/dashboard/security-status")

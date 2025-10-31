@@ -90,7 +90,8 @@ export default function ReferralCodeClaim({ referralCode, onClaimed }: ReferralC
                 placeholder="your.email@example.com"
                 required
                 disabled={isLoading || !publicKey}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-black bg-white placeholder:text-slate-400"
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed bg-white placeholder:text-slate-400"
+                style={{ color: '#000000' }}
               />
             </div>
             <button

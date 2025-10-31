@@ -69,12 +69,34 @@ export interface FundVerificationData {
     total_entries_recorded: number
     last_deposit_at: string | null
   }
+  v2_wallets?: {
+    bounty_pool?: {
+      address: string
+      label: string
+    }
+    operational?: {
+      address: string
+      label: string
+    }
+    buyback?: {
+      address: string
+      label: string
+    }
+    staking?: {
+      address: string
+      label: string
+    }
+  } | null
   verification_links: {
     solana_explorer: string
     program_id: string
     jackpot_token_account: string
     jackpot_wallet?: string | null
     staking_wallet?: string | null
+    bounty_pool_wallet?: string | null
+    operational_wallet?: string | null
+    buyback_wallet?: string | null
+    bounty_pda?: string | null
   }
   last_updated: string
 }

@@ -198,7 +198,8 @@ export default function GlobalChat({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Ask a question to challenge this AI..."
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-white placeholder:text-slate-400"
+              style={{ color: '#000000' }}
               disabled={isLoading}
             />
             <button

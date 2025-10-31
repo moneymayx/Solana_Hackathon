@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { Mail, Share2, Copy, Check } from 'lucide-react'
+import { Mail, Share2, Check } from 'lucide-react'
 import { getBackendUrl } from '@/lib/api/client'
 
 interface ReferralFlowProps {
@@ -99,14 +99,6 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
     return 'browser'
   }
 
-  const copyReferralCode = () => {
-    if (referralCode) {
-      navigator.clipboard.writeText(referralCode)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   const shareReferralCode = () => {
     if (referralCode) {
       const shareText = `Join me on BILLION$! Use my referral code: ${referralCode} to get 5 free questions!`
@@ -174,8 +166,8 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
               </>
             ) : (
               <>
-                <Share2 className="h-5 w-5" />
-                <span>Share Referral Code</span>
+            <Share2 className="h-5 w-5" />
+            <span>Share Referral Code</span>
               </>
             )}
           </button>
@@ -212,7 +204,8 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Choose a username (min 3 characters)"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-black bg-white placeholder:text-slate-400"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white placeholder:text-slate-400"
+            style={{ color: '#000000' }}
             required
             minLength={3}
           />
@@ -228,7 +221,8 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your@email.com"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-black bg-white placeholder:text-slate-400"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white placeholder:text-slate-400"
+            style={{ color: '#000000' }}
             required
           />
         </div>

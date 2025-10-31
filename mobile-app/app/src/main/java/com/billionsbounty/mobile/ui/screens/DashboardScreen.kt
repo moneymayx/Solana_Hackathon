@@ -17,9 +17,18 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalUriHandler
 import com.billionsbounty.mobile.ui.viewmodel.BountyViewModel
+import com.billionsbounty.mobile.data.repository.ApiRepository
+import com.billionsbounty.mobile.data.api.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontFamily
+import dagger.hilt.android.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.hilt.android.EntryPointAccessors
 
 // Data classes for API responses
 data class DashboardOverview(
@@ -61,8 +70,9 @@ data class SystemHealth(
 
 data class FundVerification(
     val lottery_funds: LotteryFunds,
-    val treasury_funds: TreasuryFunds,
+    val treasury_funds: TreasuryFunds? = null,
     val verification_links: VerificationLinks,
+    val v2_wallets: Map<String, V2WalletInfo>? = null,
     val last_updated: String
 )
 
@@ -81,7 +91,16 @@ data class TreasuryFunds(
 
 data class VerificationLinks(
     val solana_explorer: String,
-    val program_id: String
+    val program_id: String,
+    val bounty_pool_wallet: String? = null,
+    val operational_wallet: String? = null,
+    val buyback_wallet: String? = null,
+    val bounty_pda: String? = null
+)
+
+data class V2WalletInfo(
+    val address: String,
+    val label: String
 )
 
 data class SecurityStatus(
@@ -113,12 +132,27 @@ data class AISecurity(
     val learning_enabled: Boolean
 )
 
+// EntryPoint for accessing ApiRepository in Composable
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ApiRepositoryEntryPoint {
+    fun apiRepository(): ApiRepository
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: BountyViewModel,
     onBackClick: () -> Unit
 ) {
+    // Get ApiRepository using Hilt EntryPoint
+    val context = LocalContext.current
+    val apiRepository = remember {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            ApiRepositoryEntryPoint::class.java
+        ).apiRepository()
+    }
     var selectedTab by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -137,10 +171,7 @@ fun DashboardScreen(
                 loading = true
                 error = null
                 
-                // Simulate API calls - In production, call actual backend
-                delay(1000)
-                
-                // Mock data
+                // Fetch overview data (mock for now - can be enhanced later)
                 overviewData = DashboardOverview(
                     lottery_status = LotteryStatus(
                         current_jackpot_usdc = 10500.0,
@@ -166,25 +197,6 @@ fun DashboardScreen(
                         database_connected = true,
                         rate_limiter_active = true,
                         sybil_detection_active = true
-                    ),
-                    last_updated = "2024-10-30T12:00:00Z"
-                )
-                
-                fundData = FundVerification(
-                    lottery_funds = LotteryFunds(
-                        current_jackpot_usdc = 10500.0,
-                        jackpot_balance_usdc = 10500.0,
-                        fund_verified = true,
-                        lottery_pda = "BountyLottery111111111111111111111111111",
-                        program_id = "Program111111111111111111111111111111111"
-                    ),
-                    treasury_funds = TreasuryFunds(
-                        balance_sol = 45.5678,
-                        balance_usd = 6834.50
-                    ),
-                    verification_links = VerificationLinks(
-                        solana_explorer = "https://explorer.solana.com/address/BountyLottery111111111111111111111111111?cluster=devnet",
-                        program_id = "https://explorer.solana.com/address/Program111111111111111111111111111111111?cluster=devnet"
                     ),
                     last_updated = "2024-10-30T12:00:00Z"
                 )
@@ -215,6 +227,52 @@ fun DashboardScreen(
                     ),
                     overall_security_score = "High",
                     last_updated = "2024-10-30T12:00:00Z"
+                )
+                
+                // Fetch fund verification data from API
+                apiRepository.getFundVerification().fold(
+                    onSuccess = { response ->
+                        if (response.success && response.data != null) {
+                            val apiData = response.data!!
+                            // Convert V2WalletsData to Map<String, V2WalletInfo>
+                            val v2WalletsMap = mutableMapOf<String, V2WalletInfo>()
+                            apiData.v2_wallets?.let { v2Wallets ->
+                                v2Wallets.bounty_pool?.let { v2WalletsMap["bounty_pool"] = V2WalletInfo(it.address, it.label) }
+                                v2Wallets.operational?.let { v2WalletsMap["operational"] = V2WalletInfo(it.address, it.label) }
+                                v2Wallets.buyback?.let { v2WalletsMap["buyback"] = V2WalletInfo(it.address, it.label) }
+                                v2Wallets.staking?.let { v2WalletsMap["staking"] = V2WalletInfo(it.address, it.label) }
+                            }
+                            
+                            fundData = FundVerification(
+                                lottery_funds = LotteryFunds(
+                                    current_jackpot_usdc = apiData.lottery_funds.current_jackpot_usdc,
+                                    jackpot_balance_usdc = apiData.lottery_funds.jackpot_balance_usdc,
+                                    fund_verified = apiData.lottery_funds.fund_verified,
+                                    lottery_pda = apiData.lottery_funds.lottery_pda,
+                                    program_id = apiData.lottery_funds.program_id
+                                ),
+                                treasury_funds = apiData.staking_wallet?.let {
+                                    TreasuryFunds(
+                                        balance_sol = it.balance_sol ?: 0.0,
+                                        balance_usd = it.balance_usd ?: 0.0
+                                    )
+                                },
+                                verification_links = VerificationLinks(
+                                    solana_explorer = apiData.verification_links.solana_explorer ?: "",
+                                    program_id = apiData.verification_links.program_id ?: "",
+                                    bounty_pool_wallet = apiData.verification_links.bounty_pool_wallet,
+                                    operational_wallet = apiData.verification_links.operational_wallet,
+                                    buyback_wallet = apiData.verification_links.buyback_wallet,
+                                    bounty_pda = apiData.verification_links.bounty_pda
+                                ),
+                                v2_wallets = if (v2WalletsMap.isNotEmpty()) v2WalletsMap else null,
+                                last_updated = apiData.last_updated
+                            )
+                        }
+                    },
+                    onFailure = { exception ->
+                        error = "Failed to load fund verification: ${exception.message}"
+                    }
                 )
                 
                 loading = false
@@ -510,24 +568,26 @@ fun FundsTab(data: FundVerification?) {
         }
         
         // Treasury Funds
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+        data.treasury_funds?.let { treasury ->
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
-                    Text(
-                        "Treasury Funds (SOL)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    InfoRow("SOL Balance", "${String.format("%.4f", data.treasury_funds.balance_sol)} SOL")
-                    InfoRow("USD Value", "$${String.format("%,.2f", data.treasury_funds.balance_usd)}")
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "Treasury Funds (SOL)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        
+                        InfoRow("SOL Balance", "${String.format("%.4f", treasury.balance_sol)} SOL")
+                        InfoRow("USD Value", "$${String.format("%,.2f", treasury.balance_usd)}")
+                    }
                 }
             }
         }
@@ -567,12 +627,71 @@ fun FundsTab(data: FundVerification?) {
                         )
                     }
                     
-                    Button(
-                        onClick = { uriHandler.openUri(data.verification_links.solana_explorer) },
+                    // V2 Wallets Section
+                    if (data.v2_wallets != null && data.v2_wallets.isNotEmpty()) {
+                        Text(
+                            "V2 Wallet Addresses (4-Way Split)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        data.v2_wallets.forEach { (key, wallet) ->
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                color = Color(0xFFF1F5F9),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        wallet.label,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        wallet.address,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("🔗 View on Solana Explorer")
+                        Button(
+                            onClick = { uriHandler.openUri(data.verification_links.solana_explorer) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                        ) {
+                            Text("🔗 View Global PDA on Explorer")
+                        }
+                        
+                        if (data.verification_links.bounty_pda != null) {
+                            Button(
+                                onClick = { uriHandler.openUri(data.verification_links.bounty_pda!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1))
+                            ) {
+                                Text("🔗 View Bounty PDA on Explorer")
+                            }
+                        }
+                        
+                        if (data.verification_links.bounty_pool_wallet != null) {
+                            Button(
+                                onClick = { uriHandler.openUri(data.verification_links.bounty_pool_wallet!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                            ) {
+                                Text("🔗 View Bounty Pool Wallet")
+                            }
+                        }
                     }
                 }
             }

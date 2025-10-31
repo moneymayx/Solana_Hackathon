@@ -365,33 +365,64 @@ export default function Analytics() {
                   <h3 className="text-xl font-bold text-gray-900 mb-4">On-Chain Verification</h3>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-gray-600 text-sm mb-2">Lottery PDA</p>
+                      <p className="text-gray-600 text-sm mb-2">Lottery PDA (Global PDA for V2)</p>
                       <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
                         {fundData.lottery_funds.lottery_pda || 'Not available'}
                       </div>
                     </div>
-                    <div>
-                      <p className="text-gray-600 text-sm mb-2">Jackpot Token Account</p>
-                      <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
-                        {fundData.lottery_funds.jackpot_token_account || 'Not available'}
+                    {fundData.lottery_funds.program_id && (
+                      <div>
+                        <p className="text-gray-600 text-sm mb-2">Program ID</p>
+                        <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
+                          {fundData.lottery_funds.program_id}
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {fundData.lottery_funds.jackpot_token_account && (
+                      <div>
+                        <p className="text-gray-600 text-sm mb-2">Jackpot Token Account</p>
+                        <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
+                          {fundData.lottery_funds.jackpot_token_account}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* V2 Wallets Section */}
+                    {fundData.v2_wallets && (
+                      <div className="mt-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">V2 Wallet Addresses (4-Way Split)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(fundData.v2_wallets).map(([key, wallet]: [string, any]) => (
+                            <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                              <p className="text-gray-600 text-sm mb-1 font-medium">{wallet.label}</p>
+                              <div className="font-mono text-xs text-gray-900 break-all">
+                                {wallet.address || 'Not available'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex flex-wrap gap-3">
                       {[
-                        { label: 'View Lottery PDA', href: fundData.verification_links.solana_explorer, tone: 'bg-blue-600 hover:bg-blue-700' },
+                        { label: 'View Global PDA', href: fundData.verification_links.solana_explorer, tone: 'bg-blue-600 hover:bg-blue-700' },
                         { label: 'Program ID', href: fundData.verification_links.program_id, tone: 'bg-purple-600 hover:bg-purple-700' },
+                        fundData.verification_links.bounty_pda && { label: 'Bounty PDA', href: fundData.verification_links.bounty_pda, tone: 'bg-indigo-600 hover:bg-indigo-700' },
                         { label: 'Jackpot Token Account', href: fundData.verification_links.jackpot_token_account, tone: 'bg-emerald-600 hover:bg-emerald-700' },
-                        { label: 'Jackpot Wallet', href: fundData.verification_links.jackpot_wallet, tone: 'bg-orange-500 hover:bg-orange-600' },
+                        { label: 'Bounty Pool Wallet', href: fundData.verification_links.bounty_pool_wallet || fundData.verification_links.jackpot_wallet, tone: 'bg-orange-500 hover:bg-orange-600' },
+                        fundData.verification_links.operational_wallet && { label: 'Operational Wallet', href: fundData.verification_links.operational_wallet, tone: 'bg-yellow-600 hover:bg-yellow-700' },
+                        fundData.verification_links.buyback_wallet && { label: 'Buyback Wallet', href: fundData.verification_links.buyback_wallet, tone: 'bg-red-600 hover:bg-red-700' },
                         { label: 'Staking Wallet', href: fundData.verification_links.staking_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
-                      ].filter(link => link.href).map(link => (
+                      ].filter(link => link && link.href).map(link => (
                         <a
-                          key={link.label}
-                          href={link.href as string}
+                          key={link!.label}
+                          href={link!.href as string}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={cn(link.tone, "text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2")}
+                          className={cn(link!.tone, "text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2")}
                         >
-                          🔗 {link.label}
+                          🔗 {link!.label}
                         </a>
                       ))}
                     </div>
