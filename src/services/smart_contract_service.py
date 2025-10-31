@@ -35,10 +35,23 @@ class SmartContractService:
     
     def __init__(self):
         # Smart contract configuration - UPDATED WITH DEPLOYED PROGRAM
-        self.program_id = Pubkey.from_string(os.getenv(
-            "LOTTERY_PROGRAM_ID",
-            "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # Devnet deployment
-        ))
+        # Check if V2 is enabled
+        use_v2 = os.getenv("USE_CONTRACT_V2", "false").lower() == "true"
+        
+        if use_v2:
+            # Use V2 program ID
+            self.program_id = Pubkey.from_string(os.getenv(
+                "LOTTERY_PROGRAM_ID_V2",
+                "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm"  # V2 Devnet deployment
+            ))
+            logger.info("🆕 Using V2 smart contract")
+        else:
+            # Use V1 program ID
+            self.program_id = Pubkey.from_string(os.getenv(
+                "LOTTERY_PROGRAM_ID",
+                "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # V1 Devnet deployment
+            ))
+            logger.info("📌 Using V1 smart contract")
         # Use network configuration utility
         import sys
         sys.path.append(os.path.dirname(os.path.dirname(__file__)))
