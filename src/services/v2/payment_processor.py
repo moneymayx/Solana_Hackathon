@@ -253,15 +253,15 @@ class V2PaymentProcessor:
             # Get recent blockhash
             latest_blockhash = await self.client.get_latest_blockhash()
             
-            # Create transaction
-            transaction = Transaction.new_with_payer(
-                [instruction],
-                user_keypair.pubkey()
+            # Create transaction - solders Transaction constructor takes instructions, payer, and blockhash
+            transaction = Transaction(
+                instructions=[instruction],
+                payer=user_keypair.pubkey(),
+                recent_blockhash=latest_blockhash.value.blockhash
             )
-            transaction.recent_blockhash = latest_blockhash.value.blockhash
             
-            # Sign transaction
-            transaction.sign([user_keypair], latest_blockhash.value.blockhash)
+            # Sign transaction - solders Transaction.sign() takes list of signers
+            transaction.sign([user_keypair])
             
             # Send transaction
             signature = await self.client.send_transaction(transaction)
