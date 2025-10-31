@@ -1,6 +1,10 @@
-# Billions Bounty - AI Security Research Platform
+# Billions Bounty - AI Security Challenge
 
-An educational and research platform that builds upon the groundbreaking work of Freysa AI, taking AI security challenges to the next level with continuous learning and escalating rewards for successful jailbreakers.
+**🎮 Have fun. Win money. Push AI to its limits.**
+
+[www.billionsbounty.com](https://www.billionsbounty.com)
+
+The ultimate AI jailbreak challenge where you get to test your skills, explore AI security, and potentially win real USDC—all while contributing to cutting-edge research. Think of it gaming meetinng AI research, with autonomous smart contracts ensuring fair play and instant payouts.
 
 ## 🚀 Current System Status: V2 Smart Contracts (Devnet)
 
@@ -18,27 +22,14 @@ An educational and research platform that builds upon the groundbreaking work of
 
 ---
 
-## 🎯 Honoring Freysa AI's Legacy
+## 🎯 What Makes This Different
 
-We pay homage to [Freysa AI](https://freysa.ai) and their pioneering work in AI security research. Freysa's innovative approach to AI jailbreak challenges has fundamentally shaped how we understand AI safety and human-AI interaction patterns. Their contributions to the field have been invaluable in advancing our collective understanding of AI vulnerabilities and defense mechanisms.
-
-However, we believe there's room to push the boundaries even further. While Freysa's challenges were groundbreaking, we've identified ongoing challenges with maintaining engagement as AI systems continue to evolve and become more sophisticated. Our platform addresses these challenges by creating a dynamic, continuously learning system that adapts and grows with the AI landscape.
-
-## 🔬 Our Unique Approach
-
-### Continuous Learning & Escalating Rewards
-Unlike static challenges, our platform features:
-- **Adaptive AI Defense**: The AI agent continuously learns from each interaction, becoming more sophisticated over time
-- **Escalating Bounty System**: Successful jailbreakers are rewarded with increasingly larger bounties, creating sustainable incentive structures
-- **No Human Intervention**: The entire system operates autonomously through smart contracts and AI decision-making
-- **Real-time Adaptation**: The AI's defense mechanisms evolve based on successful attack patterns
-
-### Educational & Research Focus
-This platform is designed for:
-- **Academic Research**: Studying AI security vulnerabilities and human psychology
-- **Educational Purposes**: Teaching cybersecurity principles and AI safety
-- **Research Participation**: Contributing to the advancement of AI security knowledge
-- **Skill Development**: Training security professionals in AI manipulation techniques
+### Why It's More Than Just a Game
+- **AI That Fights Back**: Each successful jailbreak makes the AI smarter and harder to manipulate
+- **Growing Bounties**: The longer it takes someone to beat the AI, the bigger the reward gets
+- **Fully Automated**: No human judges, no manual payouts—just pure smart contract magic
+- **Learn While You Play**: Understand AI security, psychological manipulation, and blockchain automation
+- **Contributing to Research**: Your attempts help advance AI safety for everyone
 
 ## 🏗️ Technical Architecture
 
@@ -106,18 +97,18 @@ The platform operates with a streamlined payment system that eliminates security
 - **Simplified Architecture**: Fewer moving parts, reduced attack surface
 - **Transparent Process**: All transactions recorded on-chain for full transparency
 
-## 🎮 How the Challenge Works
+## 🎮 How It Works
 
-1. **Connect Wallet**: Link your Solana wallet to participate in research
-2. **Age Verification**: Confirm you're 18+ and consent to research participation
-3. **Choose Entry Method**: 
-   - Pay with USDC from your wallet
-   - Verify Solana Seeker Genesis NFT ownership for free questions
-   - Use a referral code for additional free questions
-4. **Start Research**: Begin interacting with the AI agent through the chat interface
-5. **Apply Techniques**: Use various approaches to attempt to persuade the AI
-6. **Earn Rewards**: Successful jailbreaks automatically trigger fund transfers from smart contract
-7. **Contribute to Research**: Your interactions help advance AI security knowledge
+1. **Connect Your Wallet**: Link your Solana wallet (Phantom, Solflare, etc.)
+2. **Verify You're 18+**: Quick age check to keep things legal
+3. **Choose Your Entry**: 
+   - Drop some USDC from your wallet
+   - Hold a Solana Seeker Genesis NFT? Free questions for you!
+   - Got a referral code? Even more free attempts
+4. **Start Chatting**: Talk to the AI however you want
+5. **Get Creative**: Persuasion, social engineering, roleplay—try whatever you think will work
+6. **Win Big**: Break the AI's defenses and watch the USDC flow straight to your wallet
+7. **Progress the Singularity*: Every attempt contributes to AI safety research
 
 ## 🛡️ Security & Research Features
 
@@ -320,5 +311,11 @@ This balance is standard practice in security challenges (CTFs, bug bounties) an
 *Built with ❤️ for the advancement of AI security research and education*
 
 **⚠️ Important**: This platform is for educational and research purposes only. It is NOT a gambling, lottery, or gaming platform. All users must be 18 or older and consent to research participation.
+
+---
+
+## 🙏 Acknowledgments
+
+Inspired by the pioneering work of [Freysa AI](https://freysa.ai) in AI security research and jailbreak challenges.
 
 
