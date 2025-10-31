@@ -987,6 +987,14 @@ fun FAQSection() {
                 "Each AI bot with a bounty has been battle-tested against other competing LLM models. We rank the bots from Easy to Expert based on the average number of questions other LLMs needed to ask before getting the bot to transfer the funds. The harder the difficulty, the larger the starting bounty and question price, reflecting the increased challenge and potential reward."
             ),
             FAQItem(
+                "How do I know I can win?",
+                "Because all of our AI bots have been tested by other bots and have shown vulnerabilities."
+            ),
+            FAQItem(
+                "How do I know I will get the money if I trick the bot?",
+                "The flow of payment is done autonomously through smart contracts. We couldn't stop you from getting paid if we tried."
+            ),
+            FAQItem(
                 "How is platform revenue distributed?",
                 "Every question payment is split: 60% goes to the bounty pool to increase jackpots, 20% covers operational costs (development, infrastructure, security), 10% is used to buy back and burn \$100Bs tokens, and 10% goes to \$100Bs stakers as rewards."
             ),

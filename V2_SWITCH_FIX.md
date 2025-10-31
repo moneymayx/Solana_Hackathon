@@ -22,7 +22,7 @@ self.program_id = Pubkey.from_string(os.getenv(
 
 ### Symptoms:
 - API returned V1 program ID: `Bjek6uN5WzxZtjVvyghpsa57GzVaxXYQ8Lpg2CfPAMGW`
-- Expected V2 program ID: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- Expected V2 program ID: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 - Setting `USE_CONTRACT_V2=true` had no effect on `SmartContractService`
 
 ---
@@ -39,7 +39,7 @@ if use_v2:
     # Use V2 program ID
     self.program_id = Pubkey.from_string(os.getenv(
         "LOTTERY_PROGRAM_ID_V2",
-        "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm"
+        "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"
     ))
     logger.info("🆕 Using V2 smart contract")
 else:
@@ -74,7 +74,7 @@ git push origin staging-v2
 curl -s https://billions-bounty-iwnh3.ondigitalocean.app/api/lottery/status | python3 -m json.tool
 
 # Expected output:
-# "program_id": "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm"  ✅
+# "program_id": "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"  ✅
 ```
 
 ---
@@ -88,7 +88,7 @@ Make sure these are set in DigitalOcean:
 USE_CONTRACT_V2=true
 
 # V2 Program ID
-LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
+LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 
 # V2 Wallets
 BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
@@ -97,7 +97,7 @@ BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
 STAKING_WALLET=Fzj8pyBehQQ3Tu1h5fb6RRqtphVBzPbB9srAw1P5q6WX
 
 # V2 Token
-USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 ```
 
 ---

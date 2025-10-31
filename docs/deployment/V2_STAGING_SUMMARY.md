@@ -9,10 +9,10 @@
 ## Deployment Status
 
 ### Devnet Deployment ✅
-- **Program ID**: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- **Program ID**: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 - **IDL Account**: `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr`
-- **Global PDA**: `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh`
-- **Bounty[1] PDA**: `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z`
+- **Global PDA**: `BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb`
+- **Bounty[1] PDA**: `2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb`
 - **Network**: Devnet
 - **Verifiable**: Yes (IDL published and fetchable)
 
@@ -77,10 +77,10 @@ All validation tests passing (6/6):
 Add to `.env` file on your DigitalOcean server:
 ```
 USE_CONTRACT_V2=false
-LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
-V2_GLOBAL_PDA=F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh
-V2_BOUNTY_1_PDA=AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z
-V2_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
+V2_GLOBAL_PDA=BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb
+V2_BOUNTY_1_PDA=2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb
+V2_USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 V2_BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
 V2_OPERATIONAL_WALLET=46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D
 V2_BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
@@ -92,7 +92,7 @@ SOLANA_RPC_ENDPOINT=https://api.devnet.solana.com
 Add in Vercel Dashboard → Settings → Environment Variables:
 ```
 NEXT_PUBLIC_USE_CONTRACT_V2=false
-NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
+NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 ```
 
 ### Deployment Steps
@@ -160,9 +160,9 @@ cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activat
 ```
 
 ### Solana Explorer Links
-- Program: https://explorer.solana.com/address/GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm?cluster=devnet
-- Global PDA: https://explorer.solana.com/address/F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh?cluster=devnet
-- Bounty[1]: https://explorer.solana.com/address/AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z?cluster=devnet
+- Program: https://explorer.solana.com/address/HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm?cluster=devnet
+- Global PDA: https://explorer.solana.com/address/BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb?cluster=devnet
+- Bounty[1]: https://explorer.solana.com/address/2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb?cluster=devnet
 
 ---
 

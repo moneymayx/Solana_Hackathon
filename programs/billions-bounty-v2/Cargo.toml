@@ -14,8 +14,9 @@ no-entrypoint = []
 idl-build = []
 no-idl = []
 no-log-ix-name = []
+init-if-needed = []
 cpi = ["no-entrypoint"]
-default = ["idl-build"]
+default = ["idl-build", "init-if-needed"]
 
 [profile.release]
 opt-level = "z"        # Optimize for size instead of speed
@@ -26,7 +27,7 @@ strip = true          # Remove debug symbols
 overflow-checks = false  # Disable overflow checks to reduce size
 
 [dependencies]
-anchor-lang = "0.30.1"
+anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
 anchor-spl = "0.30.1"
 sha2 = "0.10"
 indexmap = "=2.2.6"

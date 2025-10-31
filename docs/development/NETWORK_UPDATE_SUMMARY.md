@@ -64,7 +64,7 @@ python3 test_ai_decision_deployment.py
 | Feature | Devnet | Mainnet |
 |---------|--------|---------|
 | **RPC Endpoint** | `api.devnet.solana.com` | `api.mainnet-beta.solana.com` |
-| **USDC Mint** | `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr` | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| **USDC Mint** | `JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh` | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
 | **Program ID** | `4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK` | `4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK` |
 | **SOL Cost** | Free (faucet) | Real SOL required |
 | **Purpose** | Development/Testing | Production |
@@ -85,7 +85,7 @@ All services now automatically detect the network setting:
 ```bash
 🌐 Network: DEVNET
 🔗 RPC Endpoint: https://api.devnet.solana.com
-💰 USDC Mint: Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+💰 USDC Mint: JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 📦 Program ID: 4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK
 Environment: Development
 ```

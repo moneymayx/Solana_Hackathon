@@ -133,7 +133,7 @@ Extract IDL for v2 and store it for clients:
 
 ```bash
 cd programs/billions-bounty-v2
-anchor idl extract -o target/idl/billions_bounty_v2.json 4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW
+anchor idl extract -o target/idl/billions_bounty_v2.json HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 ```
 
 Commit the IDL (and generated types if used) to ensure stable integration across services.

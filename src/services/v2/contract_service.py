@@ -13,9 +13,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ContractServiceV2:
+    """
+    V2 Contract Service - Backend adapter for V2 smart contract
+    
+    Note: Uses raw Web3.js-style instructions via solana-py since Anchor client
+    has account ordering issues. See test_v2_raw_payment.ts for reference implementation.
+    
+    Program ID: HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm (devnet)
+    """
     def __init__(self, rpc_endpoint: Optional[str] = None, program_id: Optional[str] = None) -> None:
         self.rpc_endpoint = rpc_endpoint or os.getenv("SOLANA_RPC_ENDPOINT", "https://api.devnet.solana.com")
-        self.program_id = Pubkey.from_string(program_id or os.getenv("LOTTERY_PROGRAM_ID_V2", "4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW"))
+        self.program_id = Pubkey.from_string(program_id or os.getenv("LOTTERY_PROGRAM_ID_V2", "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"))
         self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
         logger.info("ContractServiceV2 initialized: %s", self.program_id)
 

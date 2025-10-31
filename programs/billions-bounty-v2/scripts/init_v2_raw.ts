@@ -12,7 +12,7 @@ import * as fs from "fs";
 import * as crypto from "crypto";
 
 // Program ID for v2 (deployed)
-const PROGRAM_ID = new PublicKey("GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm");
+const PROGRAM_ID = new PublicKey("HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm");
 
 // Method discriminators (8-byte Anchor method hash)
 const INITIALIZE_LOTTERY_DISCRIMINATOR = Buffer.from(
@@ -51,7 +51,7 @@ async function main() {
   // Use a test SPL token mint on devnet (or set USDC_MINT env var)
   // For demo: you can create your own devnet SPL token and set here
   const usdcMint = new PublicKey(
-    process.env.USDC_MINT || "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr" // devnet test token
+    process.env.USDC_MINT || "JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh" // Your test token with mint authority
   );
 
   // Derive PDAs

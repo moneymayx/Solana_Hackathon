@@ -24,10 +24,10 @@ Expected output: `🎉 All validations passed! (6/6)`
 Add these to your backend's `.env` file or export them:
 ```
 USE_CONTRACT_V2=false
-LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
-V2_GLOBAL_PDA=F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh
-V2_BOUNTY_1_PDA=AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z
-V2_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
+V2_GLOBAL_PDA=BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb
+V2_BOUNTY_1_PDA=2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb
+V2_USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 V2_BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
 V2_OPERATIONAL_WALLET=46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D
 V2_BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
@@ -54,7 +54,7 @@ Go to Vercel Dashboard → Project → Settings → Environment Variables
 Add to **Preview** environment:
 ```
 NEXT_PUBLIC_USE_CONTRACT_V2=false
-NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
+NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 ```
 
 #### B. Deploy Preview
@@ -195,19 +195,19 @@ solana confirm <SIGNATURE> --url devnet
 ### Debugging
 ```
 # Test backend service directly
-cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 -c "import sys; sys.path.insert(0, 'src'); from services.v2.contract_service import ContractServiceV2; import asyncio; s = ContractServiceV2(program_id='GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm'); result = asyncio.run(s.get_bounty_status(1)); print(result)"
+cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 -c "import sys; sys.path.insert(0, 'src'); from services.v2.contract_service import ContractServiceV2; import asyncio; s = ContractServiceV2(program_id='HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm'); result = asyncio.run(s.get_bounty_status(1)); print(result)"
 
 # Check IDL
-cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && anchor idl fetch --provider.cluster devnet GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm | head -20
+cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && anchor idl fetch --provider.cluster devnet HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm | head -20
 ```
 
 ---
 
 ## Explorer Links 🔍
 
-- **Program**: https://explorer.solana.com/address/GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm?cluster=devnet
-- **Global PDA**: https://explorer.solana.com/address/F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh?cluster=devnet
-- **Bounty[1]**: https://explorer.solana.com/address/AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z?cluster=devnet
+- **Program**: https://explorer.solana.com/address/HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm?cluster=devnet
+- **Global PDA**: https://explorer.solana.com/address/BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb?cluster=devnet
+- **Bounty[1]**: https://explorer.solana.com/address/2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb?cluster=devnet
 
 ---
 

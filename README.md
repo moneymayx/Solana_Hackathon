@@ -117,6 +117,96 @@ The platform operates with a streamlined payment system that eliminates security
 - **Academic Research**: Data contributes to peer-reviewed research publications
 - **Privacy Protection**: All personal data is anonymized and protected according to research ethics standards
 
+## ⛓️ Smart Contracts & Autonomous Operations
+
+The entire platform operates autonomously through Solana smart contracts, eliminating the need for manual intervention or centralized control. All critical operations—from entry payments to winner payouts—are executed automatically and transparently on-chain.
+
+### Autonomous Fund Management
+
+**Program Derived Addresses (PDAs)**
+- **No Private Keys Required**: The smart contract uses Program Derived Addresses (PDAs) to manage funds autonomously
+- **Self-Signing Transactions**: The contract can sign and execute transactions without storing any private keys
+- **Secure Fund Locking**: Entry payments are immediately locked in a PDA-controlled token account
+- **Tamper-Proof**: Fund transfers are enforced by immutable smart contract logic that cannot be modified after deployment
+
+**Key Autonomous Operations:**
+
+1. **Entry Payment Processing** (`process_entry_payment`)
+   - Users pay entry fees directly to the smart contract
+   - Funds are automatically locked in the jackpot wallet upon payment
+   - Revenue split (60% bounty, 20% operational, 10% buyback, 10% staking) is enforced by contract logic
+   - All entries are recorded on-chain for complete transparency
+
+2. **Winner Payout Execution** (`process_ai_decision`)
+   - When a successful jailbreak is detected, the backend signals the smart contract
+   - The contract autonomously transfers the full jackpot to the winner's wallet
+   - Jackpot automatically resets to the minimum floor amount ($10,000 USDC)
+   - No manual approval or intervention required—execution is immediate and trustless
+
+3. **Escape Plan Timer** (`execute_time_escape_plan`)
+   - On-chain 24-hour timer tracks inactivity
+   - Timer automatically resets with each user question
+   - After 24 hours of no activity, anyone can trigger the escape plan
+   - Contract autonomously distributes: 20% to last participant, 80% to community fund
+   - Backend cannot manipulate timer—it's fully trustless and on-chain
+
+4. **Revenue Distribution** (60/20/10/10 Split)
+   - **60%** → Bounty pool (locked for winner payouts)
+   - **20%** → Operational wallet (covers platform costs)
+   - **10%** → Buyback wallet (automatically swapped and burned when threshold reached)
+   - **10%** → Staking rewards wallet (distributed to stakers)
+   - All splits calculated and enforced by smart contract—backend cannot modify
+
+### Automated Secondary Operations
+
+**Buyback & Burn Automation**
+- Backend service monitors buyback wallet balance every 10 minutes
+- When balance reaches $100 threshold, automatically:
+  - Executes USDC → token swap via Jupiter aggregator
+  - Burns tokens to Solana incinerator
+  - Records transaction on-chain
+- Zero manual intervention required
+
+**Staking Rewards Distribution**
+- Staking contract tracks lock periods (30/60/90 days) on-chain
+- Rewards are calculated based on staking pool revenue (20%/30%/50% split by tier)
+- Users can claim rewards permissionlessly—no backend approval needed
+- All reward calculations and distributions happen autonomously on-chain
+
+### Security & Trust Guarantees
+
+**Why This Matters:**
+- **No Central Point of Failure**: Fund management is distributed across the Solana network
+- **Transparent & Verifiable**: All operations are recorded on-chain and publicly auditable
+- **Immutable Logic**: Smart contract code cannot be changed after deployment
+- **User Trust**: Users can verify that funds are locked and payouts are guaranteed by code, not promises
+- **Reduced Attack Surface**: No private key storage eliminates a major security vulnerability
+
+**Contract Verification:**
+- Source code is open and auditable: [`programs/billions-bounty/src/lib.rs`](programs/billions-bounty/src/lib.rs)
+- All transactions are publicly visible on Solana Explorer
+- Users can verify fund balances and contract state in real-time
+- No hidden logic or backdoors—everything runs exactly as coded
+
+### System Architecture Flow
+
+```
+User Entry Payment
+    ↓
+Smart Contract Receives Payment
+    ↓
+Contract Locks Funds (60% → Jackpot, 20% → Operations, 10% → Buyback, 10% → Staking)
+    ↓
+AI Interaction & Jailbreak Detection (Backend)
+    ↓
+Backend Signals Smart Contract (AI Decision)
+    ↓
+Smart Contract Autonomously Transfers Full Jackpot to Winner
+    ↓
+Contract Resets Jackpot to Floor Amount
+```
+
+**Key Insight**: The backend only processes AI interactions and signals successful jailbreaks. All fund transfers are executed autonomously by the smart contract, ensuring that even if the backend is compromised, funds cannot be stolen or misappropriated.
 
 ## 📊 Research Impact
 
@@ -208,8 +298,6 @@ See [`WALLET_AND_FUND_FLOW.md`](WALLET_AND_FUND_FLOW.md) for comprehensive detai
 - Wallet private keys
 
 This balance is standard practice in security challenges (CTFs, bug bounties) and ensures both transparency and challenge integrity.
-```
-
 
 ---
 

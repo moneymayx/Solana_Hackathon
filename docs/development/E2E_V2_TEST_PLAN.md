@@ -1,10 +1,11 @@
 # E2E Test Plan - Contract V2 (Staging)
 
 ## Preconditions
-- ✅ Devnet program deployed: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
-- ✅ IDL published: `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr`
-- ✅ Global PDA initialized: `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh`
-- ✅ Bounty[1] initialized: `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z`
+- ✅ Devnet program deployed: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
+- ✅ IDL generated locally (use raw Web3.js for client integration)
+- ✅ Global PDA initialized: `BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb`
+- ✅ Bounty[1] initialized: `2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb`
+- ✅ Buyback Tracker initialized: `9ceXx23oRrdAzdzUTzgj224y4KYhXN5eSug2CkJHpZpr`
 - Staging env with `USE_CONTRACT_V2=true`
 - Test wallets funded (≥2 SOL + test USDC)
 

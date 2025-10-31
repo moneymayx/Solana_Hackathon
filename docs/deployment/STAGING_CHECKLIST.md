@@ -3,10 +3,11 @@
 ## Pre-Deployment Validation ✅
 
 ### 1. Devnet Contract Status
-- [x] Program deployed: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
-- [x] IDL published: `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr`
-- [x] Global PDA initialized: `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh`
-- [x] Bounty[1] PDA initialized: `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd3qm4VAZK83Z`
+- [x] Program deployed: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
+- [x] IDL generated locally (use raw Web3.js for client integration)
+- [x] Global PDA initialized: `BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb`
+- [x] Bounty[1] PDA initialized: `2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb`
+- [x] Buyback Tracker PDA initialized: `9ceXx23oRrdAzdzUTzgj224y4KYhXN5eSug2CkJHpZpr`
 - [x] Contract verifiable on Solana explorers
 
 ### 2. Documentation
@@ -29,10 +30,10 @@
 Add these to your backend's `.env` file or export them on your DigitalOcean server:
 ```
 USE_CONTRACT_V2=false
-LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
-V2_GLOBAL_PDA=F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh
-V2_BOUNTY_1_PDA=AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z
-V2_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
+V2_GLOBAL_PDA=BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb
+V2_BOUNTY_1_PDA=2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb
+V2_USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 V2_BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
 V2_OPERATIONAL_WALLET=46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D
 V2_BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
@@ -53,7 +54,7 @@ SOLANA_RPC_ENDPOINT=https://api.devnet.solana.com
 Add these in Vercel Dashboard → Settings → Environment Variables:
 ```
 NEXT_PUBLIC_USE_CONTRACT_V2=false
-NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
+NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 NEXT_PUBLIC_API_URL=<your-staging-backend-url>
 ```
 
@@ -171,5 +172,5 @@ Once staging is stable for 7+ days:
 cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && ./scripts/staging/validate_v2_deployment.sh
 ```
 
-**Last Updated**: October 30, 2024
+**Last Updated**: October 31, 2025
 

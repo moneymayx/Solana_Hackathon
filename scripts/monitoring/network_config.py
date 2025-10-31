@@ -30,7 +30,7 @@ class NetworkConfig:
         if self.network == "mainnet":
             return "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # Mainnet USDC
         else:
-            return "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"  # Devnet USDC
+            return "JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh"  # Test token with mint authority
     
     def get_program_id(self):
         """Get the appropriate program ID based on network"""

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const idl = {
-  "address": "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm",
+  "address": "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm",
   "metadata": {
     "name": "billions_bounty_v2",
     "version": "0.2.0",
@@ -14,7 +14,7 @@ const idl = {
   "instructions": [
     {
       "name": "initializeLottery",
-      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "discriminator": [113, 199, 243, 247, 73, 217, 33, 11],
       "accounts": [
         { "name": "global", "isMut": true, "isSigner": false },
         { "name": "authority", "isMut": true, "isSigner": true },
@@ -26,20 +26,21 @@ const idl = {
         { "name": "usdcMint", "isMut": false, "isSigner": false },
         { "name": "tokenProgram", "isMut": false, "isSigner": false },
         { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false },
         { "name": "systemProgram", "isMut": false, "isSigner": false }
       ],
       "args": [
         { "name": "researchFundFloor", "type": "u64" },
         { "name": "researchFee", "type": "u64" },
-        { "name": "bountyPoolWallet", "type": "publicKey" },
-        { "name": "operationalWallet", "type": "publicKey" },
-        { "name": "buybackWallet", "type": "publicKey" },
-        { "name": "stakingWallet", "type": "publicKey" }
+        { "name": "bountyPoolWallet", "type": "pubkey" },
+        { "name": "operationalWallet", "type": "pubkey" },
+        { "name": "buybackWallet", "type": "pubkey" },
+        { "name": "stakingWallet", "type": "pubkey" }
       ]
     },
     {
       "name": "initializeBounty",
-      "discriminator": [105, 153, 238, 129, 138, 156, 139, 86],
+      "discriminator": [150,37,249,246,85,164,253,229],
       "accounts": [
         { "name": "bounty", "isMut": true, "isSigner": false },
         { "name": "global", "isMut": true, "isSigner": false },
@@ -53,7 +54,7 @@ const idl = {
     },
     {
       "name": "processEntryPaymentV2",
-      "discriminator": [234, 56, 78, 123, 45, 90, 12, 234],
+      "discriminator": [33,137,63,209,133,83,188,34],
       "accounts": [
         { "name": "global", "isMut": true, "isSigner": false },
         { "name": "bounty", "isMut": true, "isSigner": false },
@@ -71,7 +72,8 @@ const idl = {
         { "name": "usdcMint", "isMut": false, "isSigner": false },
         { "name": "tokenProgram", "isMut": false, "isSigner": false },
         { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
       ],
       "args": [
         { "name": "bountyId", "type": "u64" },
@@ -80,7 +82,7 @@ const idl = {
     },
     {
       "name": "processAiDecisionV2",
-      "discriminator": [111, 222, 33, 144, 55, 166, 77, 188],
+      "discriminator": [132,123,122,146,133,75,207,228],
       "accounts": [
         { "name": "global", "isMut": false, "isSigner": false },
         { "name": "bounty", "isMut": false, "isSigner": false },
@@ -99,7 +101,7 @@ const idl = {
     },
     {
       "name": "executeBuyback",
-      "discriminator": [99, 88, 77, 66, 55, 44, 33, 22],
+      "discriminator": [47,32,19,100,184,96,144,49],
       "accounts": [
         { "name": "global", "isMut": false, "isSigner": false },
         { "name": "buybackTracker", "isMut": true, "isSigner": false },
@@ -111,18 +113,18 @@ const idl = {
     },
     {
       "name": "setBackendAuthority",
-      "discriminator": [11, 22, 33, 44, 55, 66, 77, 88],
+      "discriminator": [243,150,19,155,40,40,74,184],
       "accounts": [
         { "name": "global", "isMut": true, "isSigner": false },
         { "name": "authority", "isMut": false, "isSigner": true }
       ],
       "args": [
-        { "name": "newAuthority", "type": "publicKey" }
+        { "name": "newAuthority", "type": "pubkey" }
       ]
     },
     {
       "name": "registerReferral",
-      "discriminator": [200, 150, 100, 50, 25, 12, 6, 3],
+      "discriminator": [158,196,134,102,193,102,184,86],
       "accounts": [
         { "name": "referral", "isMut": true, "isSigner": false },
         { "name": "owner", "isMut": true, "isSigner": true },
@@ -134,7 +136,7 @@ const idl = {
     },
     {
       "name": "recordReferralUse",
-      "discriminator": [250, 200, 150, 100, 75, 50, 25, 10],
+      "discriminator": [250,2,167,201,226,237,249,181],
       "accounts": [
         { "name": "referral", "isMut": true, "isSigner": false },
         { "name": "user", "isMut": false, "isSigner": true }
@@ -145,7 +147,7 @@ const idl = {
     },
     {
       "name": "createTeam",
-      "discriminator": [135, 180, 225, 15, 60, 105, 150, 195],
+      "discriminator": [122,161,98,67,178,128,116,113],
       "accounts": [
         { "name": "team", "isMut": true, "isSigner": false },
         { "name": "owner", "isMut": true, "isSigner": true },
@@ -157,30 +159,31 @@ const idl = {
     },
     {
       "name": "addTeamMember",
-      "discriminator": [30, 60, 90, 120, 150, 180, 210, 240],
+      "discriminator": [64,13,248,67,55,245,184,173],
       "accounts": [
         { "name": "team", "isMut": true, "isSigner": false },
         { "name": "owner", "isMut": false, "isSigner": true }
       ],
       "args": [
         { "name": "teamId", "type": "u64" },
-        { "name": "member", "type": "publicKey" }
+        { "name": "member", "type": "pubkey" }
       ]
     }
   ],
+  "types": [],
   "accounts": [
     {
-      "name": "Global",
+      "name": "global",
       "discriminator": [137, 234, 244, 252, 80, 122, 210, 98],
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "authority", "type": "publicKey" },
-          { "name": "backendAuthority", "type": "publicKey" },
-          { "name": "bountyPoolWallet", "type": "publicKey" },
-          { "name": "operationalWallet", "type": "publicKey" },
-          { "name": "buybackWallet", "type": "publicKey" },
-          { "name": "stakingWallet", "type": "publicKey" },
+          { "name": "authority", "type": "pubkey" },
+          { "name": "backendAuthority", "type": "pubkey" },
+          { "name": "bountyPoolWallet", "type": "pubkey" },
+          { "name": "operationalWallet", "type": "pubkey" },
+          { "name": "buybackWallet", "type": "pubkey" },
+          { "name": "stakingWallet", "type": "pubkey" },
           { "name": "researchFundFloor", "type": "u64" },
           { "name": "researchFee", "type": "u64" },
           { "name": "isActive", "type": "bool" },
@@ -192,7 +195,7 @@ const idl = {
       }
     },
     {
-      "name": "Bounty",
+      "name": "bounty",
       "discriminator": [94, 24, 100, 201, 11, 146, 47, 128],
       "type": {
         "kind": "struct",
@@ -207,7 +210,7 @@ const idl = {
       }
     },
     {
-      "name": "BuybackTracker",
+      "name": "buybackTracker",
       "discriminator": [45, 67, 89, 123, 145, 167, 189, 211],
       "type": {
         "kind": "struct",
@@ -218,7 +221,7 @@ const idl = {
       }
     },
     {
-      "name": "NonceAccount",
+      "name": "nonceAccount",
       "discriminator": [71, 93, 115, 137, 159, 181, 203, 225],
       "type": {
         "kind": "struct",
@@ -228,25 +231,25 @@ const idl = {
       }
     },
     {
-      "name": "Referral",
+      "name": "referral",
       "discriminator": [5, 15, 25, 35, 45, 55, 65, 75],
       "type": {
         "kind": "struct",
         "fields": [
           { "name": "code", "type": { "array": ["u8", 16] } },
-          { "name": "owner", "type": "publicKey" },
+          { "name": "owner", "type": "pubkey" },
           { "name": "uses", "type": "u64" }
         ]
       }
     },
     {
-      "name": "Team",
+      "name": "team",
       "discriminator": [85, 95, 105, 115, 125, 135, 145, 155],
       "type": {
         "kind": "struct",
         "fields": [
           { "name": "teamId", "type": "u64" },
-          { "name": "owner", "type": "publicKey" },
+          { "name": "owner", "type": "pubkey" },
           { "name": "memberCount", "type": "u32" }
         ]
       }
@@ -257,11 +260,11 @@ const idl = {
       "name": "LotteryInitialized",
       "discriminator": [1, 2, 3, 4, 5, 6, 7, 8],
       "fields": [
-        { "name": "authority", "type": "publicKey", "index": false },
-        { "name": "bountyPoolWallet", "type": "publicKey", "index": false },
-        { "name": "operationalWallet", "type": "publicKey", "index": false },
-        { "name": "buybackWallet", "type": "publicKey", "index": false },
-        { "name": "stakingWallet", "type": "publicKey", "index": false },
+        { "name": "authority", "type": "pubkey", "index": false },
+        { "name": "bountyPoolWallet", "type": "pubkey", "index": false },
+        { "name": "operationalWallet", "type": "pubkey", "index": false },
+        { "name": "buybackWallet", "type": "pubkey", "index": false },
+        { "name": "stakingWallet", "type": "pubkey", "index": false },
         { "name": "researchFundFloor", "type": "u64", "index": false },
         { "name": "researchFee", "type": "u64", "index": false }
       ]
@@ -272,7 +275,7 @@ const idl = {
       "fields": [
         { "name": "bountyId", "type": "u64", "index": false },
         { "name": "basePrice", "type": "u64", "index": false },
-        { "name": "authority", "type": "publicKey", "index": false }
+        { "name": "authority", "type": "pubkey", "index": false }
       ]
     },
     {
@@ -280,7 +283,7 @@ const idl = {
       "discriminator": [17, 18, 19, 20, 21, 22, 23, 24],
       "fields": [
         { "name": "bountyId", "type": "u64", "index": false },
-        { "name": "user", "type": "publicKey", "index": false },
+        { "name": "user", "type": "pubkey", "index": false },
         { "name": "amount", "type": "u64", "index": false },
         { "name": "bountyPoolAmount", "type": "u64", "index": false },
         { "name": "operationalAmount", "type": "u64", "index": false },
@@ -295,7 +298,7 @@ const idl = {
       "name": "WinnerSelectedV2",
       "discriminator": [25, 26, 27, 28, 29, 30, 31, 32],
       "fields": [
-        { "name": "winner", "type": "publicKey", "index": false },
+        { "name": "winner", "type": "pubkey", "index": false },
         { "name": "bountyId", "type": "u64", "index": false },
         { "name": "amount", "type": "u64", "index": false },
         { "name": "userId", "type": "u64", "index": false },
