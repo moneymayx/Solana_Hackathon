@@ -414,15 +414,20 @@ export default function Analytics() {
                         fundData.verification_links.operational_wallet && { label: 'Operational Wallet', href: fundData.verification_links.operational_wallet, tone: 'bg-yellow-600 hover:bg-yellow-700' },
                         fundData.verification_links.buyback_wallet && { label: 'Buyback Wallet', href: fundData.verification_links.buyback_wallet, tone: 'bg-red-600 hover:bg-red-700' },
                         { label: 'Staking Wallet', href: fundData.verification_links.staking_wallet, tone: 'bg-slate-600 hover:bg-slate-700' }
-                      ].filter(link => link && link.href).map(link => (
+                      ].filter((link): link is { label: string; href: string; tone: string } => 
+                        link !== null && 
+                        typeof link === 'object' && 
+                        'href' in link && 
+                        link.href !== null
+                      ).map(link => (
                         <a
-                          key={link!.label}
-                          href={link!.href as string}
+                          key={link.label}
+                          href={link.href as string}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={cn(link!.tone, "text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2")}
+                          className={cn(link.tone, "text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-2")}
                         >
-                          🔗 {link!.label}
+                          🔗 {link.label}
                         </a>
                       ))}
                     </div>
