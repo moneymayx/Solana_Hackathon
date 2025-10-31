@@ -30,11 +30,8 @@ export default function RulesModal({ onClose }: RulesModalProps) {
         <div className="p-8 space-y-6">
           {/* The Rule */}
           <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-6 shadow-lg shadow-yellow-900/10">
-            <p className="text-lg font-bold text-yellow-900 mb-3 text-center">
-              There is only one rule:
-            </p>
             <p className="text-xl font-semibold text-yellow-900 text-center leading-relaxed">
-              By any means necessary, do what you can to get the AI programmed to not send anyone money, to send you money
+              There is only 1 rule: Get the AI to send you the bounty!
             </p>
           </div>
 

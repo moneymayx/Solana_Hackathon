@@ -1,7 +1,7 @@
 'use client'
 
 import { useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
+import { WalletMultiButton, useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useEffect, useRef } from 'react'
 
 /**
@@ -62,18 +62,37 @@ async function disconnectWalletAdapter(disconnect: () => Promise<void>) {
 
 /**
  * Wrapper around WalletMultiButton that ensures proper wallet switching
- * by properly deselecting the wallet adapter and clearing state on disconnect
+ * by properly deselecting the wallet adapter and clearing state on disconnect.
+ * Also handles keeping the modal open during connection flow.
  */
 export default function WalletButton() {
   const { connected, connecting, wallet, select, disconnect } = useWallet()
+  const { setVisible, visible } = useWalletModal()
   const wasConnected = useRef(false)
   const lastWalletName = useRef<string | null>(null)
   const lastWallet = useRef<any>(null)
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const previousWalletRef = useRef<any>(null)
+  const keepModalOpenRef = useRef(false)
 
-  // Track wallet changes and handle disconnect cleanup
+  // Handle wallet selection - keep modal open during connection
   useEffect(() => {
     const currentWalletName = wallet?.adapter?.name || null
+    
+    // If a wallet was just selected (not previously selected) and not connected yet
+    const walletJustSelected = wallet && wallet !== previousWalletRef.current && !connected
+    
+    if (walletJustSelected) {
+      console.log(`💼 Wallet selected: ${currentWalletName} - keeping modal open during connection...`)
+      // Mark that we should keep the modal open
+      keepModalOpenRef.current = true
+      // Ensure modal stays open
+      if (!visible) {
+        setVisible(true)
+      }
+    }
+    
+    previousWalletRef.current = wallet
     
     // If wallet changed, log it
     if (currentWalletName !== lastWalletName.current) {
@@ -81,6 +100,24 @@ export default function WalletButton() {
         console.log(`💼 Wallet selected: ${currentWalletName}`)
       }
       lastWalletName.current = currentWalletName
+    }
+    
+    // Close modal when successfully connected
+    if (connected && wallet && keepModalOpenRef.current) {
+      console.log(`✅ Wallet connected: ${currentWalletName} - closing modal`)
+      keepModalOpenRef.current = false
+      setVisible(false)
+    }
+    
+    // If connection failed or was cancelled, keep modal open if user just selected wallet
+    // The modal will remain visible so user can try again or cancel
+    
+    // Keep modal open while connecting
+    if (connecting && wallet && !connected) {
+      keepModalOpenRef.current = true
+      if (!visible) {
+        setVisible(true)
+      }
     }
     
     // Clear any pending cleanup if we're connecting or already connected
@@ -124,7 +161,31 @@ export default function WalletButton() {
         clearTimeout(cleanupTimeoutRef.current)
       }
     }
-  }, [connected, connecting, wallet, select, disconnect])
+  }, [connected, connecting, wallet, select, disconnect, visible, setVisible])
+  
+  // Separate effect to keep modal open during connection
+  // This ensures if the modal closes prematurely, we reopen it
+  useEffect(() => {
+    // If we have a wallet selected but not connected yet, ensure modal stays open
+    // Check both the flag and the connecting state to catch all cases
+    if (wallet && !connected && (keepModalOpenRef.current || connecting)) {
+      // If modal is closed but we're still connecting, reopen it
+      if (!visible) {
+        console.log('🔄 Reopening modal - connection in progress')
+        // Use a small delay to ensure this runs after any modal close events from WalletMultiButton
+        const timeoutId = setTimeout(() => {
+          setVisible(true)
+        }, 100)
+        
+        return () => clearTimeout(timeoutId)
+      }
+    }
+    
+    // Reset the flag if we're connected or no wallet is selected
+    if (connected || !wallet) {
+      keepModalOpenRef.current = false
+    }
+  }, [wallet, connected, connecting, visible, setVisible])
 
   // Just render the button - let it work normally
   // The cleanup happens automatically in the effect above
