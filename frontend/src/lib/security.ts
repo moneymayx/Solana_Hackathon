@@ -10,7 +10,9 @@ export const CSP_CONFIG = {
     "'unsafe-inline'", // Required for Next.js
     "'unsafe-eval'",   // Required for development
     'https://cdn.jsdelivr.net',
-    'https://unpkg.com'
+    'https://unpkg.com',
+    'https://*.vercel.live', // Required for Vercel Live Feedback (allows all subdomains)
+    'https://vercel.live' // Required for Vercel Live Feedback (base domain)
   ],
   'style-src': [
     "'self'",
