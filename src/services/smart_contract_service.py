@@ -30,7 +30,16 @@ logger = logging.getLogger(__name__)
 class SmartContractService:
     """
     Service for managing lottery operations through Solana smart contracts.
-    This replaces the backend-controlled fund routing system with autonomous smart contract logic.
+    
+    ✅ ACTIVE: This service handles smart contract interactions.
+    - When USE_CONTRACT_V2=true: Uses V2 smart contracts (recommended)
+    - When USE_CONTRACT_V2=false: Uses V1 smart contracts (legacy)
+    
+    All fund routing happens on-chain via smart contracts.
+    Backend only provides API endpoints - no fund routing in backend code.
+    
+    See ARCHITECTURE.md for system architecture.
+    See docs/V2_INTEGRATION_GUIDE.md for V2 integration.
     """
     
     def __init__(self):

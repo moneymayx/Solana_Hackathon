@@ -2,6 +2,22 @@
 
 An educational and research platform that builds upon the groundbreaking work of Freysa AI, taking AI security challenges to the next level with continuous learning and escalating rewards for successful jailbreakers.
 
+## 🚀 Current System Status: V2 Smart Contracts (Devnet)
+
+**✅ ACTIVE**: This repository uses **V2 Solana Smart Contracts** for all payment and fund management operations. The backend serves as an API layer only - **no fund routing happens in backend code**.
+
+- **Smart Contracts**: `programs/billions-bounty-v2/` (Active)
+- **Backend Integration**: `src/services/v2/` (Active)
+- **API Endpoints**: `src/api/v2_payment_router.py` (Active)
+- **Deprecated Code**: `src/services/obsolete/` (Not in use)
+
+**📖 Documentation**:
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and code organization
+- [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) - Complete documentation index
+- [QUICK_REFERENCE_V2.md](QUICK_REFERENCE_V2.md) - Quick answers for common questions
+
+---
+
 ## 🎯 Honoring Freysa AI's Legacy
 
 We pay homage to [Freysa AI](https://freysa.ai) and their pioneering work in AI security research. Freysa's innovative approach to AI jailbreak challenges has fundamentally shaped how we understand AI safety and human-AI interaction patterns. Their contributions to the field have been invaluable in advancing our collective understanding of AI vulnerabilities and defense mechanisms.

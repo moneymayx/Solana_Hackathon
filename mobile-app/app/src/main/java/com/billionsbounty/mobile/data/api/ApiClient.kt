@@ -163,6 +163,36 @@ interface ApiClient {
     suspend fun verifyNft(
         @Body request: NftVerifyRequest
     ): Response<NftVerifyResponse>
+    
+    // ==============================================================================
+    // V2 SMART CONTRACT ENDPOINTS (ACTIVE - Production)
+    // ==============================================================================
+    // V2 endpoints for smart contract-based payments
+    // All fund routing happens on-chain via V2 smart contracts
+    // Backend only provides API endpoints - no fund routing in backend code
+    // See ARCHITECTURE.md for system architecture
+    
+    /**
+     * Get V2 bounty status
+     * @param bountyId The bounty ID (typically 1)
+     */
+    @GET("/api/v2/bounty/{bounty_id}/status")
+    suspend fun getV2BountyStatus(@Path("bounty_id") bountyId: Int): Response<V2BountyStatusResponse>
+    
+    /**
+     * Process V2 entry payment
+     * Note: This endpoint requires client-side transaction signing
+     * The backend provides configuration, but the transaction is signed by the user
+     */
+    @POST("/api/v2/payment/process")
+    suspend fun processV2Payment(@Body request: V2ProcessPaymentRequest): Response<V2ProcessPaymentResponse>
+    
+    /**
+     * Get V2 contract configuration (public info only)
+     * Returns program ID, USDC mint, wallet addresses, etc.
+     */
+    @GET("/api/v2/config")
+    suspend fun getV2Config(): Response<V2ConfigResponse>
 }
 
 /**
@@ -674,4 +704,56 @@ data class NftVerifyResponse(
     val questions_granted: Int = 0,
     val questions_remaining: Int = 0,
     val message: String? = null
+)
+
+// ==============================================================================
+// V2 SMART CONTRACT REQUEST/RESPONSE MODELS
+// ==============================================================================
+
+/**
+ * Request to process V2 entry payment
+ * Note: Actual transaction signing happens client-side
+ */
+data class V2ProcessPaymentRequest(
+    val user_wallet_address: String,
+    val bounty_id: Int = 1,
+    val entry_amount_usdc: Double
+)
+
+/**
+ * Response from V2 payment processing
+ */
+data class V2ProcessPaymentResponse(
+    val success: Boolean,
+    val transaction_signature: String? = null,
+    val explorer_url: String? = null,
+    val bounty_id: Int,
+    val amount: Int, // Amount in smallest unit (6 decimals for USDC)
+    val error: String? = null
+)
+
+/**
+ * V2 bounty status response
+ */
+data class V2BountyStatusResponse(
+    val success: Boolean,
+    val bounty_id: Int,
+    val bounty_pda: String? = null,
+    val error: String? = null
+)
+
+/**
+ * V2 contract configuration response
+ * Contains public configuration needed for client-side transaction building
+ */
+data class V2ConfigResponse(
+    val success: Boolean,
+    val enabled: Boolean,
+    val program_id: String,
+    val usdc_mint: String,
+    val bounty_pool_wallet: String,
+    val operational_wallet: String,
+    val buyback_wallet: String,
+    val staking_wallet: String,
+    val rpc_endpoint: String
 )
