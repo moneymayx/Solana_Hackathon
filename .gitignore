@@ -37,6 +37,7 @@ ENV/
 .env.production.local
 .env.backup
 *.env.backup
+.env.old_backup_*
 
 # IDE
 .vscode/
