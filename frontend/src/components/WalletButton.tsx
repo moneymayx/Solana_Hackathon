@@ -66,7 +66,7 @@ async function disconnectWalletAdapter(disconnect: () => Promise<void>) {
  * Also handles keeping the modal open during connection flow.
  */
 export default function WalletButton() {
-  const { connected, connecting, wallet, select, disconnect } = useWallet()
+  const { connected, connecting, wallet, select, disconnect, connect } = useWallet()
   const { setVisible, visible } = useWalletModal()
   const wasConnected = useRef(false)
   const lastWalletName = useRef<string | null>(null)
@@ -74,21 +74,51 @@ export default function WalletButton() {
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const previousWalletRef = useRef<any>(null)
   const keepModalOpenRef = useRef(false)
+  const hasHandledSelectionRef = useRef(false)
+  const reopenTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const connectionAttemptedRef = useRef(false)
 
   // Handle wallet selection - keep modal open during connection
   useEffect(() => {
     const currentWalletName = wallet?.adapter?.name || null
+    let connectionTimeout: NodeJS.Timeout | null = null
+    let retryTimeout: NodeJS.Timeout | null = null
     
     // If a wallet was just selected (not previously selected) and not connected yet
     const walletJustSelected = wallet && wallet !== previousWalletRef.current && !connected
     
     if (walletJustSelected) {
-      console.log(`💼 Wallet selected: ${currentWalletName} - keeping modal open during connection...`)
-      // Mark that we should keep the modal open
+      console.log(`💼 Wallet selected: ${currentWalletName} - triggering connection...`)
+      // Reset connection attempt flag for new wallet selection
+      connectionAttemptedRef.current = false
+      hasHandledSelectionRef.current = true
+      
+      // Keep modal open
       keepModalOpenRef.current = true
-      // Ensure modal stays open
       if (!visible) {
         setVisible(true)
+      }
+      
+      // Automatically trigger connection when wallet is selected
+      // Use a small delay to ensure wallet adapter is ready and to avoid conflicts
+      // with WalletMultiButton's internal connection flow
+      if (!connecting && !connected && connect) {
+        // Use setTimeout to ensure this happens after React's render cycle
+        connectionTimeout = setTimeout(() => {
+          if (wallet && !connecting && !connected && !connectionAttemptedRef.current) {
+            console.log(`🔌 Starting connection to ${currentWalletName}...`)
+            connectionAttemptedRef.current = true
+            connect()
+              .then(() => {
+                console.log(`✅ Connection initiated for ${currentWalletName}`)
+              })
+              .catch((error) => {
+                console.error(`❌ Connection failed: ${error.message}`)
+                connectionAttemptedRef.current = false
+                // Keep modal open so user can try again
+              })
+          }
+        }, 50) // Small delay to ensure wallet adapter is ready
       }
     }
     
@@ -112,12 +142,33 @@ export default function WalletButton() {
     // If connection failed or was cancelled, keep modal open if user just selected wallet
     // The modal will remain visible so user can try again or cancel
     
-    // Keep modal open while connecting
+    // Keep modal open while actively connecting
     if (connecting && wallet && !connected) {
       keepModalOpenRef.current = true
+      hasHandledSelectionRef.current = true
       if (!visible) {
         setVisible(true)
       }
+    }
+    
+    // If we have a wallet selected but not connecting and not connected after a delay,
+    // try to trigger connection again (in case it didn't start automatically)
+    if (wallet && !connecting && !connected && !connectionAttemptedRef.current && hasHandledSelectionRef.current) {
+      // Wallet is selected but connection hasn't started - try to start it
+      retryTimeout = setTimeout(() => {
+        if (wallet && !connecting && !connected && connect && !connectionAttemptedRef.current) {
+          console.log(`🔄 Retrying connection for ${wallet.adapter?.name}...`)
+          connectionAttemptedRef.current = true
+          connect()
+            .then(() => {
+              console.log(`✅ Retry connection initiated`)
+            })
+            .catch((error) => {
+              console.error(`❌ Retry connection failed: ${error.message}`)
+              connectionAttemptedRef.current = false
+            })
+        }
+      }, 200) // Wait 200ms before retry
     }
     
     // Clear any pending cleanup if we're connecting or already connected
@@ -155,35 +206,64 @@ export default function WalletButton() {
       }, 500) // Reduced to 500ms for faster cleanup
     }
     
-    // Cleanup function to clear timeout on unmount
+    // Cleanup function to clear all timeouts on unmount or re-render
     return () => {
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout)
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout)
+      }
       if (cleanupTimeoutRef.current) {
         clearTimeout(cleanupTimeoutRef.current)
+        cleanupTimeoutRef.current = null
       }
     }
-  }, [connected, connecting, wallet, select, disconnect, visible, setVisible])
+  }, [connected, connecting, wallet, select, disconnect, connect, visible, setVisible])
   
   // Separate effect to keep modal open during connection
   // This ensures if the modal closes prematurely, we reopen it
   useEffect(() => {
-    // If we have a wallet selected but not connected yet, ensure modal stays open
-    // Check both the flag and the connecting state to catch all cases
-    if (wallet && !connected && (keepModalOpenRef.current || connecting)) {
-      // If modal is closed but we're still connecting, reopen it
+    // Clear any pending reopen timeout
+    if (reopenTimeoutRef.current) {
+      clearTimeout(reopenTimeoutRef.current)
+      reopenTimeoutRef.current = null
+    }
+    
+    // Only reopen modal if we're ACTIVELY connecting (not just selected)
+    // This prevents infinite loops when wallet is selected but connection hasn't started
+    if (connecting && wallet && !connected) {
+      // We're actively connecting - keep modal open
+      keepModalOpenRef.current = true
       if (!visible) {
         console.log('🔄 Reopening modal - connection in progress')
         // Use a small delay to ensure this runs after any modal close events from WalletMultiButton
-        const timeoutId = setTimeout(() => {
-          setVisible(true)
+        // Only reopen once per connection attempt
+        reopenTimeoutRef.current = setTimeout(() => {
+          if (connecting && wallet && !connected) {
+            setVisible(true)
+          }
         }, 100)
-        
-        return () => clearTimeout(timeoutId)
       }
+    } else if (!connecting && wallet && !connected) {
+      // Wallet is selected but not connecting yet - don't force reopen
+      // This prevents the loop - let the modal stay closed if connection hasn't started
+      // The wallet adapter will start connecting automatically, and then we'll reopen
+      keepModalOpenRef.current = false
     }
     
     // Reset the flag if we're connected or no wallet is selected
     if (connected || !wallet) {
       keepModalOpenRef.current = false
+      hasHandledSelectionRef.current = false
+      connectionAttemptedRef.current = false
+    }
+    
+    return () => {
+      if (reopenTimeoutRef.current) {
+        clearTimeout(reopenTimeoutRef.current)
+        reopenTimeoutRef.current = null
+      }
     }
   }, [wallet, connected, connecting, visible, setVisible])
 
