@@ -93,15 +93,10 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
     }
   }
 
+  // Get client IP address (CSP blocks external API, so return 'browser')
+  // Backend can get real IP from request headers if needed
   const getClientIP = async (): Promise<string> => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json')
-      const data = await response.json()
-      return data.ip
-    } catch (error) {
-      console.error('Failed to get IP address:', error)
-      return 'unknown'
-    }
+    return 'browser'
   }
 
   const copyReferralCode = () => {

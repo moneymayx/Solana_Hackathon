@@ -4566,6 +4566,75 @@ async def get_referral_code(user_id: int, session: AsyncSession = Depends(get_db
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get referral code: {str(e)}")
 
+@app.post("/api/referral/submit-email")
+async def submit_email_for_referral_code(request: dict, http_request: Request, session: AsyncSession = Depends(get_db)):
+    """Submit email and username to get or create referral code for a wallet"""
+    from src.repositories import UserRepository
+    from sqlalchemy import select, update
+    from src.models import User
+    
+    try:
+        wallet_address = request.get("wallet_address")
+        email = request.get("email")
+        username = request.get("username")
+        ip_address = request.get("ip_address", "browser")
+        
+        if not wallet_address:
+            raise HTTPException(status_code=400, detail="wallet_address is required")
+        if not email:
+            raise HTTPException(status_code=400, detail="email is required")
+        if not username or len(username) < 3:
+            raise HTTPException(status_code=400, detail="username must be at least 3 characters")
+        
+        # Validate email format
+        if '@' not in email or '.com' not in email:
+            raise HTTPException(status_code=400, detail="Email must contain @ and .com")
+        
+        user_repo = UserRepository(session)
+        
+        # Get or create user by wallet address
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            # Create new user with wallet address
+            session_id = str(uuid.uuid4())
+            real_ip_address = http_request.client.host if http_request.client else None
+            user_agent = http_request.headers.get("user-agent")
+            user = await user_repo.create_user(session_id, real_ip_address, user_agent)
+            await user_repo.update_user_wallet(user.id, wallet_address)
+            await session.refresh(user)
+            logger.info(f"✅ Created new user {user.id} with wallet: {wallet_address}")
+        
+        # Update user with email and display_name
+        await session.execute(
+            update(User)
+            .where(User.id == user.id)
+            .values(
+                email=email,
+                display_name=username
+            )
+        )
+        await session.commit()
+        await session.refresh(user)
+        
+        # Get or create referral code
+        referral_code_obj = await referral_service.get_or_create_referral_code(session, user.id)
+        
+        return {
+            "success": True,
+            "referral_code": referral_code_obj.referral_code,
+            "created_at": referral_code_obj.created_at.isoformat(),
+            "email": email
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to submit email for referral code: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit email: {str(e)}")
+
 @app.post("/api/referral/process")
 async def process_referral_signup(request: dict, session: AsyncSession = Depends(get_db)):
     """Process a referral signup when a new user makes their first deposit"""
