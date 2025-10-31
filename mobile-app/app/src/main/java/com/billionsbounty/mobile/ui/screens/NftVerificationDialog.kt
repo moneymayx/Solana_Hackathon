@@ -107,7 +107,9 @@ fun NftVerificationDialog(
                             kotlinx.coroutines.delay(500)
                             onDismiss()
                         } else {
-                            errorMessage = result.message ?: "Verification failed"
+                            // Extract error message: prefer error field if present (indicates failure), otherwise use message
+                            val errorMsg = result.error ?: result.message ?: "Verification failed. Please try again."
+                            errorMessage = errorMsg
                         }
                     }
                     .onFailure { error ->

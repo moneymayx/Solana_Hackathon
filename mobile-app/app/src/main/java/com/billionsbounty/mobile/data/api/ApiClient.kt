@@ -771,7 +771,8 @@ data class NftVerifyResponse(
     val is_mock: Boolean = false,
     val questions_granted: Int = 0,
     val questions_remaining: Int = 0,
-    val message: String? = null
+    val message: String? = null,
+    val error: String? = null  // Error field for backend compatibility
 )
 
 // ==============================================================================
