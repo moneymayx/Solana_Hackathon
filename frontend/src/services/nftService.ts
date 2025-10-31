@@ -224,11 +224,15 @@ export async function verifyNftOwnership(
     
     const data = await response.json();
     
+    // Extract message: prefer error field if present (indicates failure), otherwise use message field
+    // This handles both success and error responses
+    const message = data.error || data.message || (data.success ? 'Verification completed' : 'Verification failed. Please try again.');
+    
     return {
       success: data.success || false,
       verified: data.verified || false,
       questionsGranted: data.questions_granted,
-      message: data.message || 'Verification completed',
+      message: message,
       signature: data.signature || signature,
     };
     

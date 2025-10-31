@@ -78,10 +78,15 @@ export default function NftVerification({ onClose, onVerificationSuccess }: NftV
     try {
       console.log('🎨 Starting NFT verification...')
       const result = await verifyNftOwnership(connection, wallet)
-      console.log('🎨 NFT verification result:', result)
+      console.log('🎨 NFT verification result:', {
+        success: result.success,
+        verified: result.verified,
+        message: result.message,
+        questionsGranted: result.questionsGranted
+      })
 
       if (result.success && result.verified) {
-        console.log('✅ NFT verification successful!')
+        console.log('✅ NFT verification successful!', result.message)
         setSuccess(true)
         
         // Wait briefly to show success message, then trigger callback
@@ -93,8 +98,9 @@ export default function NftVerification({ onClose, onVerificationSuccess }: NftV
         console.log('🎨 Closing modal...')
         onClose()
       } else {
-        console.error('❌ NFT verification failed:', result)
-        setError(result.message || 'Verification failed. Please try again.')
+        const errorMsg = result.message || 'Verification failed. Please try again.'
+        console.error('❌ NFT verification failed:', errorMsg)
+        setError(errorMsg)
       }
     } catch (err) {
       console.error('❌ Error verifying NFT:', err)

@@ -79,6 +79,7 @@ class MockNftService:
                     "success": False,
                     "verified": False,
                     "error": "No eligible NFTs found",
+                    "message": "No eligible NFTs found",  # Include message field for frontend compatibility
                     "is_mock": True
                 }
             
@@ -123,11 +124,13 @@ class MockNftService:
             
             # Check if granting was successful
             if not result.get("success"):
-                logger.warning(f"⚠️ Failed to grant questions: {result.get('error')}")
+                error_message = result.get("error", "Failed to grant questions")
+                logger.warning(f"⚠️ Failed to grant questions: {error_message}")
                 return {
                     "success": False,
                     "verified": False,
-                    "error": result.get("error", "Failed to grant questions"),
+                    "error": error_message,
+                    "message": error_message,  # Include message field for frontend compatibility
                     "is_mock": True
                 }
             
@@ -142,11 +145,13 @@ class MockNftService:
             }
             
         except Exception as e:
-            logger.error(f"Error verifying mock NFT: {e}")
+            error_message = str(e)
+            logger.error(f"Error verifying mock NFT: {error_message}")
             return {
                 "success": False,
                 "verified": False,
-                "error": str(e),
+                "error": error_message,
+                "message": error_message,  # Include message field for frontend compatibility
                 "is_mock": True
             }
 

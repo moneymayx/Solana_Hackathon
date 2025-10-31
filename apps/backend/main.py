@@ -1825,6 +1825,23 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                     await session.refresh(user)  # Refresh the user object, not the return value
                     logger.info(f"✅ Created user {user.id} for wallet {request.wallet_address}")
                 
+                # Create PaymentTransaction record for contract activity tracking
+                from src.models import PaymentTransaction
+                amount_usd = result.get("amount_usd", request.amount_usd or 10.0)
+                payment_transaction = PaymentTransaction(
+                    user_id=user.id,
+                    payment_method="wallet",
+                    payment_type="query_payment",
+                    amount_usd=amount_usd,
+                    tx_signature=request.tx_signature,
+                    status="confirmed",
+                    from_wallet=request.wallet_address,
+                    to_wallet=request.wallet_address,
+                    confirmed_at=datetime.utcnow()
+                )
+                session.add(payment_transaction)
+                logger.info(f"📝 Created PaymentTransaction record: {request.tx_signature}")
+                
                 # Grant free questions and track credit
                 questions_to_grant = result.get("questions_granted", 0)
                 credit_remainder = result.get("credit_remainder", 0.0)
@@ -1871,7 +1888,10 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                         await session.commit()
                         logger.info(f"💰 Updated bounty {request.bounty_id}: +${contribution:.2f} to pool (total: ${bounty.current_pool:.2f}), entries: {bounty.total_entries}")
                     else:
+                        await session.commit()  # Commit PaymentTransaction even if bounty not found
                         logger.warning(f"⚠️ Bounty {request.bounty_id} not found, skipping pool update")
+                else:
+                    await session.commit()  # Commit PaymentTransaction even without bounty_id
             
                 result.setdefault("question_cost_usd", round(cost_per_question, 4))
                 result["difficulty"] = pricing.difficulty
@@ -1886,6 +1906,7 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
             # If verified, grant free questions based on payment amount
             if result.get("verified"):
                 from src.services.free_question_service import free_question_service
+                from src.models import PaymentTransaction
                 
                 user_result = await session.execute(
                     select(User).where(User.wallet_address == request.wallet_address)
@@ -1897,6 +1918,21 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                     effective_cost = cost_per_question if cost_per_question > 0 else STARTING_COST_BY_DIFFICULTY["expert"]
                     questions_to_grant = int(amount_usd // effective_cost)
                     credit_remainder = max(0.0, round(amount_usd - (questions_to_grant * effective_cost), 2))
+
+                    # Create PaymentTransaction record for contract activity tracking
+                    payment_transaction = PaymentTransaction(
+                        user_id=user.id,
+                        payment_method="wallet",
+                        payment_type="query_payment",
+                        amount_usd=amount_usd,
+                        tx_signature=request.tx_signature,
+                        status="confirmed",
+                        from_wallet=request.wallet_address,
+                        to_wallet=request.wallet_address,
+                        confirmed_at=datetime.utcnow()
+                    )
+                    session.add(payment_transaction)
+                    logger.info(f"📝 Created PaymentTransaction record: {request.tx_signature}")
 
                     if questions_to_grant > 0 or credit_remainder > 0:
                         await free_question_service.grant_free_questions(
@@ -1941,7 +1977,11 @@ async def verify_payment(request: TransactionVerifyRequest, session: AsyncSessio
                             await session.commit()
                             logger.info(f"💰 Updated bounty {request.bounty_id}: +${contribution:.2f} to pool (total: ${bounty.current_pool:.2f}), entries: {bounty.total_entries}")
                         else:
+                            await session.commit()  # Commit PaymentTransaction even if bounty not found
                             logger.warning(f"⚠️ Bounty {request.bounty_id} not found, skipping pool update")
+                    else:
+                        await session.commit()  # Commit PaymentTransaction even without questions
+                        logger.info(f"📝 PaymentTransaction committed for user {user.id}")
             
             return result
     
@@ -2552,114 +2592,7 @@ async def get_fund_verification(session: AsyncSession = Depends(get_db)):
             "data": None
         }
 
-@app.get("/api/contract/activity")
-async def get_contract_activity(limit: int = 20):
-    """Get recent smart contract transactions from the blockchain"""
-    try:
-        from solders.pubkey import Pubkey
-        import asyncio
-        
-        # Check if V2 is enabled
-        use_v2 = os.getenv("USE_CONTRACT_V2", "false").lower() == "true"
-        
-        if use_v2:
-            program_id_str = os.getenv("LOTTERY_PROGRAM_ID_V2", "").strip()
-        else:
-            # Get from smart contract service if available
-            lottery_status_temp = await smart_contract_service.get_lottery_status()
-            program_id_str = os.getenv("LOTTERY_PROGRAM_ID", "").strip() or lottery_status_temp.get("program_id", "")
-        
-        if not program_id_str:
-            return {
-                "success": False,
-                "error": "Program ID not configured",
-                "transactions": []
-            }
-        
-        # Get Solana RPC client from smart_contract_service
-        program_id = Pubkey.from_string(program_id_str)
-        
-        # Query transactions for the program
-        # Get signatures for recent transactions
-        try:
-            # Use the RPC client from smart_contract_service
-            rpc_client = smart_contract_service.client
-            
-            # Get recent signatures for the program
-            signatures_response = await rpc_client.get_signatures_for_address(
-                program_id,
-                limit=limit
-            )
-            
-            transactions = []
-            if signatures_response.value:
-                # Fetch transaction details for each signature
-                for sig_info in signatures_response.value[:limit]:
-                    try:
-                        sig = sig_info.signature
-                        # Get transaction details
-                        tx_response = await rpc_client.get_transaction(
-                            sig,
-                            commitment="confirmed",
-                            max_supported_transaction_version=0
-                        )
-                        
-                        if tx_response.value:
-                            tx = tx_response.value
-                            # Extract relevant info
-                            timestamp = tx.block_time if tx.block_time else 0
-                            amount = 0.0
-                            wallet_address = ""
-                            
-                            # Try to extract amount and wallet from transaction
-                            if tx.transaction and tx.transaction.message:
-                                # Get account keys
-                                account_keys = tx.transaction.message.account_keys
-                                if account_keys and len(account_keys) > 0:
-                                    wallet_address = str(account_keys[0]) if account_keys[0] else ""
-                            
-                            # Determine transaction type
-                            tx_type = "lottery_entry"  # Default
-                            if "process_entry_payment" in str(sig_info):
-                                tx_type = "lottery_entry"
-                            elif "select_winner" in str(sig_info) or "winner" in str(sig_info):
-                                tx_type = "winner_payout"
-                            elif "staking" in str(sig_info) or "stake" in str(sig_info):
-                                tx_type = "staking"
-                            
-                            transactions.append({
-                                "id": len(transactions),
-                                "type": tx_type,
-                                "transaction_signature": str(sig),
-                                "wallet_address": wallet_address or "Unknown",
-                                "amount": amount,
-                                "status": "confirmed" if tx.meta and not tx.meta.err else "failed",
-                                "created_at": datetime.fromtimestamp(timestamp).isoformat() if timestamp else datetime.utcnow().isoformat(),
-                            })
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch transaction details for {sig_info.signature}: {e}")
-                        continue
-            
-            return {
-                "success": True,
-                "transactions": transactions[:limit]
-            }
-            
-        except Exception as e:
-            logger.error(f"Error fetching contract transactions: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "transactions": []
-            }
-            
-    except Exception as e:
-        logger.error(f"Error in contract activity endpoint: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "transactions": []
-        }
+# Removed duplicate endpoint - using database-based one below
 
 @app.get("/api/dashboard/security-status")
 async def get_security_status():
@@ -5005,31 +4938,60 @@ async def get_contract_activity(
         
         transactions = []
         
-        # 1. Lottery entries (FundDeposit with transaction_signature)
-        entries_query = select(
-            FundDeposit.id,
+        # 1. Lottery entries from PaymentTransaction (wallet payments)
+        from src.models import PaymentTransaction
+        payment_query = select(
+            PaymentTransaction.id,
             literal("lottery_entry").label("type"),
-            FundDeposit.transaction_signature,
-            FundDeposit.wallet_address,
-            FundDeposit.amount_usd,
-            FundDeposit.status,
-            FundDeposit.created_at
+            PaymentTransaction.tx_signature.label("transaction_signature"),
+            PaymentTransaction.from_wallet.label("wallet_address"),
+            PaymentTransaction.amount_usd,
+            PaymentTransaction.status,
+            PaymentTransaction.created_at
         ).where(
-            FundDeposit.transaction_signature.isnot(None),
-            FundDeposit.transaction_signature != ""
-        ).order_by(FundDeposit.created_at.desc()).limit(limit)
+            PaymentTransaction.tx_signature.isnot(None),
+            PaymentTransaction.tx_signature != "",
+            PaymentTransaction.payment_type == "query_payment"
+        ).order_by(PaymentTransaction.created_at.desc()).limit(limit)
         
-        entries = await session.execute(entries_query)
-        for row in entries:
+        payments = await session.execute(payment_query)
+        for row in payments:
             transactions.append({
                 "id": row.id,
                 "type": "lottery_entry",
                 "transaction_signature": row.transaction_signature,
                 "wallet_address": row.wallet_address or "Unknown",
                 "amount": float(row.amount_usd or 0),
-                "status": "confirmed" if row.status == "completed" else "pending",
+                "status": "confirmed" if row.status == "confirmed" else "pending",
                 "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
             })
+        
+        # 1b. Bounty entries (BountyEntry with payment info)
+        from src.models import BountyEntry
+        bounty_entries_query = select(
+            BountyEntry.id,
+            literal("lottery_entry").label("type"),
+            User.wallet_address.label("wallet_address"),
+            BountyEntry.entry_fee_usd.label("amount"),
+            literal("confirmed").label("status"),
+            BountyEntry.created_at
+        ).join(User, BountyEntry.user_id == User.id).where(
+            BountyEntry.entry_fee_usd > 0
+        ).order_by(BountyEntry.created_at.desc()).limit(limit)
+        
+        bounty_entries = await session.execute(bounty_entries_query)
+        for row in bounty_entries:
+            # Only add if we don't already have this entry from PaymentTransaction
+            if not any(tx.get("id") == row.id + 1000000 for tx in transactions):
+                transactions.append({
+                    "id": row.id + 1000000,  # Offset to avoid conflicts
+                    "type": "lottery_entry",
+                    "transaction_signature": f"bounty_entry_{row.id}",
+                    "wallet_address": row.wallet_address or "Unknown",
+                    "amount": float(row.amount or 0),
+                    "status": "confirmed",
+                    "created_at": row.created_at.isoformat() if row.created_at else datetime.utcnow().isoformat()
+                })
         
         # 2. Winner payouts
         winners_query = select(
