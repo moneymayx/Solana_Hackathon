@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.billionsbounty.mobile.wallet.WalletAdapter
 import com.billionsbounty.mobile.wallet.WalletConnectionState
 import kotlinx.coroutines.launch
@@ -40,7 +41,17 @@ fun WalletConnectionDialog(
     var error by remember { mutableStateOf<String?>(null) }
     var connectedAddress by remember { mutableStateOf<String?>(null) }
     
-    Dialog(onDismissRequest = onDismiss) {
+    // Keep the dialog open during the connection flow so users don't have to re-open it
+    // Prevent dismissal on back press or outside tap while connecting
+    Dialog(
+        onDismissRequest = {
+            if (!isConnecting && connectedAddress == null) onDismiss()
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = !isConnecting,
+            dismissOnClickOutside = !isConnecting
+        )
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -161,6 +172,7 @@ fun WalletConnectionDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
+                        // Disable while connecting so the user cannot accidentally dismiss or double-trigger
                         enabled = !isConnecting,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF8B5CF6)
@@ -192,12 +204,15 @@ fun WalletConnectionDialog(
                 
                 // Close/Done Button
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        if (!isConnecting) onDismiss()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !isConnecting
                 ) {
                     Text(
                         if (connectedAddress != null) "Done" else "Cancel",

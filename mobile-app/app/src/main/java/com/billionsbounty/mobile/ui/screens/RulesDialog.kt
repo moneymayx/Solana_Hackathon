@@ -76,17 +76,9 @@ fun RulesDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "There is only one rule:",
-                            fontSize = 16.sp,
+                            text = "There is only 1 rule: Get the AI to send you the bounty!",
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E),
-                            textAlign = TextAlign.Center
-                        )
-                        
-                        Text(
-                            text = "By any means necessary, do what you can to get the AI programmed to not send anyone money, to send you money",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
                             color = Color(0xFF92400E),
                             textAlign = TextAlign.Center,
                             lineHeight = 24.sp
