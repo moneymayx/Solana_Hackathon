@@ -8,7 +8,7 @@
 ## Feature Flags
 - Backend env:
   - `USE_CONTRACT_V2=false` (default)
-  - `LOTTERY_PROGRAM_ID_V2=4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW`
+  - `LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
   - `BOUNTY_POOL_WALLET=...`
   - `OPERATIONAL_WALLET=...`
   - `BUYBACK_WALLET=...`
@@ -21,7 +21,7 @@
    - Mirror serialization, RPC, and error handling for entries, AI decision, buyback.
    - Point E2E tests at v2 endpoints only.
 3. Extract and store IDL for v2:
-   - `anchor idl extract -o programs/billions-bounty-v2/target/idl/billions_bounty_v2.json 4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW`
+   - `anchor idl extract -o programs/billions-bounty-v2/target/idl/billions_bounty_v2.json HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
    - Commit IDL and generated types (if used) to repo for stable clients.
 4. Backend integration (staged):
    - Add new internal endpoints (v2) and guard with flag.

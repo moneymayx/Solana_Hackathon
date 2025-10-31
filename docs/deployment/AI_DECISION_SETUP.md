@@ -13,7 +13,7 @@ BACKEND_AUTHORITY_PUBLIC_KEY=your_backend_public_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 SOLANA_RPC_ENDPOINT=https://api.devnet.solana.com
 LOTTERY_PROGRAM_ID=4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK
-USDC_MINT_ADDRESS=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+USDC_MINT_ADDRESS=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 ```
 
 ## 🚀 **Setup Instructions**

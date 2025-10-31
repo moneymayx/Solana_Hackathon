@@ -12,7 +12,7 @@
 - ✅ Created staking skeleton (`programs/staking-v2/`)
 
 ### 2. Keypair Management
-- ✅ Generated program keypair: `4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW`
+- ✅ Generated program keypair: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 - ✅ Saved keypair to `config/keys/v2-contracts/billions_bounty_v2-keypair.json`
 - ✅ Created keypair documentation in `config/keys/v2-contracts/README.md`
 - ✅ Added `.gitignore` to prevent committing private keys
@@ -106,7 +106,7 @@ Before deployment, review these areas:
 
 ## 📝 Keypair Information
 
-**Program ID**: `4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW`
+**Program ID**: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 
 **Keypair Location**:
 - Primary: `programs/billions-bounty-v2/target/deploy/billions_bounty_v2-keypair.json`

@@ -25,11 +25,11 @@ The V2 smart contract migration has been **successfully completed** and is ready
 ### Contract Information
 | Item | Value |
 |------|-------|
-| **Program ID** | `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm` |
+| **Program ID** | `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm` |
 | **IDL Account** | `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr` |
 | **Network** | Devnet |
-| **Global PDA** | `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh` |
-| **Bounty[1] PDA** | `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z` |
+| **Global PDA** | `BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb` |
+| **Bounty[1] PDA** | `2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb` |
 | **Verifiable** | ✅ Yes |
 
 ### Wallet Configuration
@@ -127,7 +127,7 @@ The V2 smart contract migration has been **successfully completed** and is ready
 
 #### 6. Contract Verifiability
 - **Status**: ✅ IDL fetchable from devnet
-- **Command**: `anchor idl fetch --provider.cluster devnet GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- **Command**: `anchor idl fetch --provider.cluster devnet HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 
 ### Run All Validations
 ```
@@ -361,13 +361,13 @@ cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/programs/billions-bounty-v
 cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 scripts/devnet/test_v2_integration.py
 
 # Backend service only
-cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 -c "import sys; sys.path.insert(0, 'src'); from services.v2.contract_service import ContractServiceV2; import asyncio; s = ContractServiceV2(program_id='GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm'); result = asyncio.run(s.get_bounty_status(1)); print(result)"
+cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 -c "import sys; sys.path.insert(0, 'src'); from services.v2.contract_service import ContractServiceV2; import asyncio; s = ContractServiceV2(program_id='HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm'); result = asyncio.run(s.get_bounty_status(1)); print(result)"
 ```
 
 ### Explorer Links
-- **Program**: https://explorer.solana.com/address/GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm?cluster=devnet
-- **Global PDA**: https://explorer.solana.com/address/F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh?cluster=devnet
-- **Bounty[1]**: https://explorer.solana.com/address/AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z?cluster=devnet
+- **Program**: https://explorer.solana.com/address/HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm?cluster=devnet
+- **Global PDA**: https://explorer.solana.com/address/BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb?cluster=devnet
+- **Bounty[1]**: https://explorer.solana.com/address/2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb?cluster=devnet
 
 ---
 

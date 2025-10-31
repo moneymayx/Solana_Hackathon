@@ -1,5 +1,5 @@
 {
-  "address": "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm",
+  "address": "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm",
   "metadata": {
     "name": "billions_bounty_v2",
     "version": "0.2.0",
@@ -9,14 +9,14 @@
     {
       "name": "initializeLottery",
       "discriminator": [
-        175,
-        175,
-        109,
-        31,
-        13,
-        152,
-        155,
-        237
+        113,
+        199,
+        243,
+        247,
+        73,
+        217,
+        33,
+        11
       ],
       "accounts": [
         {
@@ -70,6 +70,11 @@
           "isSigner": false
         },
         {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -105,14 +110,14 @@
     {
       "name": "initializeBounty",
       "discriminator": [
-        105,
-        153,
-        238,
-        129,
-        138,
-        156,
-        139,
-        86
+        150,
+        37,
+        249,
+        246,
+        85,
+        164,
+        253,
+        229
       ],
       "accounts": [
         {
@@ -150,14 +155,14 @@
     {
       "name": "processEntryPaymentV2",
       "discriminator": [
-        234,
-        56,
-        78,
-        123,
-        45,
-        90,
-        12,
-        234
+        33,
+        137,
+        63,
+        209,
+        133,
+        83,
+        188,
+        34
       ],
       "accounts": [
         {
@@ -244,6 +249,11 @@
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -260,14 +270,14 @@
     {
       "name": "processAiDecisionV2",
       "discriminator": [
-        111,
-        222,
-        33,
-        144,
-        55,
-        166,
-        77,
-        188
+        132,
+        123,
+        122,
+        146,
+        133,
+        75,
+        207,
+        228
       ],
       "accounts": [
         {
@@ -331,14 +341,14 @@
     {
       "name": "executeBuyback",
       "discriminator": [
-        99,
-        88,
-        77,
-        66,
-        55,
-        44,
-        33,
-        22
+        47,
+        32,
+        19,
+        100,
+        184,
+        96,
+        144,
+        49
       ],
       "accounts": [
         {
@@ -367,14 +377,14 @@
     {
       "name": "setBackendAuthority",
       "discriminator": [
-        11,
-        22,
-        33,
-        44,
-        55,
-        66,
-        77,
-        88
+        243,
+        150,
+        19,
+        155,
+        40,
+        40,
+        74,
+        184
       ],
       "accounts": [
         {
@@ -398,14 +408,14 @@
     {
       "name": "registerReferral",
       "discriminator": [
-        200,
-        150,
-        100,
-        50,
-        25,
-        12,
-        6,
-        3
+        158,
+        196,
+        134,
+        102,
+        193,
+        102,
+        184,
+        86
       ],
       "accounts": [
         {
@@ -440,13 +450,13 @@
       "name": "recordReferralUse",
       "discriminator": [
         250,
-        200,
-        150,
-        100,
-        75,
-        50,
-        25,
-        10
+        2,
+        167,
+        201,
+        226,
+        237,
+        249,
+        181
       ],
       "accounts": [
         {
@@ -475,14 +485,14 @@
     {
       "name": "createTeam",
       "discriminator": [
-        135,
-        180,
-        225,
-        15,
-        60,
-        105,
-        150,
-        195
+        122,
+        161,
+        98,
+        67,
+        178,
+        128,
+        116,
+        113
       ],
       "accounts": [
         {
@@ -511,14 +521,14 @@
     {
       "name": "addTeamMember",
       "discriminator": [
-        30,
-        60,
-        90,
-        120,
-        150,
-        180,
-        210,
-        240
+        64,
+        13,
+        248,
+        67,
+        55,
+        245,
+        184,
+        173
       ],
       "accounts": [
         {
@@ -544,19 +554,9 @@
       ]
     }
   ],
-  "accounts": [
+  "types": [
     {
       "name": "Global",
-      "discriminator": [
-        137,
-        234,
-        244,
-        252,
-        80,
-        122,
-        210,
-        98
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -617,16 +617,6 @@
     },
     {
       "name": "Bounty",
-      "discriminator": [
-        94,
-        24,
-        100,
-        201,
-        11,
-        146,
-        47,
-        128
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -659,16 +649,6 @@
     },
     {
       "name": "BuybackTracker",
-      "discriminator": [
-        45,
-        67,
-        89,
-        123,
-        145,
-        167,
-        189,
-        211
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -685,16 +665,6 @@
     },
     {
       "name": "NonceAccount",
-      "discriminator": [
-        71,
-        93,
-        115,
-        137,
-        159,
-        181,
-        203,
-        225
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -707,16 +677,6 @@
     },
     {
       "name": "Referral",
-      "discriminator": [
-        5,
-        15,
-        25,
-        35,
-        45,
-        55,
-        65,
-        75
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -742,16 +702,6 @@
     },
     {
       "name": "Team",
-      "discriminator": [
-        85,
-        95,
-        105,
-        115,
-        125,
-        135,
-        145,
-        155
-      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -769,6 +719,304 @@
           }
         ]
       }
+    },
+    {
+      "name": "LotteryInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "bountyPoolWallet",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "operationalWallet",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "buybackWallet",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "stakingWallet",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "researchFundFloor",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "researchFee",
+            "type": "u64",
+            "index": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "BountyInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bountyId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "basePrice",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "authority",
+            "type": "pubkey",
+            "index": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "EntryProcessedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bountyId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "user",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "amount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "bountyPoolAmount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "operationalAmount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "buybackAmount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "stakingAmount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "newPool",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "totalEntries",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "pricePaid",
+            "type": "u64",
+            "index": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "WinnerSelectedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "winner",
+            "type": "pubkey",
+            "index": false
+          },
+          {
+            "name": "bountyId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "amount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "userId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "sessionId",
+            "type": "string",
+            "index": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "AiDecisionLoggedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "sessionId",
+            "type": "string",
+            "index": false
+          },
+          {
+            "name": "bountyId",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "isSuccessfulJailbreak",
+            "type": "bool",
+            "index": false
+          },
+          {
+            "name": "timestamp",
+            "type": "i64",
+            "index": false
+          },
+          {
+            "name": "decisionHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            },
+            "index": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuybackExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64",
+            "index": false
+          },
+          {
+            "name": "remainingAllocated",
+            "type": "u64",
+            "index": false
+          }
+        ]
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "global",
+      "discriminator": [
+        137,
+        234,
+        244,
+        252,
+        80,
+        122,
+        210,
+        98
+      ]
+    },
+    {
+      "name": "bounty",
+      "discriminator": [
+        94,
+        24,
+        100,
+        201,
+        11,
+        146,
+        47,
+        128
+      ]
+    },
+    {
+      "name": "buybackTracker",
+      "discriminator": [
+        45,
+        67,
+        89,
+        123,
+        145,
+        167,
+        189,
+        211
+      ]
+    },
+    {
+      "name": "nonceAccount",
+      "discriminator": [
+        71,
+        93,
+        115,
+        137,
+        159,
+        181,
+        203,
+        225
+      ]
+    },
+    {
+      "name": "referral",
+      "discriminator": [
+        5,
+        15,
+        25,
+        35,
+        45,
+        55,
+        65,
+        75
+      ]
+    },
+    {
+      "name": "team",
+      "discriminator": [
+        85,
+        95,
+        105,
+        115,
+        125,
+        135,
+        145,
+        155
+      ]
     }
   ],
   "events": [
@@ -783,43 +1031,6 @@
         6,
         7,
         8
-      ],
-      "fields": [
-        {
-          "name": "authority",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "bountyPoolWallet",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "operationalWallet",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "buybackWallet",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "stakingWallet",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "researchFundFloor",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "researchFee",
-          "type": "u64",
-          "index": false
-        }
       ]
     },
     {
@@ -833,23 +1044,6 @@
         14,
         15,
         16
-      ],
-      "fields": [
-        {
-          "name": "bountyId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "basePrice",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "authority",
-          "type": "pubkey",
-          "index": false
-        }
       ]
     },
     {
@@ -863,58 +1057,6 @@
         22,
         23,
         24
-      ],
-      "fields": [
-        {
-          "name": "bountyId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "user",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "bountyPoolAmount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "operationalAmount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "buybackAmount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "stakingAmount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "newPool",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "totalEntries",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "pricePaid",
-          "type": "u64",
-          "index": false
-        }
       ]
     },
     {
@@ -928,33 +1070,6 @@
         30,
         31,
         32
-      ],
-      "fields": [
-        {
-          "name": "winner",
-          "type": "pubkey",
-          "index": false
-        },
-        {
-          "name": "bountyId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "userId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "sessionId",
-          "type": "string",
-          "index": false
-        }
       ]
     },
     {
@@ -968,43 +1083,6 @@
         38,
         39,
         40
-      ],
-      "fields": [
-        {
-          "name": "userId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "sessionId",
-          "type": "string",
-          "index": false
-        },
-        {
-          "name": "bountyId",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "isSuccessfulJailbreak",
-          "type": "bool",
-          "index": false
-        },
-        {
-          "name": "timestamp",
-          "type": "i64",
-          "index": false
-        },
-        {
-          "name": "decisionHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          },
-          "index": false
-        }
       ]
     },
     {
@@ -1018,18 +1096,6 @@
         46,
         47,
         48
-      ],
-      "fields": [
-        {
-          "name": "amount",
-          "type": "u64",
-          "index": false
-        },
-        {
-          "name": "remainingAllocated",
-          "type": "u64",
-          "index": false
-        }
       ]
     }
   ],

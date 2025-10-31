@@ -15,7 +15,7 @@
    - `pip install -r requirements.txt`
    - `pytest tests/integration/test_contract_v2_adapter.py -q`
 4. IDL generation:
-   - `anchor idl fetch --provider.cluster devnet 4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW > programs/billions-bounty-v2/target/idl/billions_bounty_v2.json`
+   - `anchor idl fetch --provider.cluster devnet HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm > programs/billions-bounty-v2/target/idl/billions_bounty_v2.json`
    - Commit the IDL file on success
 
 ## Notes

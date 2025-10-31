@@ -78,7 +78,7 @@ Add to your `.env` file:
 # Smart Contract Configuration
 USE_CONTRACT_V2=false
 LOTTERY_PROGRAM_ID=4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK
-LOTTERY_PROGRAM_ID_V2=4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW
+LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
 SOLANA_RPC_ENDPOINT=https://api.mainnet-beta.solana.com
 
 # USDC Configuration
@@ -252,17 +252,17 @@ This smart contract system is licensed under the MIT License. See LICENSE file f
 
 ## V2 (Devnet) Deployment Details
 
-- Program ID: `GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
-- Global PDA: `F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh`
-- Bounty[1] PDA: `AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z`
+- Program ID: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
+- Global PDA: `BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb`
+- Bounty[1] PDA: `2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb`
 - Bounty Pool ATA: `3QGq4L81FuhCNMHq2Mq7ZwahXzsyDQvKptZZL1UVsaXE`
-- Devnet SPL mint: `Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr`
+- Devnet SPL mint: `JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh`
 
 Environment variables (staging)
-- LOTTERY_PROGRAM_ID_V2=GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm
-- V2_GLOBAL_PDA=F4YATUC3tEA3Gb3Tt3v7sZBT9iKRhHXJsZ6s7nBWKDgh
-- V2_BOUNTY_1_PDA=AJC6D2mvMcktdzpJJQmbYXkTZn9xGpd2C3qm4VAZK83Z
-- V2_USDC_MINT=Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr
+- LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
+- V2_GLOBAL_PDA=BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb
+- V2_BOUNTY_1_PDA=2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb
+- V2_USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh
 - V2_BOUNTY_POOL_WALLET=CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF
 - V2_OPERATIONAL_WALLET=46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D
 - V2_BUYBACK_WALLET=7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya
@@ -271,7 +271,7 @@ Environment variables (staging)
 
 IDL
 - IDL Account: `HicBwRnacuFcfYXWGBFSCWofc8ZmJU4v4rKKxtxvXBQr`
-- Fetch: `anchor idl fetch --provider.cluster devnet GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm`
+- Fetch: `anchor idl fetch --provider.cluster devnet HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 - Status: ✅ Published on devnet
 
 Notes

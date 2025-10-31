@@ -1,0 +1,345 @@
+// Manual IDL generator for billions-bounty-v2
+// This generates a minimal but complete IDL from the program structure
+
+const fs = require('fs');
+const path = require('path');
+
+const idl = {
+  "address": "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm",
+  "metadata": {
+    "name": "billions_bounty_v2",
+    "version": "0.2.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "initializeLottery",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        { "name": "global", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "bountyPoolWallet", "isMut": false, "isSigner": false },
+        { "name": "operationalWallet", "isMut": false, "isSigner": false },
+        { "name": "buybackWallet", "isMut": false, "isSigner": false },
+        { "name": "stakingWallet", "isMut": false, "isSigner": false },
+        { "name": "bountyPoolTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "usdcMint", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "researchFundFloor", "type": "u64" },
+        { "name": "researchFee", "type": "u64" },
+        { "name": "bountyPoolWallet", "type": "publicKey" },
+        { "name": "operationalWallet", "type": "publicKey" },
+        { "name": "buybackWallet", "type": "publicKey" },
+        { "name": "stakingWallet", "type": "publicKey" }
+      ]
+    },
+    {
+      "name": "initializeBounty",
+      "discriminator": [105, 153, 238, 129, 138, 156, 139, 86],
+      "accounts": [
+        { "name": "bounty", "isMut": true, "isSigner": false },
+        { "name": "global", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "bountyId", "type": "u64" },
+        { "name": "basePrice", "type": "u64" }
+      ]
+    },
+    {
+      "name": "processEntryPaymentV2",
+      "discriminator": [234, 56, 78, 123, 45, 90, 12, 234],
+      "accounts": [
+        { "name": "global", "isMut": true, "isSigner": false },
+        { "name": "bounty", "isMut": true, "isSigner": false },
+        { "name": "buybackTracker", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": true, "isSigner": true },
+        { "name": "userTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "bountyPoolTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "operationalTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "buybackTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "stakingTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "bountyPoolWallet", "isMut": false, "isSigner": false },
+        { "name": "operationalWallet", "isMut": false, "isSigner": false },
+        { "name": "buybackWallet", "isMut": false, "isSigner": false },
+        { "name": "stakingWallet", "isMut": false, "isSigner": false },
+        { "name": "usdcMint", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "bountyId", "type": "u64" },
+        { "name": "entryAmount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "processAiDecisionV2",
+      "discriminator": [111, 222, 33, 144, 55, 166, 77, 188],
+      "accounts": [
+        { "name": "global", "isMut": false, "isSigner": false },
+        { "name": "bounty", "isMut": false, "isSigner": false },
+        { "name": "nonceAccount", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": false, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "userId", "type": "u64" },
+        { "name": "sessionId", "type": "string" },
+        { "name": "bountyId", "type": "u64" },
+        { "name": "isSuccessfulJailbreak", "type": "bool" },
+        { "name": "signature", "type": { "array": ["u8", 64] } },
+        { "name": "message", "type": "bytes" }
+      ]
+    },
+    {
+      "name": "executeBuyback",
+      "discriminator": [99, 88, 77, 66, 55, 44, 33, 22],
+      "accounts": [
+        { "name": "global", "isMut": false, "isSigner": false },
+        { "name": "buybackTracker", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "setBackendAuthority",
+      "discriminator": [11, 22, 33, 44, 55, 66, 77, 88],
+      "accounts": [
+        { "name": "global", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "newAuthority", "type": "publicKey" }
+      ]
+    },
+    {
+      "name": "registerReferral",
+      "discriminator": [200, 150, 100, 50, 25, 12, 6, 3],
+      "accounts": [
+        { "name": "referral", "isMut": true, "isSigner": false },
+        { "name": "owner", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "referralCode", "type": { "array": ["u8", 8] } }
+      ]
+    },
+    {
+      "name": "recordReferralUse",
+      "discriminator": [250, 200, 150, 100, 75, 50, 25, 10],
+      "accounts": [
+        { "name": "referral", "isMut": true, "isSigner": false },
+        { "name": "user", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "referralCode", "type": { "array": ["u8", 8] } }
+      ]
+    },
+    {
+      "name": "createTeam",
+      "discriminator": [135, 180, 225, 15, 60, 105, 150, 195],
+      "accounts": [
+        { "name": "team", "isMut": true, "isSigner": false },
+        { "name": "owner", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "teamId", "type": "u64" }
+      ]
+    },
+    {
+      "name": "addTeamMember",
+      "discriminator": [30, 60, 90, 120, 150, 180, 210, 240],
+      "accounts": [
+        { "name": "team", "isMut": true, "isSigner": false },
+        { "name": "owner", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "teamId", "type": "u64" },
+        { "name": "member", "type": "publicKey" }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "global",
+      "discriminator": [137, 234, 244, 252, 80, 122, 210, 98],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "publicKey" },
+          { "name": "backendAuthority", "type": "publicKey" },
+          { "name": "bountyPoolWallet", "type": "publicKey" },
+          { "name": "operationalWallet", "type": "publicKey" },
+          { "name": "buybackWallet", "type": "publicKey" },
+          { "name": "stakingWallet", "type": "publicKey" },
+          { "name": "researchFundFloor", "type": "u64" },
+          { "name": "researchFee", "type": "u64" },
+          { "name": "isActive", "type": "bool" },
+          { "name": "bountyPoolRate", "type": "u8" },
+          { "name": "operationalRate", "type": "u8" },
+          { "name": "buybackRate", "type": "u8" },
+          { "name": "stakingRate", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "bounty",
+      "discriminator": [94, 24, 100, 201, 11, 146, 47, 128],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "bountyId", "type": "u64" },
+          { "name": "basePrice", "type": "u64" },
+          { "name": "currentPool", "type": "u64" },
+          { "name": "totalEntries", "type": "u64" },
+          { "name": "isActive", "type": "bool" },
+          { "name": "createdAt", "type": "i64" }
+        ]
+      }
+    },
+    {
+      "name": "buybackTracker",
+      "discriminator": [45, 67, 89, 123, 145, 167, 189, 211],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "totalAllocated", "type": "u64" },
+          { "name": "totalExecuted", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "nonceAccount",
+      "discriminator": [71, 93, 115, 137, 159, 181, 203, 225],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "nonce", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "referral",
+      "discriminator": [5, 15, 25, 35, 45, 55, 65, 75],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "code", "type": { "array": ["u8", 16] } },
+          { "name": "owner", "type": "publicKey" },
+          { "name": "uses", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "team",
+      "discriminator": [85, 95, 105, 115, 125, 135, 145, 155],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "teamId", "type": "u64" },
+          { "name": "owner", "type": "publicKey" },
+          { "name": "memberCount", "type": "u32" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "LotteryInitialized",
+      "discriminator": [1, 2, 3, 4, 5, 6, 7, 8],
+      "fields": [
+        { "name": "authority", "type": "publicKey", "index": false },
+        { "name": "bountyPoolWallet", "type": "publicKey", "index": false },
+        { "name": "operationalWallet", "type": "publicKey", "index": false },
+        { "name": "buybackWallet", "type": "publicKey", "index": false },
+        { "name": "stakingWallet", "type": "publicKey", "index": false },
+        { "name": "researchFundFloor", "type": "u64", "index": false },
+        { "name": "researchFee", "type": "u64", "index": false }
+      ]
+    },
+    {
+      "name": "BountyInitialized",
+      "discriminator": [9, 10, 11, 12, 13, 14, 15, 16],
+      "fields": [
+        { "name": "bountyId", "type": "u64", "index": false },
+        { "name": "basePrice", "type": "u64", "index": false },
+        { "name": "authority", "type": "publicKey", "index": false }
+      ]
+    },
+    {
+      "name": "EntryProcessedV2",
+      "discriminator": [17, 18, 19, 20, 21, 22, 23, 24],
+      "fields": [
+        { "name": "bountyId", "type": "u64", "index": false },
+        { "name": "user", "type": "publicKey", "index": false },
+        { "name": "amount", "type": "u64", "index": false },
+        { "name": "bountyPoolAmount", "type": "u64", "index": false },
+        { "name": "operationalAmount", "type": "u64", "index": false },
+        { "name": "buybackAmount", "type": "u64", "index": false },
+        { "name": "stakingAmount", "type": "u64", "index": false },
+        { "name": "newPool", "type": "u64", "index": false },
+        { "name": "totalEntries", "type": "u64", "index": false },
+        { "name": "pricePaid", "type": "u64", "index": false }
+      ]
+    },
+    {
+      "name": "WinnerSelectedV2",
+      "discriminator": [25, 26, 27, 28, 29, 30, 31, 32],
+      "fields": [
+        { "name": "winner", "type": "publicKey", "index": false },
+        { "name": "bountyId", "type": "u64", "index": false },
+        { "name": "amount", "type": "u64", "index": false },
+        { "name": "userId", "type": "u64", "index": false },
+        { "name": "sessionId", "type": "string", "index": false }
+      ]
+    },
+    {
+      "name": "AIDecisionLoggedV2",
+      "discriminator": [33, 34, 35, 36, 37, 38, 39, 40],
+      "fields": [
+        { "name": "userId", "type": "u64", "index": false },
+        { "name": "sessionId", "type": "string", "index": false },
+        { "name": "bountyId", "type": "u64", "index": false },
+        { "name": "isSuccessfulJailbreak", "type": "bool", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false },
+        { "name": "decisionHash", "type": { "array": ["u8", 32] }, "index": false }
+      ]
+    },
+    {
+      "name": "BuybackExecuted",
+      "discriminator": [41, 42, 43, 44, 45, 46, 47, 48],
+      "fields": [
+        { "name": "amount", "type": "u64", "index": false },
+        { "name": "remainingAllocated", "type": "u64", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "Unauthorized", "msg": "Unauthorized" },
+    { "code": 6001, "name": "LotteryInactive", "msg": "Lottery is not active" },
+    { "code": 6002, "name": "BountyInactive", "msg": "Bounty is not active" },
+    { "code": 6003, "name": "BountyMismatch", "msg": "Bounty ID mismatch" },
+    { "code": 6004, "name": "InvalidSignatureFormat", "msg": "Invalid signature format" },
+    { "code": 6005, "name": "InvalidNonceAccount", "msg": "Invalid nonce account" },
+    { "code": 6006, "name": "InsufficientInitialFunding", "msg": "Insufficient initial funding" },
+    { "code": 6007, "name": "SplitCalculationError", "msg": "Split calculation error" }
+  ]
+};
+
+// Write to target/idl
+const outputPath = path.join(__dirname, '../target/idl/billions_bounty_v2.json');
+fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+fs.writeFileSync(outputPath, JSON.stringify(idl, null, 2));
+
+console.log(`✅ IDL written to ${outputPath}`);
+console.log(`   Size: ${JSON.stringify(idl).length} bytes`);
+

@@ -2,8 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
 use sha2::{Sha256, Digest};
+use anchor_lang::solana_program::sysvar;
 
-declare_id!("GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm");
+declare_id!("HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm");
 
 #[program]
 pub mod billions_bounty_v2 {
@@ -475,6 +476,8 @@ pub struct InitializeLottery<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+    #[account(address = sysvar::rent::ID)]
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -519,7 +522,11 @@ pub struct ProcessEntryPaymentV2<'info> {
     )]
     pub bounty: Account<'info, Bounty>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"buyback_tracker"],
+        bump
+    )]
     pub buyback_tracker: Account<'info, BuybackTracker>,
     
     #[account(mut)]

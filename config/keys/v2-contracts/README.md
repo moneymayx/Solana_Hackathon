@@ -5,7 +5,7 @@ This directory contains keypairs for the Phase 1-2 smart contract implementation
 ## Keypairs
 
 ### billions_bounty_v2-keypair.json
-- **Program ID**: `4ChHkYCu5Q8KpBh1pPEx5KgKTQGySikhvzhi3KYrUMuW`
+- **Program ID**: `HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
 - **Purpose**: Main v2 contract program (Phase 1-2 features)
 - **Created**: October 2025
 - **Location**: `programs/billions-bounty-v2/target/deploy/billions_bounty_v2-keypair.json`
