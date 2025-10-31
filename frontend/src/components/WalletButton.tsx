@@ -132,23 +132,20 @@ export default function WalletButton() {
       lastWalletName.current = currentWalletName
     }
     
-    // Close modal when successfully connected
+    // Close modal when connection process starts (Phantom login popup appears)
+    // This provides better UX - once the wallet extension takes over, close our modal
+    if (connecting && wallet && !connected) {
+      console.log(`🔌 Connection started for ${currentWalletName} - closing modal`)
+      keepModalOpenRef.current = false
+      hasHandledSelectionRef.current = true
+      setVisible(false)
+    }
+    
+    // Also close modal when successfully connected (backup/fallback)
     if (connected && wallet && keepModalOpenRef.current) {
       console.log(`✅ Wallet connected: ${currentWalletName} - closing modal`)
       keepModalOpenRef.current = false
       setVisible(false)
-    }
-    
-    // If connection failed or was cancelled, keep modal open if user just selected wallet
-    // The modal will remain visible so user can try again or cancel
-    
-    // Keep modal open while actively connecting
-    if (connecting && wallet && !connected) {
-      keepModalOpenRef.current = true
-      hasHandledSelectionRef.current = true
-      if (!visible) {
-        setVisible(true)
-      }
     }
     
     // If we have a wallet selected but not connecting and not connected after a delay,
@@ -221,8 +218,8 @@ export default function WalletButton() {
     }
   }, [connected, connecting, wallet, select, disconnect, connect, visible, setVisible])
   
-  // Separate effect to keep modal open during connection
-  // This ensures if the modal closes prematurely, we reopen it
+  // Effect to handle modal visibility during connection
+  // Close modal when connection starts (wallet extension takes over)
   useEffect(() => {
     // Clear any pending reopen timeout
     if (reopenTimeoutRef.current) {
@@ -230,29 +227,16 @@ export default function WalletButton() {
       reopenTimeoutRef.current = null
     }
     
-    // Only reopen modal if we're ACTIVELY connecting (not just selected)
-    // This prevents infinite loops when wallet is selected but connection hasn't started
+    // Close modal when connection starts - the wallet extension popup is now handling the flow
     if (connecting && wallet && !connected) {
-      // We're actively connecting - keep modal open
-      keepModalOpenRef.current = true
-      if (!visible) {
-        console.log('🔄 Reopening modal - connection in progress')
-        // Use a small delay to ensure this runs after any modal close events from WalletMultiButton
-        // Only reopen once per connection attempt
-        reopenTimeoutRef.current = setTimeout(() => {
-          if (connecting && wallet && !connected) {
-            setVisible(true)
-          }
-        }, 100)
+      if (visible) {
+        console.log('🔌 Connection in progress - closing modal so wallet extension can handle flow')
+        setVisible(false)
+        keepModalOpenRef.current = false
       }
-    } else if (!connecting && wallet && !connected) {
-      // Wallet is selected but not connecting yet - don't force reopen
-      // This prevents the loop - let the modal stay closed if connection hasn't started
-      // The wallet adapter will start connecting automatically, and then we'll reopen
-      keepModalOpenRef.current = false
     }
     
-    // Reset the flag if we're connected or no wallet is selected
+    // Reset flags when connection completes or wallet is deselected
     if (connected || !wallet) {
       keepModalOpenRef.current = false
       hasHandledSelectionRef.current = false
