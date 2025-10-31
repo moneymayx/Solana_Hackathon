@@ -1762,7 +1762,12 @@ fun ReferralFlowDialog(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         enabled = !isLoading,
-                        isError = error != null && username.isNotBlank() && username.length < 3
+                        isError = error != null && username.isNotBlank() && username.length < 3,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color(0xFF111827),
+                            unfocusedTextColor = Color(0xFF111827),
+                            disabledTextColor = Color(0xFF9CA3AF)
+                        )
                     )
                     
                     // Email Input
@@ -1774,7 +1779,12 @@ fun ReferralFlowDialog(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         enabled = !isLoading,
-                        isError = error != null && email.isNotBlank() && (!email.contains("@") || !email.contains(".com"))
+                        isError = error != null && email.isNotBlank() && (!email.contains("@") || !email.contains(".com")),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color(0xFF111827),
+                            unfocusedTextColor = Color(0xFF111827),
+                            disabledTextColor = Color(0xFF9CA3AF)
+                        )
                     )
                     
                     // Error Message

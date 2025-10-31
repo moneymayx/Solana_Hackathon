@@ -209,7 +209,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Choose a username (min 3 characters)"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-slate-900 bg-white"
             required
             minLength={3}
           />
@@ -225,7 +225,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your@email.com"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-slate-900 bg-white"
             required
           />
         </div>
