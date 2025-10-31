@@ -1,7 +1,16 @@
 """
-V2 Payment Processor - Raw instruction-based payment processing
-Implements process_entry_payment_v2 using solana-py with raw instructions
-Based on test_v2_raw_payment.ts
+V2 Payment Processor - ACTIVE (Production)
+
+Raw instruction-based payment processing using solana-py with raw instructions.
+This is the ACTIVE payment processing system for V2 smart contracts.
+
+All fund routing happens on-chain via smart contracts in programs/billions-bounty-v2/.
+Backend only provides API endpoints and AI decisions - no fund routing in backend code.
+
+Based on test_v2_raw_payment.ts reference implementation.
+
+See ARCHITECTURE.md for system architecture.
+See docs/V2_INTEGRATION_GUIDE.md for integration guide.
 """
 import os
 import hashlib
@@ -13,11 +22,11 @@ from solders.pubkey import Pubkey
 from solders.keypair import Keypair
 from solders.transaction import Transaction
 from solders.instruction import Instruction, AccountMeta
-from solders.system_program import SYSTEM_PROGRAM_ID
 from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
 import logging
 
-# Sysvar addresses (can't be imported directly in solders)
+# System program and sysvar addresses (can't be imported directly in solders)
+SYSTEM_PROGRAM_ID = Pubkey.from_string("11111111111111111111111111111111")
 SYSVAR_RENT_PUBKEY = Pubkey.from_string("SysvarRent111111111111111111111111111111111")
 
 logger = logging.getLogger(__name__)
@@ -27,9 +36,15 @@ class V2PaymentProcessor:
     """
     V2 Payment Processor using raw Solana instructions.
     
-    This class implements the process_entry_payment_v2 instruction
+    ✅ ACTIVE (Production): This class implements the process_entry_payment_v2 instruction
     using raw Web3.js-style instruction building, bypassing Anchor's
     client library which has account ordering issues.
+    
+    All payments flow through V2 smart contracts on-chain.
+    Backend only provides API endpoints - no fund routing in backend code.
+    
+    Program ID: HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm (Devnet)
+    Location: programs/billions-bounty-v2/
     """
     
     def __init__(
@@ -182,6 +197,9 @@ class V2PaymentProcessor:
         """
         Process entry payment using V2 contract with 4-way split.
         
+        ✅ ACTIVE: This method processes payments through V2 smart contracts.
+        All fund routing happens on-chain - backend only orchestrates the transaction.
+        
         Args:
             user_keypair: The user's keypair signing the transaction
             bounty_id: The bounty ID (typically 1)
@@ -200,7 +218,7 @@ class V2PaymentProcessor:
             logger.info(f"   Buyback Tracker PDA: {pdas['buyback_tracker']}")
             
             # Derive token accounts
-            token_accounts = await self._derive_token_accounts(user_keypair.pubkey())
+            token_accounts = self._derive_token_accounts(user_keypair.pubkey())
             
             # Build instruction discriminator
             discriminator = self._derive_instruction_discriminator("process_entry_payment_v2")
@@ -250,18 +268,17 @@ class V2PaymentProcessor:
                 data=instruction_data,
             )
             
-            # Get recent blockhash
+            # Get recent blockhash (already a Hash object)
             latest_blockhash = await self.client.get_latest_blockhash()
             
-            # Create transaction - solders Transaction constructor takes instructions, payer, and blockhash
-            transaction = Transaction(
-                instructions=[instruction],
-                payer=user_keypair.pubkey(),
-                recent_blockhash=latest_blockhash.value.blockhash
+            # Create and sign transaction using new_signed_with_payer
+            # This method handles message creation, blockhash setting, and signing
+            transaction = Transaction.new_signed_with_payer(
+                [instruction],
+                user_keypair.pubkey(),
+                [user_keypair],
+                latest_blockhash.value.blockhash  # Already a Hash object
             )
-            
-            # Sign transaction - solders Transaction.sign() takes list of signers
-            transaction.sign([user_keypair])
             
             # Send transaction
             signature = await self.client.send_transaction(transaction)
@@ -327,4 +344,3 @@ def get_v2_payment_processor() -> V2PaymentProcessor:
     if _v2_payment_processor is None:
         _v2_payment_processor = V2PaymentProcessor()
     return _v2_payment_processor
-

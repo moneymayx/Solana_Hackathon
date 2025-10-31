@@ -36,8 +36,46 @@ class SolanaClient @Inject constructor() {
     
     companion object {
         private const val LAMPORTS_PER_SOL = 1_000_000_000L
-        // Your deployed program ID
-        private const val PROGRAM_ID = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
+        
+        // ==============================================================================
+        // V2 SMART CONTRACT CONFIGURATION (ACTIVE - Production)
+        // ==============================================================================
+        // V1 (Deprecated): 4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK
+        // V2 (Active): HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm
+        
+        /**
+         * V2 Program ID (Devnet)
+         * All payments flow through V2 smart contracts on-chain
+         * Backend only provides API endpoints - no fund routing in backend code
+         */
+        val V2_PROGRAM_ID = "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"
+        
+        /**
+         * V2 USDC Mint (Devnet Test Token)
+         */
+        val V2_USDC_MINT = "JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh"
+        
+        /**
+         * V2 Wallet Addresses (4-Way Split: 60/20/10/10)
+         */
+        val V2_BOUNTY_POOL_WALLET = "CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF"
+        val V2_OPERATIONAL_WALLET = "46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D"
+        val V2_BUYBACK_WALLET = "7iVPm2STfZUxryYGkctM924M5bP3ZFiozzUb1TTUGjya"
+        val V2_STAKING_WALLET = "Fzj8pyBehQQ3Tu1h5fb6RRqtphVBzPbB9srAw1P5q6WX"
+        
+        /**
+         * V2 Program Derived Addresses (PDAs)
+         * These are derived from the program ID using seeds
+         */
+        // Global PDA seed: [b"global"]
+        // Bounty PDA seed: [b"bounty", bounty_id.to_bytes(8, "little")]
+        // Buyback Tracker PDA seed: [b"buyback_tracker"]
+        
+        /**
+         * Legacy V1 Program ID (Deprecated - For Rollback Only)
+         */
+        @Deprecated("Use V2_PROGRAM_ID instead", ReplaceWith("V2_PROGRAM_ID"))
+        val V1_PROGRAM_ID = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
     }
     
     /**

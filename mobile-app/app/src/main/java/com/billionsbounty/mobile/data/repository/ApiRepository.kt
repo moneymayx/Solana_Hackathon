@@ -328,6 +328,52 @@ class ApiRepository @Inject constructor(
         }
     }
     
+    // ==================== V2 Smart Contract Endpoints ====================
+    // V2 endpoints for smart contract-based payments
+    // All fund routing happens on-chain via V2 smart contracts
+    // Backend only provides API endpoints - no fund routing in backend code
+    
+    /**
+     * Get V2 bounty status
+     * @param bountyId The bounty ID (typically 1)
+     */
+    suspend fun getV2BountyStatus(bountyId: Int): Result<V2BountyStatusResponse> {
+        return handleApiCall {
+            apiClient.getV2BountyStatus(bountyId)
+        }
+    }
+    
+    /**
+     * Process V2 entry payment
+     * Note: This endpoint requires client-side transaction signing
+     * The backend provides configuration, but the transaction is signed by the user
+     * @param userWalletAddress User's wallet address (base58)
+     * @param bountyId The bounty ID (typically 1)
+     * @param entryAmountUsdc Payment amount in USDC (e.g., 15.0)
+     */
+    suspend fun processV2Payment(
+        userWalletAddress: String,
+        bountyId: Int = 1,
+        entryAmountUsdc: Double
+    ): Result<V2ProcessPaymentResponse> {
+        return handleApiCall {
+            apiClient.processV2Payment(
+                V2ProcessPaymentRequest(userWalletAddress, bountyId, entryAmountUsdc)
+            )
+        }
+    }
+    
+    /**
+     * Get V2 contract configuration (public info only)
+     * Returns program ID, USDC mint, wallet addresses, etc.
+     * Used by client to build transactions
+     */
+    suspend fun getV2Config(): Result<V2ConfigResponse> {
+        return handleApiCall {
+            apiClient.getV2Config()
+        }
+    }
+    
     // ==================== Helper Functions ====================
     
     /**
