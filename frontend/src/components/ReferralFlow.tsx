@@ -151,25 +151,33 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
         </div>
 
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <code className="text-lg font-mono text-slate-900">{referralCode}</code>
-            <button
-              onClick={copyReferralCode}
-              className="flex items-center space-x-2 px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg transition-colors"
-            >
-              {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-              <span className="text-sm">{copied ? 'Copied!' : 'Copy'}</span>
-            </button>
-          </div>
+          <code className="text-lg font-mono text-black block text-center">{referralCode}</code>
         </div>
 
         <div className="space-y-3">
           <button
-            onClick={shareReferralCode}
+            onClick={() => {
+              shareReferralCode()
+              // Also copy the code when sharing
+              if (referralCode) {
+                navigator.clipboard.writeText(referralCode)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }
+            }}
             className="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-lg hover:from-green-500 hover:to-blue-600 font-medium flex items-center justify-center space-x-2"
           >
-            <Share2 className="h-5 w-5" />
-            <span>Share Referral Code</span>
+            {copied ? (
+              <>
+                <Check className="h-5 w-5" />
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="h-5 w-5" />
+                <span>Share Referral Code</span>
+              </>
+            )}
           </button>
           
           <button
@@ -204,7 +212,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Choose a username (min 3 characters)"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-slate-900 bg-white"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-black bg-white placeholder:text-slate-400"
             required
             minLength={3}
           />
@@ -220,7 +228,7 @@ export default function ReferralFlow({ onSuccess, onCancel }: ReferralFlowProps)
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your@email.com"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-slate-900 bg-white"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-black bg-white placeholder:text-slate-400"
             required
           />
         </div>

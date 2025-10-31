@@ -75,8 +75,10 @@ class BountyViewModel @Inject constructor(
                     _bounties.value = response.bounties
                     _isLoading.value = false
                     lastBountyFetchTime = currentTime
+                    _error.value = null // Clear any previous errors
                 },
                 onFailure = { exception ->
+                    // Error message is already formatted by ApiRepository.handleApiCall
                     _error.value = exception.message ?: "Failed to load bounties"
                     _isLoading.value = false
                 }

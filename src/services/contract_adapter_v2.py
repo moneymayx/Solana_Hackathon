@@ -265,3 +265,5 @@ def get_contract_adapter_v2() -> Optional[ContractAdapterV2]:
     
     return _contract_adapter_v2
 
+
+

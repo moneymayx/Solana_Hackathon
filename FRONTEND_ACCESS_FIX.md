@@ -153,3 +153,5 @@ Follow `V2_PAYMENT_TEST_GUIDE.md` for payment testing!
 
 **Quick Action**: Disable password protection in Vercel → Test frontend → Test V2 payment 🎉
 
+
+

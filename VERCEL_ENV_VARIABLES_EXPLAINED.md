@@ -84,3 +84,5 @@ NEXT_PUBLIC_USE_CONTRACT_V2=false
 - ✅ **Keep `NEXT_PUBLIC_*` in Vercel** - that's the correct naming convention
 - ❌ **Don't put backend variables in Vercel** - they're not needed there
 
+
+
