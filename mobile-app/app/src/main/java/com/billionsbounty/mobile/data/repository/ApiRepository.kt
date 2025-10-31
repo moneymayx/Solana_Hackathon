@@ -1,6 +1,7 @@
 package com.billionsbounty.mobile.data.repository
 
 import com.billionsbounty.mobile.data.api.*
+import retrofit2.HttpException
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -378,6 +379,7 @@ class ApiRepository @Inject constructor(
     
     /**
      * Handle API response and convert to Result type
+     * Provides user-friendly error messages for common connection issues
      */
     private suspend fun <T> handleApiCall(apiCall: suspend () -> Response<T>): Result<T> {
         return try {
@@ -389,8 +391,32 @@ class ApiRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error: ${response.code()} - ${response.message()}"))
             }
+        } catch (e: java.net.ConnectException) {
+            // Connection refused - backend server is not running or unreachable
+            Result.failure(Exception("Cannot connect to backend server. Please ensure the server is running at http://192.168.0.206:8000"))
+        } catch (e: java.net.SocketTimeoutException) {
+            // Connection timeout
+            Result.failure(Exception("Connection timeout. The server may be unreachable or slow to respond."))
+        } catch (e: java.net.UnknownHostException) {
+            // DNS/hostname resolution failed
+            Result.failure(Exception("Cannot resolve server address. Please check your network connection."))
+        } catch (e: retrofit2.HttpException) {
+            // HTTP error response (4xx, 5xx)
+            Result.failure(Exception("Server error: ${e.code()} - ${e.message()}"))
         } catch (e: Exception) {
-            Result.failure(e)
+            // For other exceptions, check if message contains connection-related text
+            val errorMsg = e.message ?: "Unknown error occurred"
+            when {
+                errorMsg.contains("Failed to connect", ignoreCase = true) -> {
+                    Result.failure(Exception("Cannot connect to backend server. Please ensure the server is running and accessible."))
+                }
+                errorMsg.contains("Connection refused", ignoreCase = true) -> {
+                    Result.failure(Exception("Connection refused. Please ensure the backend server is running at http://192.168.0.206:8000"))
+                }
+                else -> {
+                    Result.failure(Exception(errorMsg))
+                }
+            }
         }
     }
 }

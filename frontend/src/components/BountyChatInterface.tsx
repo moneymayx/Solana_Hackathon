@@ -651,17 +651,17 @@ export default function BountyChatInterface({
             setShowReferralFlow(false)
             showToast(`🎉 Your referral code is: ${referralCode}`, 'success')
             
-            // Force refresh the eligibility state
+            // Force refresh the eligibility state (same as NFT flow)
             const eligibility = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey?.toString()}`)
             if (eligibility.ok) {
               const data = await eligibility.json()
               console.log('🎉 Referral eligibility data:', data)
               
               const newEligibility = {
-                eligible: data.remaining > 0,
-                message: `You have ${data.remaining} free questions remaining.`,
-                questions_remaining: data.remaining,
-                questions_used: 0,
+                eligible: data.questions_remaining > 0,
+                message: `You have ${data.questions_remaining} free questions remaining.`,
+                questions_remaining: data.questions_remaining,
+                questions_used: data.questions_used || 0,
                 referral_code: referralCode,
                 type: 'free_questions' as const,
                 is_paid: data.is_paid || false  // Use API value, default to false if not provided
@@ -669,14 +669,19 @@ export default function BountyChatInterface({
               console.log('🎉 Setting new eligibility:', newEligibility)
               setUserEligibility(newEligibility)
               
-              console.log('🎉 Setting isParticipating to TRUE')
-              setIsParticipating(true)
-              
-              // Log the condition that controls chat input visibility
-              console.log('🎉 AFTER STATE UPDATE:')
-              console.log('  - isParticipating will be:', true)
-              console.log('  - userEligibility.eligible will be:', newEligibility.eligible)
-              console.log('  - Condition (isParticipating && userEligibility?.eligible) will be:', true && newEligibility.eligible)
+              // Only set participating if user has questions (same logic as NFT flow)
+              if (newEligibility.eligible) {
+                console.log('🎉 Setting isParticipating to TRUE')
+                setIsParticipating(true)
+                
+                // Log the condition that controls chat input visibility
+                console.log('🎉 AFTER STATE UPDATE:')
+                console.log('  - isParticipating will be:', true)
+                console.log('  - userEligibility.eligible will be:', newEligibility.eligible)
+                console.log('  - Condition (isParticipating && userEligibility?.eligible) will be:', true && newEligibility.eligible)
+              } else {
+                console.log('⚠️ User has no questions remaining - keeping isParticipating as false')
+              }
             } else {
               console.error('❌ Failed to fetch eligibility:', eligibility.status)
             }

@@ -173,3 +173,5 @@ Keep the current setup and just get some tokens to your account.
 
 **Once you have devnet USDC, the test will run and verify the V2 smart contract!** 🎉
 
+
+

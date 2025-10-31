@@ -20,7 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.content.ClipData
+import android.content.ClipboardManager
 import com.billionsbounty.mobile.data.api.*
 import com.billionsbounty.mobile.data.api.Team as ApiTeam
 import com.billionsbounty.mobile.ui.viewmodel.BountyDetailViewModel
@@ -1711,13 +1714,56 @@ fun ReferralFlowDialog(
                             text = referralCode!!,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16A34A),
+                            color = Color.Black,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            textAlign = TextAlign.Center
                         )
                     }
                     
-                    // Done Button
+                    // Share Referral Code Button (also copies)
+                    val context = LocalContext.current
+                    var copied by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = {
+                            // Copy referral code to clipboard
+                            val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Referral Code", referralCode)
+                            clipboardManager.setPrimaryClip(clip)
+                            
+                            copied = true
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(2000)
+                                copied = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF16A34A)
+                        )
+                    ) {
+                        if (copied) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Copied!")
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Share Referral Code")
+                        }
+                    }
+                    
+                    // Continue to Chat Button
                     Button(
                         onClick = {
                             onReferralSuccess()
@@ -1725,10 +1771,10 @@ fun ReferralFlowDialog(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF16A34A)
+                            containerColor = Color(0xFFF3F4F6)
                         )
                     ) {
-                        Text("Done")
+                        Text("Continue to Chat", color = Color(0xFF374151))
                     }
                 } else {
                     // Form State - Collect Username and Email

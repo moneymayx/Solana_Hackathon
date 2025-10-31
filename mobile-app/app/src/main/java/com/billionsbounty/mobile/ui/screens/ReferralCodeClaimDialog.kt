@@ -190,7 +190,12 @@ fun ReferralCodeClaimDialog(
                         isError = error != null,
                         supportingText = if (error != null) {
                             { Text(error!!, color = Color(0xFFDC2626)) }
-                        } else null
+                        } else null,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            disabledTextColor = Color(0xFF9CA3AF)
+                        )
                     )
                     
                     // Claim Button

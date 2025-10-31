@@ -69,3 +69,5 @@
 
 **Quick Answer**: Smart contracts handle payments. Backend = API only. See `ARCHITECTURE.md` for details.
 
+
+
