@@ -27,9 +27,26 @@ if (process.env.NEXT_PUBLIC_API_URL) {
   }
 }
 
+// Build script-src array - add Vercel Live Feedback only when on Vercel
+// Vercel sets VERCEL=1 environment variable when deployed
+const isVercel = process.env.VERCEL === '1';
+const scriptSrcParts = [
+  "'self'",
+  "'unsafe-inline'", // Required for Next.js
+  "'unsafe-eval'",   // Required for development
+  'https://cdn.jsdelivr.net',
+  'https://unpkg.com'
+];
+
+// Only allow vercel.live scripts when deployed on Vercel
+// This prevents CSP blocking Vercel Live Feedback feature
+if (isVercel) {
+  scriptSrcParts.push('https://*.vercel.live', 'https://vercel.live');
+}
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
+  `script-src ${scriptSrcParts.join(' ')}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: https: blob:",
