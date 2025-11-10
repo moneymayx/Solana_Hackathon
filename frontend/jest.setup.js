@@ -78,15 +78,38 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
 }
 
-// Mock crypto for wallet functionality
-Object.defineProperty(global, 'crypto', {
-  value: {
-    randomUUID: () => 'mock-uuid',
-    subtle: {
-      digest: jest.fn(),
-    },
+// Mock crypto for wallet functionality - needs getRandomValues for Keypair.generate() and PDA derivation
+import { webcrypto } from 'crypto';
+
+// Create a proper crypto object that Solana libraries can use
+const cryptoPolyfill = {
+  ...webcrypto,
+  randomUUID: () => 'mock-uuid',
+  getRandomValues: (array) => {
+    return webcrypto.getRandomValues(array);
   },
-})
+  subtle: webcrypto.subtle,
+};
+
+// Set crypto globally - must be done before any Solana imports
+Object.defineProperty(global, 'crypto', {
+  value: cryptoPolyfill,
+  writable: true,
+  configurable: true,
+});
+
+// Also set on window if available (for browser-like environments)
+if (typeof globalThis !== 'undefined') {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: cryptoPolyfill,
+    writable: true,
+    configurable: true,
+  });
+}
+
+// Note: @solana/web3.js and @solana/spl-token are NOT mocked here
+// They will be transformed by Babel according to transformIgnorePatterns
+// This allows V3 tests to use real implementations
 
 // Mock Solana wallet adapters
 jest.mock('@solana/wallet-adapter-react', () => ({
@@ -97,10 +120,12 @@ jest.mock('@solana/wallet-adapter-react', () => ({
     wallet: null,
     connect: jest.fn(),
     disconnect: jest.fn(),
+    signTransaction: jest.fn(),
   }),
   useConnection: () => ({
-    connection: null,
+    connection: {},
   }),
+  WalletProvider: ({ children }) => children,
 }))
 
 // Mock wallet adapter UI
@@ -111,6 +136,14 @@ jest.mock('@solana/wallet-adapter-react-ui', () => ({
     </button>
   ),
 }))
+
+// Polyfill TextEncoder/TextDecoder for Solana dependencies
+const { TextEncoder, TextDecoder } = require('util')
+global.TextEncoder = TextEncoder
+global.TextDecoder = TextDecoder
+
+// Polyfill Buffer for Solana/Anchor dependencies
+global.Buffer = require('buffer').Buffer
 
 // Clean up after each test
 afterEach(() => {

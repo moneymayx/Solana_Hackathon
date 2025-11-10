@@ -10,6 +10,8 @@ import ReferralFlow from './ReferralFlow'
 import NftVerification from './NftVerification'
 import Toast from './Toast'
 import PaymentAmountModal from './PaymentAmountModal'
+import UsernamePrompt from './UsernamePrompt'
+import { addActivity } from './ActivityTracker'
 import { cn } from '@/lib/utils'
 import { getBackendUrl } from '@/lib/api/client'
 
@@ -135,14 +137,21 @@ export default function BountyChatInterface({
   const [showReferralFlow, setShowReferralFlow] = useState(false)
   const [showNftFlow, setShowNftFlow] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showUsernamePrompt, setShowUsernamePrompt] = useState(false)
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
   const [isParticipating, setIsParticipating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null)
+  
+  // Check if activity tracker feature is enabled
+  const isActivityTrackerEnabled = process.env.NEXT_PUBLIC_ENABLE_ACTIVITY_TRACKER === 'true'
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
   const previousMessagesLengthRef = useRef(0)
+  const isFirstQuestionRef = useRef(true) // Track if this is user's first question
 
   // Get client IP address (mock for now - CSP blocks external API)
   const getClientIP = async (): Promise<string> => {
@@ -169,6 +178,27 @@ export default function BountyChatInterface({
     previousMessagesLengthRef.current = messages.length
   }, [messages])
 
+  // Check if username exists for current wallet
+  const checkUsername = async () => {
+    if (!publicKey || !isActivityTrackerEnabled) return
+    
+    try {
+      const response = await fetch(`${getBackendUrl()}/api/user/profile/${publicKey.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.display_name) {
+          setUsername(data.display_name)
+        }
+      } else {
+        // User doesn't exist or no username set
+        setUsername(null)
+      }
+    } catch (err) {
+      console.error('Failed to check username:', err)
+      setUsername(null)
+    }
+  }
+
   // Fetch public messages on load (no wallet required for watching)
   useEffect(() => {
     loadConversationHistory()
@@ -179,16 +209,52 @@ export default function BountyChatInterface({
   useEffect(() => {
     if (connected && publicKey) {
       checkUserEligibility()
+      if (isActivityTrackerEnabled) {
+        checkUsername()
+      }
     }
-  }, [connected, publicKey, bountyId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, publicKey, bountyId, isActivityTrackerEnabled])
 
   // Don't check eligibility until wallet is connected
   useEffect(() => {
     if (!connected) {
       setUserEligibility(null)
       setIsParticipating(false)
+      setUsername(null)
+      isFirstQuestionRef.current = true // Reset first question flag when wallet disconnects
     }
   }, [connected])
+
+  // Handle action with username check (if feature enabled)
+  const handleActionWithUsernameCheck = (action: () => void) => {
+    if (!isActivityTrackerEnabled) {
+      // Feature disabled, proceed normally
+      action()
+      return
+    }
+
+    if (!username) {
+      // Username not set, show prompt and save action
+      setPendingAction(() => action)
+      setShowUsernamePrompt(true)
+    } else {
+      // Username exists, proceed with action
+      action()
+    }
+  }
+
+  // Handle username prompt success
+  const handleUsernameSuccess = async () => {
+    setShowUsernamePrompt(false)
+    // Refresh username
+    await checkUsername()
+    // Execute pending action if exists
+    if (pendingAction) {
+      pendingAction()
+      setPendingAction(null)
+    }
+  }
 
   const checkUserEligibility = async () => {
     try {
@@ -341,6 +407,13 @@ export default function BountyChatInterface({
         if (data.winner_result?.is_winner) {
           onWinner?.(data.winner_result)
           addSystemMessage(`🎉 ${data.winner_result.message}`)
+        }
+
+        // Track activity if enabled and username exists
+        if (isActivityTrackerEnabled && username) {
+          const activityType = isFirstQuestionRef.current ? 'first_question' : 'question'
+          addActivity(bountyId, username, activityType, bountyName)
+          isFirstQuestionRef.current = false
         }
 
         // Update user eligibility from API response
@@ -651,6 +724,11 @@ export default function BountyChatInterface({
             setShowReferralFlow(false)
             showToast(`🎉 Your referral code is: ${referralCode}`, 'success')
             
+            // Track activity if enabled
+            if (isActivityTrackerEnabled && username) {
+              addActivity(bountyId, username, 'referral', bountyName)
+            }
+            
             // Force refresh the eligibility state (same as NFT flow)
             const eligibility = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey?.toString()}`)
             if (eligibility.ok) {
@@ -859,11 +937,13 @@ export default function BountyChatInterface({
           <div className="flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => {
-                if (userEligibility?.eligible) {
-                  setIsParticipating(true)
-                } else {
-                  setShowPaymentModal(true)
-                }
+                handleActionWithUsernameCheck(() => {
+                  if (userEligibility?.eligible) {
+                    setIsParticipating(true)
+                  } else {
+                    setShowPaymentModal(true)
+                  }
+                })
               }}
               disabled={isProcessingPayment}
               className="flex-1 min-w-[200px] px-6 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg hover:from-yellow-500 hover:to-orange-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -879,13 +959,13 @@ export default function BountyChatInterface({
             {!userEligibility?.eligible && (
               <>
                 <button
-                  onClick={() => setShowNftFlow(true)}
+                  onClick={() => handleActionWithUsernameCheck(() => setShowNftFlow(true))}
                   className="flex-1 min-w-[200px] px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium"
                 >
                   Solana Seekers
                 </button>
                 <button
-                  onClick={() => setShowReferralFlow(true)}
+                  onClick={() => handleActionWithUsernameCheck(() => setShowReferralFlow(true))}
                   className="flex-1 min-w-[200px] px-6 py-2 bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-lg hover:from-green-500 hover:to-blue-600 font-medium"
                 >
                   Refer Someone for 5 Free Questions
@@ -921,6 +1001,11 @@ export default function BountyChatInterface({
             setShowNftFlow(false)
             showToast('✅ NFT verified! 5 free questions granted', 'success')
             
+            // Track activity if enabled
+            if (isActivityTrackerEnabled && username) {
+              addActivity(bountyId, username, 'nft_redeem', bountyName)
+            }
+            
             // Force refresh the eligibility state
             const eligibility = await fetch(`${getBackendUrl()}/api/free-questions/${publicKey?.toString()}`)
             if (eligibility.ok) {
@@ -951,6 +1036,17 @@ export default function BountyChatInterface({
             }
             
             console.log('✅ NFT: Unlock sequence complete')
+          }}
+        />
+      )}
+
+      {/* Username Prompt Modal */}
+      {showUsernamePrompt && isActivityTrackerEnabled && (
+        <UsernamePrompt
+          onSuccess={handleUsernameSuccess}
+          onCancel={() => {
+            setShowUsernamePrompt(false)
+            setPendingAction(null)
           }}
         />
       )}

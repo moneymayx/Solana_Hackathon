@@ -12,10 +12,25 @@ import '@solana/wallet-adapter-react-ui/styles.css'
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
-  const network = WalletAdapterNetwork.Mainnet
+  // Default to devnet for testing (change to Mainnet for production)
+  // Can be overridden with NEXT_PUBLIC_SOLANA_NETWORK env var
+  const networkEnv = process.env.NEXT_PUBLIC_SOLANA_NETWORK?.toLowerCase();
+  const network = networkEnv === 'mainnet' || networkEnv === 'mainnet-beta'
+    ? WalletAdapterNetwork.Mainnet
+    : WalletAdapterNetwork.Devnet; // Default to devnet for testing
 
-  // You can also provide a custom RPC endpoint
-  const endpoint = useMemo(() => clusterApiUrl(network), [network])
+  // You can also provide a custom RPC endpoint via env var
+  // If NEXT_PUBLIC_SOLANA_RPC_URL is set, use it; otherwise use clusterApiUrl
+  const endpoint = useMemo(() => {
+    const customRpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (customRpc) {
+      console.log(`🔗 Using custom RPC endpoint: ${customRpc}`);
+      return customRpc;
+    }
+    const defaultEndpoint = clusterApiUrl(network);
+    console.log(`🔗 Using default ${network} endpoint: ${defaultEndpoint}`);
+    return defaultEndpoint;
+  }, [network])
 
   const wallets = useMemo(
     () => [

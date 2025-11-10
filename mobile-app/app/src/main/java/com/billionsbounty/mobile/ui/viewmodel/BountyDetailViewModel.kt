@@ -73,6 +73,9 @@ class BountyDetailViewModel @Inject constructor(
     // Expose NFT repository for UI components
     fun getNftRepository(): com.billionsbounty.mobile.data.repository.NftRepository = nftRepository
     
+    // Expose API repository for UI components
+    fun getRepository(): ApiRepository = repository
+    
     init {
         // Observe wallet state from adapter
         viewModelScope.launch {

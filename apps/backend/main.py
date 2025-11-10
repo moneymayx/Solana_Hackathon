@@ -118,6 +118,21 @@ app.add_middleware(
 agent = BillionsAgent()
 
 # ===========================
+# MULTI-PERSONALITY SYSTEM
+# ===========================
+# Feature flag for multi-personality difficulty-based routing
+ENABLE_MULTI_PERSONALITY = os.getenv("ENABLE_MULTI_PERSONALITY", "false").lower() == "true"
+
+if ENABLE_MULTI_PERSONALITY:
+    from src.services.ai_agent_multi import BillionsAgentMulti
+    multi_agent = BillionsAgentMulti()
+    logger.info("✅ Multi-personality system ENABLED - routing by difficulty")
+else:
+    multi_agent = None
+    logger.info("ℹ️  Multi-personality system DISABLED - using single personality")
+# ===========================
+
+# ===========================
 # ENHANCEMENT API ROUTERS
 # ===========================
 # Import and include all enhancement API routers (Phase 1, 2, 3)
@@ -127,6 +142,32 @@ try:
     logger.info("✅ Enhancement API routers registered successfully")
 except Exception as e:
     logger.warning(f"⚠️  Could not load enhancement routers: {e}")
+# ===========================
+
+# ===========================
+# SDK TEST API ROUTERS (Parallel Development)
+# ===========================
+# Import and include SDK test routers (isolated testing endpoints)
+# These routers are prefixed with /api/sdk-test/ and only work when
+# corresponding SDK features are enabled via environment variables
+try:
+    from src.api.sdk.app_integration import include_sdk_test_routers
+    include_sdk_test_routers(app)
+    logger.info("✅ SDK test routers registered (if enabled)")
+except Exception as e:
+    logger.info(f"ℹ️  SDK test routers not available: {e}")
+# ===========================
+
+# ===========================
+# V3 PAYMENT API ROUTER
+# ===========================
+# V3 payment endpoint for test contract mode
+try:
+    from apps.backend.api.v3_payment_router import router as v3_payment_router
+    app.include_router(v3_payment_router)
+    logger.info("✅ V3 payment router registered")
+except Exception as e:
+    logger.info(f"ℹ️  V3 payment router not available: {e}")
 # ===========================
 
 # Initialize rate limiting and research system
@@ -1090,8 +1131,11 @@ async def bounty_chat_endpoint(
                 })
         
         # Get AI response with bounty integration
-        # agent is already imported at top of file
-        chat_result = await agent.chat(message, session, user.id, eligibility["type"])
+        # Route to multi-personality agent if enabled, otherwise use single agent
+        if ENABLE_MULTI_PERSONALITY and multi_agent:
+            chat_result = await multi_agent.chat(message, session, user.id, eligibility["type"], bounty_id=bounty_id)
+        else:
+            chat_result = await agent.chat(message, session, user.id, eligibility["type"])
         
         # Store conversation with bounty_id
         from src.models import Conversation, Bounty
@@ -3874,6 +3918,57 @@ async def update_user_profile(wallet_address: str, request: dict, session: Async
         await session.commit()
     
     return {"message": "Profile updated successfully"}
+
+@app.post("/api/user/set-profile")
+async def set_user_profile(request: dict, http_request: Request, session: AsyncSession = Depends(get_db)):
+    """Set username (required) and email (optional) for a wallet address. Creates user if doesn't exist."""
+    from src.repositories import UserRepository
+    
+    wallet_address = request.get("wallet_address")
+    username = request.get("username")
+    email = request.get("email")
+    
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="wallet_address is required")
+    if not username:
+        raise HTTPException(status_code=400, detail="username is required")
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="username must be at least 3 characters")
+    
+    user_repo = UserRepository(session)
+    
+    # Get or create user by wallet address
+    user = await get_user_by_wallet(wallet_address, session)
+    
+    if not user:
+        # Create new user
+        session_id = str(uuid.uuid4())
+        ip_address = http_request.client.host if http_request.client else None
+        user_agent = http_request.headers.get("user-agent")
+        user = await user_repo.create_user(session_id, ip_address, user_agent)
+        await user_repo.update_user_wallet(user.id, wallet_address)
+        await session.refresh(user)
+        logger.info(f"✅ Created new user {user.id} with wallet: {wallet_address}")
+    
+    # Update user with username and optional email
+    update_values = {"display_name": username.strip()}
+    if email and email.strip():
+        update_values["email"] = email.strip()
+    
+    await session.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(**update_values)
+    )
+    await session.commit()
+    await session.refresh(user)
+    
+    return {
+        "success": True,
+        "message": "Profile set successfully",
+        "username": user.display_name,
+        "email": user.email
+    }
 
 @app.get("/api/user/stats/{wallet_address}")
 async def get_user_statistics(wallet_address: str, session: AsyncSession = Depends(get_db)):

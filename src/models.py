@@ -57,6 +57,16 @@ class User(Base):
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user")
     wins: Mapped[list["Winner"]] = relationship("Winner", back_populates="user")
 
+
+class V3EntryNonceTracker(Base):
+    """Tracks per-wallet nonce for V3 contract entries to support multiple payments"""
+    __tablename__ = "v3_entry_nonce_tracker"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    wallet_address: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    current_nonce: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class Bounty(Base):
     """Bounty model for different LLM challenges"""
     __tablename__ = "bounties"
@@ -924,3 +934,66 @@ class StakingRewardEvent(Base):
     # Relationships
     position: Mapped["StakingPosition"] = relationship("StakingPosition", back_populates="reward_events")
     user: Mapped["User"] = relationship("User")
+
+
+# ===========================
+# AI RESISTANCE TESTING MODELS
+# ===========================
+
+class AITestRun(Base):
+    """
+    Tracks overall AI resistance test execution
+    Records metadata about a complete test run across all LLMs and difficulties
+    """
+    __tablename__ = "ai_test_runs"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    
+    # Test execution metadata
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="running")  # running, completed, failed
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Test statistics
+    total_tests: Mapped[int] = mapped_column(Integer, default=0)  # Number of individual tests
+    successful_jailbreaks: Mapped[int] = mapped_column(Integer, default=0)
+    failed_jailbreaks: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Additional metadata
+    test_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Store test configuration
+    summary_report: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Store text summary
+
+
+class AITestResult(Base):
+    """
+    Stores individual AI vs AI attack attempts
+    Records each test where one LLM tries to jailbreak another
+    """
+    __tablename__ = "ai_test_results"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    test_run_id: Mapped[int] = mapped_column(Integer, ForeignKey("ai_test_runs.id"), index=True)
+    
+    # Test configuration
+    attacker_llm: Mapped[str] = mapped_column(String(50))  # anthropic, openai, gemini, deepseek
+    target_llm: Mapped[str] = mapped_column(String(50))  # Same providers
+    target_difficulty: Mapped[str] = mapped_column(String(20))  # easy, medium, hard, expert
+    
+    # Test results
+    question_count: Mapped[int] = mapped_column(Integer)  # Number of questions asked
+    was_successful: Mapped[bool] = mapped_column(Boolean, default=False)  # Whether jailbreak succeeded
+    duration_seconds: Mapped[float] = mapped_column(Float, default=0.0)  # Time taken
+    
+    # Conversation data
+    conversation_json: Mapped[dict] = mapped_column(JSON)  # Full conversation history as JSON
+    
+    # Additional metadata
+    attacker_system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    target_response_preview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # First 500 chars of final response
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    test_run: Mapped["AITestRun"] = relationship("AITestRun")

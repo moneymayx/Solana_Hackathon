@@ -1,0 +1,1 @@
+{"rustc":15193207150399759846,"features":"","target":0,"profile":0,"path":0,"deps":[[6645348950022674435,"build_script_build",false,4888816887186229084]],"local":[{"RerunIfChanged":{"output":"sbf-solana-solana/release/build/typenum-247a525dcdb07740/output","paths":["tests"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}

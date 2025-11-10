@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 import { teamAPI, tokenAPI, contextAPI } from '@/lib/api/enhancements'
+import { backendFetch } from '@/lib/api/client'
 
 export default function TestAPIPage() {
   const [results, setResults] = useState<any>(null)
@@ -39,7 +40,7 @@ export default function TestAPIPage() {
         <p className="text-gray-400 mb-8">Test all enhancement API endpoints</p>
 
         {/* Test Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Phase 1 Tests */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h2 className="text-xl font-bold text-white mb-4">Phase 1: Context</h2>
@@ -118,6 +119,34 @@ export default function TestAPIPage() {
               </button>
             </div>
           </div>
+
+          {/* Kora SDK Tests */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h2 className="text-xl font-bold text-white mb-4">Kora SDK</h2>
+            <div className="space-y-2">
+              <button
+                onClick={() => runTest('Kora Status', () => backendFetch('/api/sdk-test/kora/status'))}
+                disabled={loading}
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white py-2 px-4 rounded"
+              >
+                Check Status
+              </button>
+              <button
+                onClick={() => runTest('Kora Config', () => backendFetch('/api/sdk-test/kora/config'))}
+                disabled={loading}
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white py-2 px-4 rounded"
+              >
+                Get Config
+              </button>
+              <button
+                onClick={() => runTest('Supported Tokens', () => backendFetch('/api/sdk-test/kora/supported-tokens'))}
+                disabled={loading}
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white py-2 px-4 rounded"
+              >
+                Get Tokens
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -169,9 +198,10 @@ export default function TestAPIPage() {
           <h3 className="text-xl font-bold text-white mb-4">📋 Instructions</h3>
           <div className="space-y-2 text-gray-300">
             <p>1. Make sure backend server is running: <code className="bg-gray-900 px-2 py-1 rounded">./start_server.sh</code></p>
-            <p>2. Click any button above to test API endpoints</p>
-            <p>3. Check console for detailed logs</p>
-            <p>4. Results will appear below buttons</p>
+            <p>2. For Kora SDK tests: Set <code className="bg-gray-900 px-2 py-1 rounded">ENABLE_KORA_SDK=true</code> in backend <code className="bg-gray-900 px-2 py-1 rounded">.env</code></p>
+            <p>3. Click any button above to test API endpoints</p>
+            <p>4. Check console for detailed logs</p>
+            <p>5. Results will appear below buttons</p>
           </div>
         </div>
       </div>

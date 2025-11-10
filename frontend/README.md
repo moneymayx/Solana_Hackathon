@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Environment Variables
+
+Create a `.env.local` file in the frontend directory with the following variables:
+
+```bash
+# Activity Tracker Feature Flag
+# Set to 'true' to enable activity tracker and username collection
+# Set to 'false' or omit to disable the feature
+NEXT_PUBLIC_ENABLE_ACTIVITY_TRACKER=false
+
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Optional: Contract V2 Configuration
+NEXT_PUBLIC_USE_CONTRACT_V2=false
+```
+
+**Note:** All environment variables that need to be accessible in the browser must be prefixed with `NEXT_PUBLIC_`.

@@ -195,6 +195,18 @@ class ApiRepository @Inject constructor(
         return apiClient.getUserProfile(walletAddress)
     }
     
+    suspend fun setUserProfile(
+        walletAddress: String,
+        username: String,
+        email: String? = null
+    ): Result<SetProfileResponse> {
+        return handleApiCall {
+            apiClient.setUserProfile(
+                SetProfileRequest(walletAddress, username, email)
+            )
+        }
+    }
+    
     suspend fun linkEmailToWallet(
         walletAddress: String,
         email: String

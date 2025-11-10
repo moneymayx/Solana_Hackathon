@@ -2,8 +2,10 @@
 
 ## Backend (DigitalOcean)
 - `USE_CONTRACT_V2=true`
-- `LOTTERY_PROGRAM_ID=4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK`
-- `LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm`
+- `USE_CONTRACT_V3=false` (Feature flag - start disabled)
+- `LOTTERY_PROGRAM_ID=4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK` (V1)
+- `LOTTERY_PROGRAM_ID_V2=HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm` (V2)
+- `LOTTERY_PROGRAM_ID_V3=52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov` (V3 - updated 2024)
 - `V2_GLOBAL_PDA=BursCahsMxKjiSUgTCy11uUTWnaZ1eqcGcADUxiMzHMb`
 - `V2_BOUNTY_1_PDA=2J455GTdBfceWWUF7dcPawixW4PEfWBdVgX7Soqc3trb`
 - `V2_USDC_MINT=JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh`
@@ -15,6 +17,9 @@
 
 ## Frontend (Vercel)
 - `NEXT_PUBLIC_USE_CONTRACT_V2=false` initially
+- `NEXT_PUBLIC_USE_CONTRACT_V3=false` (Feature flag - start disabled)
+- `NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V3=52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov` (updated 2024)
+- `NEXT_PUBLIC_V3_LOTTERY_PDA=HsZZAW2hPyeewapZEGrNJWgnHKc1mQU34oLuBXJUSV2x` (if needed for direct PDA reference)
 - `NEXT_PUBLIC_API_URL=<staging-backend-url>`
 
 ## Notes

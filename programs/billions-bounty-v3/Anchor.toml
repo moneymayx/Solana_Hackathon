@@ -1,0 +1,29 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+
+[programs.devnet]
+billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+
+[programs.mainnet]
+billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+
+[registry]
+url = "https://api.apr.dev"
+
+[toolchain]
+anchor_version = "0.31.1"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha './tests/**/*.ts' --timeout 60000"
+
+[test]
+startup_wait = 5000
+

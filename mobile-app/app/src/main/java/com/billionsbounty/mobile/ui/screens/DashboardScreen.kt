@@ -25,10 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontFamily
-import dagger.hilt.android.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.EntryPointAccessors
+import com.billionsbounty.mobile.di.ApiRepositoryEntryPoint
 
 // Data classes for API responses
 data class DashboardOverview(
@@ -131,13 +129,6 @@ data class AISecurity(
     val success_rate_target: String,
     val learning_enabled: Boolean
 )
-
-// EntryPoint for accessing ApiRepository in Composable
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface ApiRepositoryEntryPoint {
-    fun apiRepository(): ApiRepository
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

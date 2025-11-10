@@ -1,0 +1,14 @@
+/Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/deps/libserde-4a3e5e127d511b9b.rmeta: /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/build/serde-59d9a843f6b23ffb/out/private.rs
+
+/Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/deps/libserde-4a3e5e127d511b9b.rlib: /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/build/serde-59d9a843f6b23ffb/out/private.rs
+
+/Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/deps/serde-4a3e5e127d511b9b.d: /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/build/serde-59d9a843f6b23ffb/out/private.rs
+
+/Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs:
+/Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs:
+/Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs:
+/Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs:
+/Users/jaybrantley/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs:
+/Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/build/serde-59d9a843f6b23ffb/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/jaybrantley/myenv/Hackathon/Billions_Bounty/target/release/build/serde-59d9a843f6b23ffb/out

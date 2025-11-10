@@ -44,36 +44,59 @@ class SmartContractService:
     
     def __init__(self):
         # Smart contract configuration - UPDATED WITH DEPLOYED PROGRAM
-        # Check if V2 is enabled
+        # Check feature flags in priority order: V3 > V2 > V1
+        use_v3 = os.getenv("USE_CONTRACT_V3", "false").lower() == "true"
         use_v2 = os.getenv("USE_CONTRACT_V2", "false").lower() == "true"
+        self._v3_adapter = None
+        self._using_v3 = False
         
-        if use_v2:
-            # Use V2 program ID
-            self.program_id = Pubkey.from_string(os.getenv(
-                "LOTTERY_PROGRAM_ID_V2",
-                "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm"  # V2 Devnet deployment
-            ))
-            logger.info("🆕 Using V2 smart contract")
+        if use_v3:
+            try:
+                from .contract_adapter_v3 import get_contract_adapter_v3
+                adapter = get_contract_adapter_v3()
+                if adapter:
+                    # Keep a reference so V3-specific callers can still use the hardened adapter directly.
+                    self._v3_adapter = adapter
+                    self._using_v3 = True
+                    logger.info("🔒 Using V3 smart contract (secure) - AUTOMATIC ROUTING")
+            except Exception as exc:
+                logger.warning("V3 adapter not available (%s); falling back to legacy routing.", exc)
+        
+        if self._using_v3 and self._v3_adapter:
+            # Reuse the adapter's Solana client so PDA derivations stay in sync with the secure V3 program.
+            self.program_id = self._v3_adapter.program_id
+            self.rpc_endpoint = self._v3_adapter.rpc_endpoint
+            self.usdc_mint = self._v3_adapter.usdc_mint
+            self.client = self._v3_adapter.client
         else:
-            # Use V1 program ID
-            self.program_id = Pubkey.from_string(os.getenv(
-                "LOTTERY_PROGRAM_ID",
-                "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # V1 Devnet deployment
-            ))
-            logger.info("📌 Using V1 smart contract")
-        # Use network configuration utility
-        import sys
-        sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-        from network_config import get_network_config
-        network_config = get_network_config()
+            # Try V2 if V3 not available
+            if use_v2:
+                # Use V2 program ID
+                self.program_id = Pubkey.from_string(os.getenv(
+                    "LOTTERY_PROGRAM_ID_V2",
+                    "GHvFV9S8XqpR6Pxd3UtZ9vi7AuCd3qLg5kgfAPwcJzJm"  # V2 Devnet deployment
+                ))
+                logger.info("🆕 Using V2 smart contract - AUTOMATIC ROUTING")
+            else:
+                # Use V1 program ID (fallback)
+                self.program_id = Pubkey.from_string(os.getenv(
+                    "LOTTERY_PROGRAM_ID",
+                    "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"  # V1 Devnet deployment
+                ))
+                logger.info("📌 Using V1 smart contract (legacy)")
+            # Use network configuration utility
+            import sys
+            sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+            from network_config import get_network_config
+            network_config = get_network_config()
+            
+            self.rpc_endpoint = network_config.get_rpc_endpoint()
+            self.usdc_mint = Pubkey.from_string(network_config.get_usdc_mint())
+            
+            # Initialize Solana client
+            self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
         
-        self.rpc_endpoint = network_config.get_rpc_endpoint()
-        self.usdc_mint = Pubkey.from_string(network_config.get_usdc_mint())
-        
-        # Initialize Solana client
-        self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
-        
-        # Derive lottery PDA
+        # Derive lottery PDA regardless of version so downstream analytics always have the active contract address.
         self.lottery_pda, self.lottery_bump = Pubkey.find_program_address(
             [b"lottery"],
             self.program_id

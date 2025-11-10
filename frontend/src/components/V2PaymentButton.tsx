@@ -87,7 +87,8 @@ export default function V2PaymentButton({
           value={amount}
           onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
           disabled={loading || !connected}
-          className="w-full px-4 py-2 border rounded-lg disabled:bg-gray-100"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900 bg-white"
+          placeholder="Enter amount"
         />
         <p className="text-xs text-gray-500 mt-1">
           Minimum: ~10 USDC (may vary due to price escalation)

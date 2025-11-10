@@ -1,0 +1,4 @@
+Error: Function _ZN15crossbeam_epoch5guard5Guard5flush17h454f47a86330eb20E Stack offset of 4112 exceeded max offset of 4096 by 16 bytes, please minimize large stack variables
+Error: Function _ZN15crossbeam_epoch8internal6Global7collect17he5f07fca93819d4fE Stack offset of 4152 exceeded max offset of 4096 by 56 bytes, please minimize large stack variables
+Error: Function _ZN15crossbeam_epoch8internal5Local5defer17hc63ea1c0505c39f5E Stack offset of 4176 exceeded max offset of 4096 by 80 bytes, please minimize large stack variables
+Error: Function _ZN15crossbeam_epoch8internal5Local8finalize17h14b15da0ba0089bfE Stack offset of 4104 exceeded max offset of 4096 by 8 bytes, please minimize large stack variables

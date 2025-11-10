@@ -1,5 +1,6 @@
 package com.billionsbounty.mobile.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,11 +13,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.billionsbounty.mobile.data.repository.ApiRepository
 import com.billionsbounty.mobile.data.repository.NftRepository
+import com.billionsbounty.mobile.utils.ActivityHelper
 import com.billionsbounty.mobile.wallet.WalletAdapter
 import kotlinx.coroutines.launch
 
@@ -28,6 +32,8 @@ import kotlinx.coroutines.launch
 fun NftVerificationDialog(
     walletAdapter: WalletAdapter?,
     nftRepository: NftRepository,
+    bountyId: Int,
+    apiRepository: ApiRepository? = null,
     onDismiss: () -> Unit,
     onVerificationSuccess: () -> Unit
 ) {
@@ -40,6 +46,7 @@ fun NftVerificationDialog(
     var successMessage by remember { mutableStateOf<String?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val walletAddress = walletAdapter?.getPublicKey()
 
     // Check ownership on dialog open
@@ -102,6 +109,26 @@ fun NftVerificationDialog(
                     .onSuccess { result ->
                         if (result.success && result.verified) {
                             successMessage = result.message ?: "You've been granted ${result.questions_granted} free questions!"
+                            
+                            // Track activity: NFT redemption
+                            if (walletAddress != null && apiRepository != null) {
+                                coroutineScope.launch {
+                                    try {
+                                        val username = ActivityHelper.getUsername(context, walletAddress, apiRepository)
+                                        if (username != null) {
+                                            ActivityHelper.trackNftRedeem(
+                                                context = context,
+                                                bountyId = bountyId,
+                                                username = username
+                                            )
+                                        }
+                                    } catch (e: Exception) {
+                                        // Activity tracking failed, but don't block success flow
+                                        android.util.Log.w("NftVerificationDialog", "Failed to track activity: ${e.message}")
+                                    }
+                                }
+                            }
+                            
                             kotlinx.coroutines.delay(1000)
                             onVerificationSuccess()
                             kotlinx.coroutines.delay(500)

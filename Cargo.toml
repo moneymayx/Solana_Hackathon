@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "programs/billions-bounty-v3",
+    "programs/staking",
+    "programs/staking-v2",
+    "programs/nft-verification",
+]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true

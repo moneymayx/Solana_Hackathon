@@ -1,0 +1,1 @@
+Error: Function _ZN14regex_automata4meta8strategy3new17h55a6f76a41259c8cE Stack offset of 6344 exceeded max offset of 4096 by 2248 bytes, please minimize large stack variables

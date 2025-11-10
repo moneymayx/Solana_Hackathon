@@ -1,8 +1,10 @@
 package com.billionsbounty.mobile.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.billionsbounty.mobile.data.repository.ApiRepository
+import com.billionsbounty.mobile.utils.ActivityHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +49,7 @@ class ChatViewModel @Inject constructor(
     
     private var sessionId: String? = null
     private var currentBountyId: Int? = null
+    private var firstQuestionTracker = mutableMapOf<Pair<Int, String>, Boolean>() // Track first questions per (bountyId, username)
     
     /**
      * Send a message to a specific bounty's chat
@@ -54,7 +57,9 @@ class ChatViewModel @Inject constructor(
     fun sendBountyMessage(
         bountyId: Int,
         message: String,
-        walletAddress: String? = null
+        walletAddress: String? = null,
+        context: Context? = null,
+        bountyName: String? = null
     ) {
         if (message.isBlank()) return
         

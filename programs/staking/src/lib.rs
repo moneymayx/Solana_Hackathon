@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("STAK1NG111111111111111111111111111111111111");
+declare_id!("5Yx1QzgapjAAFTR4mN4oxy3Qk3imj4nAAaNXQCYTMgCc");
 
 #[program]
 pub mod staking {

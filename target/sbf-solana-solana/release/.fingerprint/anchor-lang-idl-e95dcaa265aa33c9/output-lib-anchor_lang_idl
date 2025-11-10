@@ -1,0 +1,1 @@
+Error: Function _ZN15anchor_lang_idl5build10IdlBuilder5build17hb189106b74fa81f8E Stack offset of 4672 exceeded max offset of 4096 by 576 bytes, please minimize large stack variables

@@ -164,7 +164,7 @@
 ```bash
 cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty
 source venv/bin/activate
-python3 scripts/testing/test_v2_integration.py
+python3 smart-contract/v2_implementation/scripts/test_v2_integration_1.py
 ```
 
 ### Test API Router

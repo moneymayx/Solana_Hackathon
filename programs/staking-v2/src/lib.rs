@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("STAK1NGv211111111111111111111111111111111111");
+declare_id!("CFgX8DxCbGqQP1QbiY538dNyPxD2UUHUi4tChAbuJaZC");
 
 #[program]
 pub mod staking_v2 {

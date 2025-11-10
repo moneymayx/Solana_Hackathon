@@ -31,6 +31,20 @@ export const metadata: Metadata = {
     title: 'BILLION$ AI',
     description: 'Educational platform for studying AI security vulnerabilities and human psychology.',
     type: 'website',
+    images: [
+      {
+        url: '/images/billions-app-banner.JPEG',
+        width: 1920,
+        height: 544,
+        alt: 'BILLION$ AI - Educational Cybersecurity Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'BILLION$ AI',
+    description: 'Educational platform for studying AI security vulnerabilities and human psychology.',
+    images: ['/images/billions-app-banner.JPEG'],
   },
 }
 

@@ -10,9 +10,16 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jsdom',
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Map uuid ESM to CommonJS version
+    '^uuid$': '<rootDir>/node_modules/uuid/dist/index.js',
+    '^uuid/(.*)$': '<rootDir>/node_modules/uuid/dist/$1',
   },
+  transformIgnorePatterns: [
+    // Transform ESM modules - exclude from ignore so they get transformed
+    'node_modules/(?!(.*\\.mjs$|@solana|@noble|uuid|jayson|buffer|@coral-xyz))',
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',

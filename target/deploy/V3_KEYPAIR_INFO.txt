@@ -1,0 +1,16 @@
+V3 Program Keypair Information
+==============================
+
+Program ID: 52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov
+Keypair Location: target/deploy/billions_bounty_v3-keypair.json
+Generated: Sun Nov  2 14:45:10 EST 2025
+
+⚠️ IMPORTANT: Backup this keypair file!
+The keypair is required for:
+- Program upgrades
+- Authority operations
+- Program management
+
+Recovery Seed Phrase (if available):
+Check console output when keypair was generated
+

@@ -1,0 +1,18 @@
+# Kora Keypair Information
+# ⚠️ This file contains PUBLIC information only (safe to commit)
+# Private key is stored in .env file (NEVER commit .env)
+
+Public Key (Wallet Address): D4f9ArwgTuChKdgonTV8WFs3q1YtY9tHArF5zs4D5Vc5
+
+Purpose: Kora fee abstraction wallet
+- This wallet pays transaction fees on behalf of users
+- Users can pay fees in USDC instead of requiring SOL
+
+Network: Devnet (for testing)
+Mainnet: Generate new keypair when deploying to production
+
+Private Key Location: .env file as KORA_PRIVATE_KEY
+⚠️ NEVER commit .env file or share private key
+
+Generated: December 2025
+

@@ -1,0 +1,33 @@
+[package]
+name = "billions-bounty-v3"
+version = "0.3.0"
+edition = "2021"
+description = "Secure autonomous lottery system with fund locking, cryptographic verification, and comprehensive security fixes"
+authors = ["Billions Bounty Team"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "billions_bounty_v3"
+
+[features]
+no-entrypoint = []
+idl-build = []
+no-idl = []
+no-log-ix-name = []
+init-if-needed = []
+cpi = ["no-entrypoint"]
+default = ["idl-build", "init-if-needed"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false
+
+[dependencies]
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"
+sha2 = "0.10"
+indexmap = "=2.2.6"

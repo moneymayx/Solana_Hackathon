@@ -77,6 +77,9 @@ interface ApiClient {
     @GET("/api/user/profile/{walletAddress}")
     suspend fun getUserProfile(@Path("walletAddress") walletAddress: String): Response<UserProfileResponse>
     
+    @POST("/api/user/set-profile")
+    suspend fun setUserProfile(@Body request: SetProfileRequest): Response<SetProfileResponse>
+    
     @POST("/api/user/link-email")
     suspend fun linkEmailToWallet(@Body request: LinkEmailRequest): Response<LinkEmailResponse>
     
@@ -674,7 +677,23 @@ data class UserProfileResponse(
     val email: String? = null,
     val referral_code: String? = null,
     val free_questions_available: Int = 0,
-    val created_at: String? = null
+    val created_at: String? = null,
+    val display_name: String? = null, // Username/display name for activity tracker
+    val username: String? = null // Alias for display_name
+)
+
+// Set User Profile (username and optional email)
+data class SetProfileRequest(
+    val wallet_address: String,
+    val username: String,
+    val email: String? = null
+)
+
+data class SetProfileResponse(
+    val success: Boolean,
+    val message: String,
+    val username: String? = null,
+    val email: String? = null
 )
 
 // Link Email to Wallet

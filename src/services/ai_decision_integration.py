@@ -23,8 +23,27 @@ class AIDecisionIntegration:
     def __init__(self):
         self.smart_contract_service = SmartContractService()
         self.program_id = self.smart_contract_service.program_id
-        self.rpc_endpoint = self.smart_contract_service.rpc_endpoint
-        self.client = self.smart_contract_service.client
+        # Get RPC endpoint - handle both V1/V2 (has rpc_endpoint) and V3 adapter (has client with rpc_endpoint)
+        if hasattr(self.smart_contract_service, 'rpc_endpoint'):
+            self.rpc_endpoint = self.smart_contract_service.rpc_endpoint
+        elif hasattr(self.smart_contract_service, '_v3_adapter') and self.smart_contract_service._v3_adapter:
+            self.rpc_endpoint = self.smart_contract_service._v3_adapter.rpc_endpoint
+        else:
+            # Fallback to environment variable
+            from network_config import get_network_config
+            network_config = get_network_config()
+            self.rpc_endpoint = network_config.get_rpc_endpoint()
+        
+        # Get client - handle both V1/V2 (has client) and V3 adapter (has client)
+        if hasattr(self.smart_contract_service, 'client'):
+            self.client = self.smart_contract_service.client
+        elif hasattr(self.smart_contract_service, '_v3_adapter') and self.smart_contract_service._v3_adapter:
+            self.client = self.smart_contract_service._v3_adapter.client
+        else:
+            # Fallback: create client from rpc_endpoint
+            from solana.rpc.async_api import AsyncClient
+            from solana.rpc.commitment import Confirmed
+            self.client = AsyncClient(self.rpc_endpoint, commitment=Confirmed)
         
     async def process_ai_decision_on_chain(
         self, 

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalContext
+import com.billionsbounty.mobile.ui.viewmodel.ChatViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -176,6 +177,14 @@ fun BountyDetailScreen(
             )
         }
         
+        // Activity Tracker (if enabled)
+        item {
+            com.billionsbounty.mobile.ui.components.ActivityTracker(
+                bountyId = bountyId,
+                enabled = true // Can be controlled by feature flag later
+            )
+        }
+        
         // Beat the Bot / Watch Toggle
         item {
             ActionToggleSection(
@@ -247,8 +256,10 @@ fun BountyDetailScreen(
         NftVerificationDialog(
             walletAdapter = viewModel.getWalletAdapter(),
             nftRepository = viewModel.getNftRepository(),
+            bountyId = bountyId,
+            apiRepository = viewModel.getRepository(),
             onDismiss = { showNftFlow = false },
-            onVerificationSuccess = { 
+            onVerificationSuccess = {
                 showNftFlow = false
                 viewModel.loadUserEligibility()
             }
@@ -987,8 +998,14 @@ fun ChatInterfaceSection(
                         FloatingActionButton(
                             onClick = {
                                 if (messageText.isNotBlank()) {
+                                    val walletAddr = viewModel.walletAddress.value
+                                    // Send message
                                     viewModel.sendMessage(messageText)
                                     messageText = ""
+                                    
+                                    // Track activity in background (if wallet connected)
+                                    // Note: Activity tracking happens via ActivityHelper in ChatViewModel if needed
+                                    // For now, we'll skip activity tracking here to avoid context issues
                                 }
                             },
                             modifier = Modifier.size(48.dp),

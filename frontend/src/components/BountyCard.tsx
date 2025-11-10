@@ -11,6 +11,7 @@ import {
   Shield,
   Crown
 } from 'lucide-react'
+import ActivityTracker from './ActivityTracker'
 import { cn } from '@/lib/utils'
 
 interface Bounty {
@@ -103,6 +104,9 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
   const difficulty = difficultyConfig[bounty.difficulty_level as keyof typeof difficultyConfig] || difficultyConfig.medium
   const DifficultyIcon = difficulty.icon
   const colors = providerColors[bounty.llm_provider as keyof typeof providerColors] || providerColors.claude
+  
+  // Check if activity tracker feature is enabled
+  const isActivityTrackerEnabled = process.env.NEXT_PUBLIC_ENABLE_ACTIVITY_TRACKER === 'true'
 
   return (
     <div
@@ -209,6 +213,11 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
             </button>
           </Link>
         </div>
+
+        {/* Activity Tracker */}
+        {isActivityTrackerEnabled && (
+          <ActivityTracker bountyId={bounty.id} />
+        )}
 
         {/* Hover Effect Overlay */}
         {isHovered && (

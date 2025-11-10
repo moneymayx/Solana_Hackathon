@@ -102,6 +102,17 @@ export default function Analytics() {
     return status ? '✅' : '❌'
   }
 
+  const contractVersionLabel = (() => {
+    // We read the feature flags so ops can verify the PDA against the active lottery contract era (V3 supersedes V2).
+    if (process.env.NEXT_PUBLIC_USE_CONTRACT_V3 === 'true') {
+      return 'V3'
+    }
+    if (process.env.NEXT_PUBLIC_USE_CONTRACT_V2 === 'true') {
+      return 'V2'
+    }
+    return 'V1'
+  })()
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white">
@@ -365,7 +376,7 @@ export default function Analytics() {
                   <h3 className="text-xl font-bold text-gray-900 mb-4">On-Chain Verification</h3>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-gray-600 text-sm mb-2">Lottery PDA (Global PDA for V2)</p>
+                      <p className="text-gray-600 text-sm mb-2">Lottery PDA (Global PDA for {contractVersionLabel})</p>
                       <div className="bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900 break-all border border-gray-200">
                         {fundData.lottery_funds.lottery_pda || 'Not available'}
                       </div>

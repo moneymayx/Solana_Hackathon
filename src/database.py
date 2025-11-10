@@ -7,7 +7,7 @@ from .base import Base
 
 # Import all models to ensure they're registered with SQLAlchemy
 from .models import (
-    User, Conversation, AttackAttempt, Transaction, PrizePool, SecurityEvent, 
+    User, V3EntryNonceTracker, Conversation, AttackAttempt, Transaction, PrizePool, SecurityEvent, 
     PaymentTransaction, BountyState, BountyEntry, BlacklistedPhrase, 
     Winner, ConnectedWallet, WalletFundingSource, EmailVerification,
     ReferralCode, FundDeposit, FundTransfer, Referral, FreeQuestions,
@@ -17,7 +17,9 @@ from .models import (
     MessageEmbedding, AttackPattern, ContextSummary,
     # Phase 3: Team Collaboration
     Team, TeamMember, TeamInvitation, TeamAttempt, TeamMessage, TeamFunding,
-    TeamPrizeDistribution, TeamMemberPrize
+    TeamPrizeDistribution, TeamMemberPrize,
+    # AI Resistance Testing
+    AITestRun, AITestResult
 )
 
 # Import simulation models
