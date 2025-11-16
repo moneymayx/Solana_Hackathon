@@ -65,7 +65,7 @@ echo -e "${YELLOW}[2/6] Checking Python integration...${NC}"
 if [ -d "venv/bin" ]; then
     source venv/bin/activate 2>/dev/null || true
 fi
-if python3 smart-contract/v2_implementation/scripts/test_v2_integration.py 2>&1 | grep -q "All integration tests passed"; then
+if python3 smart_contract/v2_implementation/scripts/test_v2_integration.py 2>&1 | grep -q "All integration tests passed"; then
     test_result 0 "Python integration tests"
 else
     test_result 1 "Python integration tests"

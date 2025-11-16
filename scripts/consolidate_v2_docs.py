@@ -302,7 +302,7 @@ def categorize_script(script_path: Path) -> Tuple[str, Path]:
     return "keep", script_path.parent
 
 def organize_v2_smart_contracts() -> Dict[str, int]:
-    """Organize V2 smart contract implementation files into smart-contract/v2_implementation/"""
+    """Organize V2 smart contract implementation files into smart_contract/v2_implementation/"""
     stats = {
         "v1_contracts": 0,
         "v2_backend_services": 0,
@@ -318,23 +318,23 @@ def organize_v2_smart_contracts() -> Dict[str, int]:
     print("=" * 80)
     print()
     
-    # 1. Move V1 contracts (programs/billions-bounty/) to smart-contract/v1/
+    # 1. Move V1 contracts (programs/billions-bounty/) to smart_contract/v1/
     v1_contracts_dir = PROJECT_ROOT / "programs" / "billions-bounty"
     if v1_contracts_dir.exists():
-        print("Moving V1 contracts to smart-contract/v1/...")
+        print("Moving V1 contracts to smart_contract/v1/...")
         try:
             # Move entire directory
             target_v1 = V1_CONTRACTS_DIR / "billions-bounty"
             if not target_v1.exists():
                 shutil.move(str(v1_contracts_dir), str(target_v1))
                 stats["v1_contracts"] = 1
-                print(f"  ✅ Moved V1 contracts: programs/billions-bounty/ → smart-contract/v1/billions-bounty/")
+                print(f"  ✅ Moved V1 contracts: programs/billions-bounty/ → smart_contract/v1/billions-bounty/")
             else:
                 print(f"  ⚠️  V1 contracts already exist at {target_v1}")
         except Exception as e:
             print(f"  ❌ Error moving V1 contracts: {e}")
     
-    # 2. Move V2 backend services (src/services/v2/) to smart-contract/v2_implementation/backend/services/
+    # 2. Move V2 backend services (src/services/v2/) to smart_contract/v2_implementation/backend/services/
     v2_services_dir = PROJECT_ROOT / "src" / "services" / "v2"
     if v2_services_dir.exists():
         print("\nMoving V2 backend services...")
@@ -359,7 +359,7 @@ def organize_v2_smart_contracts() -> Dict[str, int]:
         except:
             pass
     
-    # 3. Move V2 API files to smart-contract/v2_implementation/backend/api/
+    # 3. Move V2 API files to smart_contract/v2_implementation/backend/api/
     v2_api_files = [
         PROJECT_ROOT / "src" / "api" / "v2_payment_router.py",
         PROJECT_ROOT / "src" / "services" / "contract_adapter_v2.py",
@@ -374,16 +374,16 @@ def organize_v2_smart_contracts() -> Dict[str, int]:
             except Exception as e:
                 print(f"  ❌ Error moving {file_path.name}: {e}")
     
-    # 4. Move V2 contracts (programs/billions-bounty-v2/) to smart-contract/v2_implementation/contracts/
+    # 4. Move V2 contracts (programs/billions-bounty-v2/) to smart_contract/v2_implementation/contracts/
     v2_contracts_dir = PROJECT_ROOT / "programs" / "billions-bounty-v2"
     if v2_contracts_dir.exists():
-        print("\nMoving V2 contracts to smart-contract/v2_implementation/contracts/...")
+        print("\nMoving V2 contracts to smart_contract/v2_implementation/contracts/...")
         try:
             target_v2 = V2_CONTRACTS / "billions-bounty-v2"
             if not target_v2.exists():
                 shutil.move(str(v2_contracts_dir), str(target_v2))
                 stats["v2_contracts"] = 1
-                print(f"  ✅ Moved V2 contracts: programs/billions-bounty-v2/ → smart-contract/v2_implementation/contracts/billions-bounty-v2/")
+                print(f"  ✅ Moved V2 contracts: programs/billions-bounty-v2/ → smart_contract/v2_implementation/contracts/billions-bounty-v2/")
             else:
                 print(f"  ⚠️  V2 contracts already exist at {target_v2}")
         except Exception as e:

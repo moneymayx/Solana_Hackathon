@@ -1,7 +1,7 @@
 """Token economics configuration shared by backend services.
 
 This module consolidates all revenue split parameters so our FastAPI backend,
-smart-contract integration, and staking services apply the exact same
+smart contract integration, and staking services apply the exact same
 distribution math. Keeping these constants in one place prevents subtle bugs
 where the lottery smart contract (60/40 jackpot/buyback split) would disagree
 with the Python allocation logic.

@@ -156,7 +156,7 @@ cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && ./scripts/staging/valid
 cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/programs/billions-bounty-v2 && ANCHOR_PROVIDER_URL=https://api.devnet.solana.com npx ts-node -T tests/devnet_simple_validation.ts
 
 # Check backend integration only
-cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 smart-contract/v2_implementation/scripts/test_v2_integration.py
+cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty && source venv/bin/activate && python3 smart_contract/v2_implementation/scripts/test_v2_integration.py
 ```
 
 ### Solana Explorer Links

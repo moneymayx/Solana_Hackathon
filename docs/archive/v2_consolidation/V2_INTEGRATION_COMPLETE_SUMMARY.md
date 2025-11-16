@@ -164,7 +164,7 @@ NEXT_PUBLIC_V2_STAKING_WALLET=Fzj8pyBehQQ3Tu1h5fb6RRqtphVBzPbB9srAw1P5q6WX
 ```bash
 cd /Users/jaybrantley/myenv/Hackathon/Billions_Bounty
 source venv/bin/activate
-python3 smart-contract/v2_implementation/scripts/test_v2_integration_1.py
+python3 smart_contract/v2_implementation/scripts/test_v2_integration_1.py
 ```
 
 ### Test API Endpoints

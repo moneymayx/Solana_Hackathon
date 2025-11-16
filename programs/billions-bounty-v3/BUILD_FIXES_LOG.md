@@ -250,6 +250,6 @@ anchor build     # ✅ Success
 ## References
 
 - Anchor 0.30.1 Documentation: https://www.anchor-lang.com/
-- V2 Contract: `smart-contract/v2_implementation/contracts/billions-bounty-v2/`
+- V2 Contract: `smart_contract/v2_implementation/contracts/billions-bounty-v2/`
 - Rust Borrow Checker: https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html
 
