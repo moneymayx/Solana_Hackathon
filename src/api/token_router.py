@@ -4,7 +4,7 @@ The endpoints below provide the JSON surface expected by the staking dashboard
 and token discount utilities. They currently operate in "mock" mode, meaning
 all staking activity is stored in the SQL database while on-chain transactions
 are simulated. This keeps the frontend unblocked during local development and
-mirrors the 60/20/10/10 lottery split defined in the Solana program.
+mirrors the 60/40 jackpot/buyback split defined in the Solana program.
 """
 
 from __future__ import annotations
@@ -234,6 +234,9 @@ async def token_health() -> Dict[str, Any]:
         "discounts_enabled": True,
         "mode": "mock",
     }
+
+
+
 
 
 

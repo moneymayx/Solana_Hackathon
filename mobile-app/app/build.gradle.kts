@@ -24,6 +24,10 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Enable dev seeding helpers only in debug builds to keep production parity intact.
+            buildConfigField("boolean", "ENABLE_ACTIVITY_DEV_SEED", "true")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
@@ -31,6 +35,7 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "ENABLE_ACTIVITY_DEV_SEED", "false")
         }
     }
 
@@ -45,6 +50,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

@@ -117,9 +117,11 @@ class NetworkUtils @Inject constructor() {
                     ?: return Result.failure(Exception("Empty response"))
                 
                 val json = JSONObject(body)
-                val ip = json.optString(jsonKey, null)
+                val ipCandidate = json.optString(jsonKey, "")
+                val ip = ipCandidate.takeIf { it.isNotBlank() }
                 
-                if (ip.isNullOrEmpty()) {
+                if (ip == null) {
+                    // Explicitly surface malformed responses so callers can retry or fall back.
                     Result.failure(Exception("No IP in response"))
                 } else {
                     Result.success(ip)

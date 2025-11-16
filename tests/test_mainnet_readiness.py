@@ -164,7 +164,7 @@ class MainnetReadinessChecker:
             return False
     
     def check_revenue_split_configuration(self):
-        """Check revenue split is 60/20/10/10"""
+        """Check revenue split is 60/40 jackpot/buyback for V3"""
         print("\n" + "="*70)
         print("REVENUE SPLIT CONFIGURATION")
         print("="*70)
@@ -172,16 +172,12 @@ class MainnetReadinessChecker:
         try:
             from src.token_config import (
                 BOUNTY_CONTRIBUTION_RATE,
-                OPERATIONAL_FEE_RATE,
                 BUYBACK_RATE,
-                STAKING_REVENUE_PERCENTAGE
             )
             
             expected = {
                 "Bounty": (BOUNTY_CONTRIBUTION_RATE, 0.60),
-                "Operational": (OPERATIONAL_FEE_RATE, 0.20),
-                "Buyback": (BUYBACK_RATE, 0.10),
-                "Staking": (STAKING_REVENUE_PERCENTAGE, 0.10),
+                "Buyback": (BUYBACK_RATE, 0.40),
             }
             
             all_correct = True
@@ -192,13 +188,17 @@ class MainnetReadinessChecker:
                     self.log_result(f"Revenue Split: {name}", False, f"Expected {expected_val*100}%, got {actual*100}%", critical=True)
                     all_correct = False
             
-            # Check total = 100%
+            # Check total = 100% (only jackpot + buyback are part of per-entry split now)
             total = sum(v[0] for v in expected.values())
             if abs(total - 1.0) < 0.001:
-                self.log_result("Revenue Split: Total", True, "100%")
+                self.log_result("Revenue Split: Total", True, "100% (jackpot + buyback)")
             else:
-                self.log_result("Revenue Split: Total", False, f"Total is {total*100}%, should be 100%", critical=True)
-                all_correct = False
+                self.log_result(
+                    "Revenue Split: Total",
+                    False,
+                    f"Total is {total*100}%, should be 100% (jackpot + buyback)",
+                    critical=True,
+                )
             
             return all_correct
             

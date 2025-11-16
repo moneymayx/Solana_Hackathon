@@ -29,11 +29,11 @@ All overlapping documentation files moved to `docs/archive/v2_consolidation/`:
 - ✅ `src/services/obsolete/` directory with README explaining deprecated code
 - ✅ `ARCHITECTURE.md` - System architecture with active/deprecated markers
 - ✅ Updated `README.md` with V2 status section
-- ✅ `QUICK_REFERENCE_V2.md` - Quick answers for visitors
+- ✅ `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick answers for visitors
 - ✅ `.github/PULL_REQUEST_TEMPLATE.md` - PR template
 
 **Updated**:
-- ✅ `PRODUCTION_READINESS_V2.md` - Added related documentation links
+- ✅ `docs/maintenance/PRODUCTION_READINESS_V2.md` - Added related documentation links
 
 ### 3. Git Strategy Clarified ✅
 
@@ -50,8 +50,8 @@ All overlapping documentation files moved to `docs/archive/v2_consolidation/`:
 
 ### Root Level
 - `ARCHITECTURE.md` - System architecture
-- `PRODUCTION_READINESS_V2.md` - Production readiness guide
-- `QUICK_REFERENCE_V2.md` - Quick reference
+- `docs/maintenance/PRODUCTION_READINESS_V2.md` - Production readiness guide
+- `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick reference
 - `README.md` - Updated with V2 status
 
 ### `docs/` Directory

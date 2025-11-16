@@ -17,6 +17,12 @@ interface ActivityTrackerProps {
 const ACTIVITY_STORAGE_KEY = 'bounty_activities'
 const ACTIVITY_CYCLE_DURATION = 4000 // 4 seconds per activity
 const ACTIVITY_MAX_AGE = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+export const isDevActivitySeedEnabled = (): boolean => {
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_ACTIVITY_TRACKER_DEV_SEED === 'true'
+  )
+}
 
 export default function ActivityTracker({ bountyId }: ActivityTrackerProps) {
   const [currentActivityIndex, setCurrentActivityIndex] = useState(0)
@@ -171,6 +177,64 @@ export function addActivity(
     localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(trimmed))
   } catch (error) {
     console.error('Error saving activity to localStorage:', error)
+  }
+}
+
+/**
+ * Developer-only helper to seed sample activity entries for demos.
+ * Keeps logic alongside addActivity so we respect the same storage format.
+ */
+export function seedDevActivities(bountyId: number): void {
+  if (typeof window === 'undefined') return
+  if (!isDevActivitySeedEnabled()) return
+
+  try {
+    const now = Date.now()
+
+    // Curated sample events to mimic real bounty engagement during devnet demos.
+    const seedTemplates: Array<{
+      username: string
+      message: string
+      offsetMs: number
+    }> = [
+      {
+        username: 'solana-hacker',
+        message: 'just asked a question',
+        offsetMs: 30_000
+      },
+      {
+        username: 'nft-whale',
+        message: 'redeemed their NFT',
+        offsetMs: 90_000
+      },
+      {
+        username: 'referral-pro',
+        message: 'referred a new friend',
+        offsetMs: 150_000
+      },
+      {
+        username: 'newcomer',
+        message: 'just asked their first question',
+        offsetMs: 210_000
+      }
+    ]
+
+    const stored = localStorage.getItem(ACTIVITY_STORAGE_KEY)
+    const existing: Activity[] = stored ? JSON.parse(stored) : []
+
+    const seededActivities = seedTemplates.map((template, index) => ({
+      id: `${now}-${index}-${Math.random()}`,
+      username: template.username,
+      message: template.message,
+      timestamp: now - template.offsetMs,
+      bounty_id: bountyId
+    }))
+
+    // Prepend new dev events so they surface immediately in the tracker UI.
+    const combined = [...seededActivities, ...existing].slice(0, 100)
+    localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(combined))
+  } catch (error) {
+    console.error('Error seeding dev activities:', error)
   }
 }
 

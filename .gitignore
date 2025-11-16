@@ -165,3 +165,9 @@ programs/billions-bounty/target/deploy/*.so
 
 # Revenue and cost projections (confidential business data)
 REVENUE_COST_PROJECTION.md
+# Added by reorganize_and_push.py – sensitive keys & envs
+.env.*
+id.json
+wallet_*
+logs/*.log
+wallets/*.log

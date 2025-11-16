@@ -86,13 +86,23 @@ pub mod billions_bounty_v3 {
         // Validate entry
         require!(lottery.is_active, ErrorCode::LotteryInactive);
         require!(entry_amount >= lottery.research_fee, ErrorCode::InsufficientPayment);
-        
-        // Calculate fund distribution
-        let research_contribution = (entry_amount * 80) / 100;
-        let operational_fee = (entry_amount * 20) / 100;
-        
-        // Update lottery state
-        lottery.current_jackpot += research_contribution;
+
+        // Calculate fund distribution for 60/40 split.
+        //  - 60% of the user's payment is added to the on-chain jackpot pot.
+        //  - 40% is routed directly to the buyback wallet to fund 100Bs buy-and-burn.
+        let jackpot_amount = (entry_amount * 60) / 100;
+        let buyback_amount = entry_amount
+            .checked_sub(jackpot_amount)
+            .ok_or(ErrorCode::InvalidInput)?; // Defensive: ensures 60% + 40% == 100%.
+
+        // Store the semantic meaning in existing fields to avoid a state migration:
+        //  - research_contribution now represents the 60% jackpot contribution.
+        //  - operational_fee now represents the 40% buyback allocation.
+        let research_contribution = jackpot_amount;
+        let operational_fee = buyback_amount;
+
+        // Update lottery state so jackpot only grows by the 60% contribution.
+        lottery.current_jackpot += jackpot_amount;
         lottery.total_entries += 1;
         
         // Record entry
@@ -104,19 +114,37 @@ pub mod billions_bounty_v3 {
         entry.is_processed = false;
         entry.entry_nonce = entry_nonce;
         
-        // Transfer funds to jackpot wallet (funds are locked)
-        let transfer_instruction = Transfer {
+        // Transfer funds according to the 60/40 split:
+        //  - 60% from user → jackpot_token_account (locked in the lottery pot).
+        //  - 40% from user → buyback_token_account (used off-chain to buy and burn 100Bs).
+
+        // 60% transfer into the jackpot pot.
+        let jackpot_transfer = Transfer {
             from: ctx.accounts.user_token_account.to_account_info(),
             to: ctx.accounts.jackpot_token_account.to_account_info(),
             authority: ctx.accounts.user.to_account_info(),
         };
-        
-        let cpi_ctx = CpiContext::new(
+
+        let jackpot_cpi_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
+            jackpot_transfer,
         );
-        
-        token::transfer(cpi_ctx, entry_amount)?;
+
+        token::transfer(jackpot_cpi_ctx, jackpot_amount)?;
+
+        // 40% transfer into the dedicated buyback wallet.
+        let buyback_transfer = Transfer {
+            from: ctx.accounts.user_token_account.to_account_info(),
+            to: ctx.accounts.buyback_token_account.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+
+        let buyback_cpi_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            buyback_transfer,
+        );
+
+        token::transfer(buyback_cpi_ctx, buyback_amount)?;
         
         emit!(EntryProcessed {
             user_wallet,
@@ -550,6 +578,16 @@ pub struct ProcessEntryPayment<'info> {
         associated_token::authority = lottery
     )]
     pub jackpot_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: Buyback authority wallet that receives 40% of each entry for 100Bs buy-and-burn.
+    pub buyback_wallet: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = buyback_wallet
+    )]
+    pub buyback_token_account: Account<'info, TokenAccount>,
     
     /// CHECK: USDC mint address
     pub usdc_mint: UncheckedAccount<'info>,

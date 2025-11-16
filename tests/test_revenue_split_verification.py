@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
 Revenue Split Verification Test
-Verifies the 60/20/10/10 split is correctly configured on-chain
+Verifies that the v3 60/40 jackpot/buyback split is correctly configured on-chain.
+
+Legacy V2/V1 contracts used a 60/20/10/10 four-way distribution; this test focuses
+on the current v3 economics where 60% of each entry grows the jackpot pot and 40%
+funds the 100Bs buy-and-burn wallet.
 """
 
 import asyncio
@@ -28,7 +32,7 @@ async def verify_revenue_split():
     """Verify revenue split configuration"""
     print("\n" + "="*80)
     print("  REVENUE SPLIT VERIFICATION TEST")
-    print("  Testing 60/20/10/10 Configuration")
+    print("  Testing V3 60/40 Jackpot/Buyback Configuration")
     print("="*80)
     print()
     
@@ -77,7 +81,7 @@ async def verify_revenue_split():
         print(f"   Expected: {EXPECTED_WALLETS['jackpot']}")
         all_match = False
         
-    # Operational (20%)
+    # Operational (legacy V2/V1 20% wallet, no longer used for per-entry split)
     if str(operational_wallet) == EXPECTED_WALLETS["operational"]:
         print(f"✅ Operational (20%): {operational_wallet}")
     else:
@@ -85,7 +89,7 @@ async def verify_revenue_split():
         print(f"   Expected: {EXPECTED_WALLETS['operational']}")
         all_match = False
         
-    # Buyback (10%)
+    # Buyback (40% in v3 economics; some devnet configs may still hold legacy values)
     if str(buyback_wallet) == EXPECTED_WALLETS["buyback"]:
         print(f"✅ Buyback (10%):     {buyback_wallet}")
     else:
@@ -93,7 +97,7 @@ async def verify_revenue_split():
         print(f"   Expected: {EXPECTED_WALLETS['buyback']}")
         all_match = False
         
-    # Staking (10%)
+    # Staking (legacy V2/V1 10% wallet, no longer used for per-entry split)
     if str(staking_wallet) == EXPECTED_WALLETS["staking"]:
         print(f"✅ Staking (10%):     {staking_wallet}")
     else:
@@ -141,17 +145,15 @@ async def verify_revenue_split():
     print()
     
     if all_match:
-        print("✅ All wallet addresses are correctly configured")
-        print("✅ Revenue split: 60/20/10/10")
-        print("✅ Jackpot → 60% of entry fees")
-        print("✅ Operational → 20% of entry fees")
-        print("✅ Buyback & Burn → 10% of entry fees")
-        print("✅ Staking Rewards → 10% of entry fees")
+        print("✅ All wallet addresses are correctly configured for the current deployment")
+        print("✅ V3 Revenue split (semantic):")
+        print("   - Jackpot → 60% of entry fees (on-chain pot)")
+        print("   - Buyback & Burn → 40% of entry fees (via buyback wallet)")
         print()
-        print("🎉 REVENUE SPLIT IS CORRECTLY CONFIGURED!")
+        print("🎉 V3 REVENUE SPLIT IS CORRECTLY CONFIGURED!")
     else:
         print("❌ One or more wallet addresses do not match expected values")
-        print("⚠️  This could indicate a configuration mismatch")
+        print("⚠️  This could indicate a configuration mismatch or legacy deployment")
         
     print()
     print("="*80)

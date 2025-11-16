@@ -18,10 +18,12 @@ describe("V3 Integration Tests", function() {
   let authority: Keypair;
   let user: Keypair;
   let jackpotWallet: Keypair;
+  let buybackWallet: Keypair;
   let backendAuthority: Keypair;
   let usdcMint: PublicKey;
   let userTokenAccount: PublicKey;
   let jackpotTokenAccount: PublicKey;
+  let buybackTokenAccount: PublicKey;
   let lotteryPDA: PublicKey;
 
   const RESEARCH_FUND_FLOOR = 10000;
@@ -32,6 +34,7 @@ describe("V3 Integration Tests", function() {
     authority = Keypair.generate();
     user = Keypair.generate();
     jackpotWallet = Keypair.generate();
+    buybackWallet = Keypair.generate();
     backendAuthority = Keypair.generate();
 
     // Transfer SOL from provider wallet to test accounts (bypasses rate limits)
@@ -80,6 +83,13 @@ describe("V3 Integration Tests", function() {
     const transfer4 = new anchor.web3.Transaction().add(
       anchor.web3.SystemProgram.transfer({
         fromPubkey: providerWallet.publicKey,
+        toPubkey: buybackWallet.publicKey,
+        lamports: amount,
+      })
+    );
+    const transfer5 = new anchor.web3.Transaction().add(
+      anchor.web3.SystemProgram.transfer({
+        fromPubkey: providerWallet.publicKey,
         toPubkey: backendAuthority.publicKey,
         lamports: amount,
       })
@@ -90,6 +100,7 @@ describe("V3 Integration Tests", function() {
     await provider.sendAndConfirm(transfer2);
     await provider.sendAndConfirm(transfer3);
     await provider.sendAndConfirm(transfer4);
+    await provider.sendAndConfirm(transfer5);
     
     await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -113,6 +124,14 @@ describe("V3 Integration Tests", function() {
       authority,
       usdcMint,
       jackpotWallet.publicKey
+    );
+
+    // Create buyback token account that will receive 40% of each entry.
+    buybackTokenAccount = await createAccount(
+      provider.connection,
+      buybackWallet,
+      usdcMint,
+      buybackWallet.publicKey
     );
 
     await mintTo(
@@ -179,6 +198,7 @@ describe("V3 Integration Tests", function() {
 
     const initialUserBalance = await getAccount(provider.connection, userTokenAccount);
     const initialJackpotBalance = await getAccount(provider.connection, jackpotTokenAccount);
+    const initialBuybackBalance = await getAccount(provider.connection, buybackTokenAccount);
 
     await program.methods
       .processEntryPayment(
@@ -192,6 +212,8 @@ describe("V3 Integration Tests", function() {
         userWallet: user.publicKey,
         userTokenAccount: userTokenAccount,
         jackpotTokenAccount: jackpotTokenAccount,
+        buybackWallet: buybackWallet.publicKey,
+        buybackTokenAccount: buybackTokenAccount,
         usdcMint: usdcMint,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -203,18 +225,24 @@ describe("V3 Integration Tests", function() {
     const entry = await program.account.entry.fetch(entryPDA);
     expect(entry.userWallet.toString()).to.equal(user.publicKey.toString());
     expect(entry.amountPaid.toNumber()).to.equal(ENTRY_AMOUNT);
-    expect(entry.researchContribution.toNumber()).to.equal(8); // 80% of $10
-    expect(entry.operationalFee.toNumber()).to.equal(2); // 20% of $10
+    expect(entry.researchContribution.toNumber()).to.equal(6); // 60% of 10 goes to jackpot
+    expect(entry.operationalFee.toNumber()).to.equal(4); // 40% of 10 goes to buyback
 
     const finalUserBalance = await getAccount(provider.connection, userTokenAccount);
     const finalJackpotBalance = await getAccount(provider.connection, jackpotTokenAccount);
+    const finalBuybackBalance = await getAccount(provider.connection, buybackTokenAccount);
 
+    // User should have paid the full entry amount.
     expect(initialUserBalance.amount - finalUserBalance.amount).to.equal(ENTRY_AMOUNT);
-    expect(finalJackpotBalance.amount - initialJackpotBalance.amount).to.equal(ENTRY_AMOUNT);
+    // Jackpot should receive exactly 60% of the entry.
+    expect(finalJackpotBalance.amount - initialJackpotBalance.amount).to.equal(6);
+    // Buyback wallet should receive exactly 40% of the entry.
+    expect(finalBuybackBalance.amount - initialBuybackBalance.amount).to.equal(4);
 
     const lottery = await program.account.lottery.fetch(lotteryPDA);
     expect(lottery.totalEntries.toNumber()).to.equal(1);
-    expect(lottery.currentJackpot.toNumber()).to.equal(RESEARCH_FUND_FLOOR + 8);
+    // Jackpot state should only increase by the 60% contribution.
+    expect(lottery.currentJackpot.toNumber()).to.equal(RESEARCH_FUND_FLOOR + 6);
   });
 
   it("Processes AI decision and logs correctly", async () => {

@@ -31,13 +31,13 @@ All V2 production organization tasks have been completed. The repository is now 
 **Created**:
 - ✅ `src/services/obsolete/` - Directory for deprecated code with README
 - ✅ `ARCHITECTURE.md` - System architecture with active/deprecated markers
-- ✅ `QUICK_REFERENCE_V2.md` - Quick answers for visitors
+- ✅ `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick answers for visitors
 - ✅ `.github/PULL_REQUEST_TEMPLATE.md` - PR template
 - ✅ `.env.example` - Environment variable template with V2 section
 
 **Updated**:
 - ✅ `README.md` - V2 status section at top
-- ✅ `PRODUCTION_READINESS_V2.md` - Related documentation links
+- ✅ `docs/maintenance/PRODUCTION_READINESS_V2.md` - Related documentation links
 - ✅ `src/services/smart_contract_service.py` - ACTIVE marker added
 - ✅ `src/services/v2/payment_processor.py` - ACTIVE marker added
 - ✅ `src/api/v2_payment_router.py` - ACTIVE marker added
@@ -131,7 +131,7 @@ All V2 production organization tasks have been completed. The repository is now 
 
 ### 1. "Keep separate for now" ✅
 - `staging-v2` branch remains separate
-- Documented merge strategy in PRODUCTION_READINESS_V2.md
+- Documented merge strategy in docs/maintenance/PRODUCTION_READINESS_V2.md
 - Can merge to `main` when ready
 
 ### 2. "Mark deprecated files" ✅
@@ -168,8 +168,8 @@ All V2 production organization tasks have been completed. The repository is now 
 Billions_Bounty/
 ├── README.md                           # ✅ Updated with V2 status
 ├── ARCHITECTURE.md                     # ✅ System architecture
-├── QUICK_REFERENCE_V2.md              # ✅ Quick answers
-├── PRODUCTION_READINESS_V2.md         # ✅ Production guide
+├── docs/maintenance/QUICK_REFERENCE_V2.md              # ✅ Quick answers
+├── docs/maintenance/PRODUCTION_READINESS_V2.md         # ✅ Production guide
 ├── .env.example                        # ✅ Environment template
 ├── docs/
 │   ├── V2_INTEGRATION_GUIDE.md        # ✅ Integration

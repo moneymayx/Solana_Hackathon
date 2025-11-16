@@ -113,6 +113,16 @@
           "isSigner": false
         },
         {
+          "name": "buybackWallet",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "buybackTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "usdcMint",
           "isMut": false,
           "isSigner": false

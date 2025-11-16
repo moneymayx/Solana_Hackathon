@@ -33,12 +33,15 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.billionsbounty.mobile.BuildConfig
 import com.billionsbounty.mobile.data.api.Bounty
+import com.billionsbounty.mobile.ui.components.ActivityStorage
 import com.billionsbounty.mobile.ui.viewmodel.BountyViewModel
 import kotlinx.coroutines.launch
 
@@ -422,6 +425,7 @@ fun BountyCard(
     onClick: () -> Unit,
     onWatchClick: () -> Unit = onClick
 ) {
+    val context = LocalContext.current
     // Color mapping based on provider
     val providerColors = remember(bounty.llm_provider) {
         when (bounty.llm_provider.lowercase()) {
@@ -567,6 +571,36 @@ fun BountyCard(
                         softWrap = false
                     )
                 }
+            }
+        }
+
+        if (BuildConfig.ENABLE_ACTIVITY_DEV_SEED) {
+            // Dev helper mirrors the web button so we can populate local trackers without contract traffic.
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    ActivityStorage.seedDevActivities(
+                        context = context,
+                        bountyId = bounty.id,
+                        bountyName = bounty.name
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = providerColors.copy(alpha = 0.6f)
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Seed Dev Activity",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = providerColors
+                )
             }
         }
     }

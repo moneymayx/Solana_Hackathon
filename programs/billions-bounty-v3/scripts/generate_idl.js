@@ -53,14 +53,20 @@ const idl = {
         { "name": "lottery", "isMut": true, "isSigner": false },
         { "name": "entry", "isMut": true, "isSigner": false },
         { "name": "user", "isMut": true, "isSigner": true },
+        { "name": "userWallet", "isMut": false, "isSigner": false },
         { "name": "userTokenAccount", "isMut": true, "isSigner": false },
         { "name": "jackpotTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "buybackWallet", "isMut": false, "isSigner": false },
+        { "name": "buybackTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "usdcMint", "isMut": false, "isSigner": false },
         { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
         { "name": "systemProgram", "isMut": false, "isSigner": false }
       ],
       "args": [
         { "name": "entryAmount", "type": "u64" },
-        { "name": "userWallet", "type": "pubkey" }
+        { "name": "userWallet", "type": "pubkey" },
+        { "name": "entryNonce", "type": "u64" }
       ]
     },
     {

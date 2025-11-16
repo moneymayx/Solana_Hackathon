@@ -18,7 +18,7 @@ The ultimate AI jailbreak challenge where you get to test your skills, explore A
 **📖 Documentation**:
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and code organization
 - [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) - Complete documentation index
-- [QUICK_REFERENCE_V2.md](QUICK_REFERENCE_V2.md) - Quick answers for common questions
+- [docs/maintenance/QUICK_REFERENCE_V2.md](docs/maintenance/QUICK_REFERENCE_V2.md) - Quick answers for common questions
 
 ---
 
@@ -157,12 +157,11 @@ The entire platform operates autonomously through Solana smart contracts, elimin
    - Contract autonomously distributes: 20% to last participant, 80% to community fund
    - Backend cannot manipulate timer—it's fully trustless and on-chain
 
-4. **Revenue Distribution** (60/20/10/10 Split)
-   - **60%** → Bounty pool (locked for winner payouts)
-   - **20%** → Operational wallet (covers platform costs)
-   - **10%** → Buyback wallet (automatically swapped and burned when threshold reached)
-   - **10%** → Staking rewards wallet (distributed to stakers)
-   - All splits calculated and enforced by smart contract—backend cannot modify
+4. **Revenue Distribution** (60/40 Jackpot/Buyback Split)
+   - **60%** → Bounty pool (jackpot pot, locked for winner payouts)
+   - **40%** → Buyback wallet (directly funds 100Bs buy-and-burn operations)
+   - Staking rewards and operational costs are funded from separate treasury flows rather than per-entry percentages.
+   - All splits are calculated and enforced by the lottery smart contract—backend cannot modify
 
 ### Automated Secondary Operations
 
@@ -190,7 +189,8 @@ The entire platform operates autonomously through Solana smart contracts, elimin
 - **Reduced Attack Surface**: No private key storage eliminates a major security vulnerability
 
 **Contract Verification:**
-- Source code is open and auditable: [`programs/billions-bounty/src/lib.rs`](programs/billions-bounty/src/lib.rs)
+- V2 source code (historical 60/20/10/10 economics): [`programs/billions-bounty-v2/src/lib.rs`](programs/billions-bounty-v2/src/lib.rs)
+- V3 source code (current 60/40 jackpot/buyback economics): [`programs/billions-bounty-v3/src/lib.rs`](programs/billions-bounty-v3/src/lib.rs)
 - All transactions are publicly visible on Solana Explorer
 - Users can verify fund balances and contract state in real-time
 - No hidden logic or backdoors—everything runs exactly as coded
@@ -202,7 +202,7 @@ User Entry Payment
     ↓
 Smart Contract Receives Payment
     ↓
-Contract Locks Funds (60% → Jackpot, 20% → Operations, 10% → Buyback, 10% → Staking)
+Contract Locks Funds (60% → Jackpot, 40% → Buyback wallet)
     ↓
 AI Interaction & Jailbreak Detection (Backend)
     ↓

@@ -1,9 +1,10 @@
 package com.billionsbounty.mobile.ui.components
 
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
@@ -18,7 +19,7 @@ class ActivityTrackerInstrumentedTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `ActivityTracker does not render when no activities`() {
+    fun activityTrackerDoesNotRenderWhenNoActivities() {
         // Given - no activities in storage
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         ActivityStorage.clearActivities(context)
@@ -28,13 +29,12 @@ class ActivityTrackerInstrumentedTest {
             ActivityTracker(bountyId = 1, enabled = true)
         }
 
-        // Then - component should not render (returns null when no activities)
-        composeTestRule.onRoot().assertExists()
-        // Activity tracker returns null when no activities, so we can't assert on it directly
+        // Then - verify no activity text is rendered
+        composeTestRule.onAllNodesWithText("just asked Test Bounty").assertCountEquals(0)
     }
 
     @Test
-    fun `ActivityTracker displays activity when available`() {
+    fun activityTrackerDisplaysActivityWhenAvailable() {
         // Given - add an activity
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         ActivityStorage.clearActivities(context)
@@ -55,12 +55,12 @@ class ActivityTrackerInstrumentedTest {
         composeTestRule.waitForIdle()
 
         // Then - activity should be visible
-        composeTestRule.onNodeWithText("TestUser").assertExists()
-        composeTestRule.onNodeWithText("just asked Test Bounty").assertExists()
+        composeTestRule.onNodeWithText("TestUser").assertIsDisplayed()
+        composeTestRule.onNodeWithText("just asked Test Bounty").assertIsDisplayed()
     }
 
     @Test
-    fun `ActivityTracker does not render when disabled`() {
+    fun activityTrackerDoesNotRenderWhenDisabled() {
         // Given - add an activity
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         ActivityStorage.clearActivities(context)
@@ -80,11 +80,11 @@ class ActivityTrackerInstrumentedTest {
         composeTestRule.waitForIdle()
 
         // Then - activity should not be visible
-        composeTestRule.onNodeWithText("TestUser").assertDoesNotExist()
+        composeTestRule.onAllNodesWithText("TestUser").assertCountEquals(0)
     }
 
     @Test
-    fun `ActivityTracker filters by bounty ID`() {
+    fun activityTrackerFiltersByBountyId() {
         // Given - activities for different bounties
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         ActivityStorage.clearActivities(context)
@@ -99,8 +99,8 @@ class ActivityTrackerInstrumentedTest {
         composeTestRule.waitForIdle()
 
         // Then - only bounty 1 activity should be visible
-        composeTestRule.onNodeWithText("User1").assertExists()
-        composeTestRule.onNodeWithText("User2").assertDoesNotExist()
+        composeTestRule.onNodeWithText("User1").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("User2").assertCountEquals(0)
     }
 }
 

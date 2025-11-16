@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Test Revenue Split - Verify 60/20/10/10 Distribution
+Test Revenue Split - Verify 60/40 Jackpot/Buyback Distribution
+
+This helper script is intended for manual verification only. It documents the
+current v3 economics where 60% of each entry adds to the jackpot pot and 40%
+funds the 100Bs buy-and-burn wallet.
 """
 
 import os
@@ -14,7 +18,7 @@ load_dotenv(env_path)
 
 def main():
     print("=" * 80)
-    print("  TESTING REVENUE SPLIT (60/20/10/10)")
+    print("  TESTING REVENUE SPLIT (60/40 JACKPOT/BUYBACK)")
     print("=" * 80)
     print()
     
@@ -28,22 +32,20 @@ def main():
     print("✅ Contract Configuration:")
     print(f"   Program ID: {program_id}")
     print()
-    print("   Wallet Addresses:")
-    print(f"   • Jackpot (60%):     {jackpot}")
-    print(f"   • Operational (20%): {operational}")
-    print(f"   • Buyback (10%):     {buyback}")
-    print(f"   • Staking (10%):     {staking}")
+    print("   Wallet Addresses (legacy + current):")
+    print(f"   • Jackpot (60%):        {jackpot}")
+    print(f"   • Operational (legacy): {operational}")
+    print(f"   • Buyback (40% v3):     {buyback}")
+    print(f"   • Staking (legacy):     {staking}")
     print()
     
     print("=" * 80)
     print("  TEST SCENARIO: $10 Payment")
     print("=" * 80)
     print()
-    print("Expected Split:")
+    print("Expected Split (V3 Economics):")
     print("   Jackpot:     $6.00 (60%)")
-    print("   Operational: $2.00 (20%)")
-    print("   Buyback:     $1.00 (10%)")
-    print("   Staking:     $1.00 (10%)")
+    print("   Buyback:     $4.00 (40%)")
     print("   ─────────────────────")
     print("   Total:       $10.00")
     print()
@@ -108,20 +110,16 @@ def main():
     print("=" * 80)
     print()
     
-    # Calculate splits for various amounts
+    # Calculate splits for various amounts using 60/40 model
     test_amounts = [10, 50, 100, 1000]
     
     for amount in test_amounts:
         jackpot_amt = amount * 0.60
-        ops_amt = amount * 0.20
-        buyback_amt = amount * 0.10
-        staking_amt = amount * 0.10
+        buyback_amt = amount * 0.40
         
         print(f"${amount} payment splits to:")
         print(f"   Jackpot:     ${jackpot_amt:>7.2f} (60%)")
-        print(f"   Operational: ${ops_amt:>7.2f} (20%)")
-        print(f"   Buyback:     ${buyback_amt:>7.2f} (10%)")
-        print(f"   Staking:     ${staking_amt:>7.2f} (10%)")
+        print(f"   Buyback:     ${buyback_amt:>7.2f} (40%)")
         print(f"   Total:       ${amount:>7.2f}")
         print()
     
@@ -139,7 +137,7 @@ def main():
     print("=" * 80)
     print()
     print("✅ Revenue split test ready!")
-    print("   Make a payment and verify the 60/20/10/10 distribution.")
+    print("   Make a payment and verify the on-chain 60/40 jackpot/buyback distribution for V3.")
     print()
     
     return 0

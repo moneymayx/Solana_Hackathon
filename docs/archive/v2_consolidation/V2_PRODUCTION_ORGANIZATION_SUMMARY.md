@@ -22,7 +22,7 @@
 - Clear markers for active vs deprecated code
 
 ### 2. Production Readiness Guide
-**File**: `PRODUCTION_READINESS_V2.md`
+**File**: `docs/maintenance/PRODUCTION_READINESS_V2.md`
 
 Complete checklist for:
 - Git branch strategy

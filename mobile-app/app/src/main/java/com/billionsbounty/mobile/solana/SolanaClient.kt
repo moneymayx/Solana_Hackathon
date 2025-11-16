@@ -56,7 +56,12 @@ class SolanaClient @Inject constructor() {
         val V2_USDC_MINT = "JBJctjHYUCMBhQQQdmDm9CFmiLQou7siDRwhn2EUGEKh"
         
         /**
-         * V2 Wallet Addresses (4-Way Split: 60/20/10/10)
+         * V2 Wallet Addresses (legacy 4-Way Split: 60/20/10/10)
+         *
+         * NOTE: V3 now uses a 2-way 60/40 jackpot/buyback split enforced by the
+         * lottery contract. The mobile app follows the same economics as the web
+         * by talking to the shared backend, even though these V2 constants are
+         * still present for compatibility and historical reference.
          */
         val V2_BOUNTY_POOL_WALLET = "CaCqZkMC8uH2YD9Bq8XwxM41TiamXz4oHGzknmP6TAQF"
         val V2_OPERATIONAL_WALLET = "46efqh88qk2szzH3WGtk8Pv8dQtAve6NjsqTB9dtoR2D"

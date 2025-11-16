@@ -144,6 +144,8 @@ export function buildProcessEntryPaymentInstruction(
   userWallet: PublicKey,
   userTokenAccount: PublicKey,
   jackpotTokenAccount: PublicKey,
+  buybackWallet: PublicKey,
+  buybackTokenAccount: PublicKey,
   usdcMint: PublicKey,
   entryAmount: number,
   entryNonce: number
@@ -167,6 +169,8 @@ export function buildProcessEntryPaymentInstruction(
       { pubkey: userWallet, isSigner: false, isWritable: false },
       { pubkey: userTokenAccount, isSigner: false, isWritable: true },
       { pubkey: jackpotTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: buybackWallet, isSigner: false, isWritable: false },
+      { pubkey: buybackTokenAccount, isSigner: false, isWritable: true },
       { pubkey: usdcMint, isSigner: false, isWritable: false },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },

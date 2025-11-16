@@ -52,7 +52,7 @@ I created **three complementary testing approaches** to comprehensively test wal
 ---
 
 ### 3. Python Test Automation Script
-**File:** `mobile-app/test_wallet_flows.py`
+**File:** `mobile-app/scripts/test_wallet_flows.py`
 
 **What it does:**
 - ✅ Verifies device/emulator connection

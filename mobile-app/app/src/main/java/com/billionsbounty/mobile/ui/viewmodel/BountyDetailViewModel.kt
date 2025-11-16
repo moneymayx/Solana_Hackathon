@@ -1,7 +1,9 @@
 package com.billionsbounty.mobile.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.billionsbounty.mobile.BuildConfig
 import com.billionsbounty.mobile.data.api.*
 import com.billionsbounty.mobile.data.preferences.WalletPreferences
 import com.billionsbounty.mobile.data.repository.ApiRepository
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 /**
  * ViewModel for BountyDetailScreen
@@ -22,8 +25,11 @@ class BountyDetailViewModel @Inject constructor(
     private val repository: ApiRepository,
     private val walletAdapter: WalletAdapter,
     private val walletPreferences: WalletPreferences,
-    private val nftRepository: com.billionsbounty.mobile.data.repository.NftRepository
+    private val nftRepository: com.billionsbounty.mobile.data.repository.NftRepository,
+    @Named("ActiveBaseUrl") private val activeBaseUrl: String
 ) : ViewModel() {
+
+    private val logTag = "BountyDetailViewModel"
     
     // Bounty data
     private val _bounty = MutableStateFlow<Bounty?>(null)
@@ -53,6 +59,16 @@ class BountyDetailViewModel @Inject constructor(
     // Chat messages
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+    private var cachedUserMessages: List<ChatMessage> = emptyList()
+    
+    private val _chatLoading = MutableStateFlow(false)
+    val chatLoading: StateFlow<Boolean> = _chatLoading.asStateFlow()
+    
+    private val _chatError = MutableStateFlow<String?>(null)
+    val chatError: StateFlow<String?> = _chatError.asStateFlow()
+    
+    private val _chatDiagnostics = MutableStateFlow<ChatDiagnosticsState>(ChatDiagnosticsState.Idle)
+    val chatDiagnostics: StateFlow<ChatDiagnosticsState> = _chatDiagnostics.asStateFlow()
     
     // UI state
     private val _isLoading = MutableStateFlow(true)
@@ -126,6 +142,11 @@ class BountyDetailViewModel @Inject constructor(
                 if (_isWalletConnected.value) {
                     loadUserEligibility()
                     loadUserTeam()
+                }
+
+                // Automatically populate watch mode feed when users land directly in watch mode.
+                if (_showGlobalChat.value) {
+                    loadGlobalChatMessages(bountyId, force = true)
                 }
                 
                 _isLoading.value = false
@@ -280,6 +301,7 @@ class BountyDetailViewModel @Inject constructor(
                     isUser = true
                 )
                 _messages.value = _messages.value + userMessage
+                cachedUserMessages = _messages.value
                 
                 // Send to API
                 val response = repository.sendChatMessage(
@@ -299,6 +321,7 @@ class BountyDetailViewModel @Inject constructor(
                             winnerPrize = chatResponse.winner_prize
                         )
                         _messages.value = _messages.value + aiMessage
+                        cachedUserMessages = _messages.value
                         
                         // If winner, refresh bounty status
                         if (chatResponse.is_winner) {
@@ -315,10 +338,93 @@ class BountyDetailViewModel @Inject constructor(
     }
     
     /**
+     * Load the public bounty chat feed for watch mode.
+     */
+    fun loadGlobalChatMessages(bountyId: Int = currentBountyId, force: Boolean = false) {
+        if (bountyId == 0) {
+            return // No bounty selected yet; skip until details are available.
+        }
+        
+        viewModelScope.launch {
+            if (_chatLoading.value && !force) {
+                return@launch // Avoid flooding the backend if a request is already in-flight.
+            }
+            
+            _chatLoading.value = true
+            _chatError.value = null
+            
+            val result = repository.getBountyMessages(bountyId)
+            result.onSuccess { response ->
+                val feed = response.messages
+                    .sortedBy { it.timestamp ?: "" } // Maintain chronological order when timestamps are provided.
+                    .map { message ->
+                        ChatMessage(
+                            id = message.id.toString(),
+                            content = message.content,
+                            isUser = message.message_type.equals("user", ignoreCase = true)
+                        )
+                    }
+                
+                _messages.value = feed
+                // Deliberately do not touch cachedUserMessages so Beat mode resumes where the user left off.
+                _chatLoading.value = false
+            }.onFailure { throwable ->
+                _chatError.value = throwable.message ?: "Unable to reach bounty chat service."
+                Log.w(logTag, "Failed to load bounty chat for $bountyId", throwable)
+                _chatLoading.value = false
+            }
+        }
+    }
+    
+    /**
+     * Run a debug-only connectivity check against the bounty chat endpoint.
+     */
+    fun runChatDiagnostics(bountyId: Int = currentBountyId, limit: Int = 1) {
+        if (!BuildConfig.DEBUG || bountyId == 0) {
+            return // Avoid exposing diagnostics in release builds or before bounty ID is known.
+        }
+        
+        viewModelScope.launch {
+            _chatDiagnostics.value = ChatDiagnosticsState.Running
+            
+            val startTime = System.currentTimeMillis()
+            val result = repository.getBountyMessages(bountyId, limit)
+            val durationMs = System.currentTimeMillis() - startTime
+            
+            _chatDiagnostics.value = result.fold(
+                onSuccess = { response ->
+                    ChatDiagnosticsState.Success(
+                        endpoint = activeBaseUrl,
+                        messageCount = response.messages.size,
+                        durationMs = durationMs
+                    )
+                },
+                onFailure = { throwable ->
+                    ChatDiagnosticsState.Failure(
+                        endpoint = activeBaseUrl,
+                        error = throwable.message ?: "Unknown error"
+                    )
+                }
+            )
+        }
+    }
+    
+    /**
      * Toggle between beat mode and watch mode
      */
     fun toggleChatMode() {
-        _showGlobalChat.value = !_showGlobalChat.value
+        val newMode = !_showGlobalChat.value
+        if (newMode) {
+            // Preserve the user's conversation so we can restore it when leaving watch mode.
+            cachedUserMessages = _messages.value
+            _showGlobalChat.value = true
+            loadGlobalChatMessages(currentBountyId, force = true)
+        } else {
+            _showGlobalChat.value = false
+            _messages.value = cachedUserMessages
+            _chatError.value = null
+            _chatDiagnostics.value = ChatDiagnosticsState.Idle
+        }
     }
     
     /**
@@ -376,6 +482,24 @@ class BountyDetailViewModel @Inject constructor(
     fun clearError() {
         _error.value = null
     }
+}
+
+/**
+ * Lightweight diagnostics state for bounty chat connectivity.
+ */
+sealed class ChatDiagnosticsState {
+    object Idle : ChatDiagnosticsState()
+    object Running : ChatDiagnosticsState()
+    data class Success(
+        val endpoint: String,
+        val messageCount: Int,
+        val durationMs: Long
+    ) : ChatDiagnosticsState()
+    
+    data class Failure(
+        val endpoint: String,
+        val error: String
+    ) : ChatDiagnosticsState()
 }
 
 

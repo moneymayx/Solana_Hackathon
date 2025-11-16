@@ -1,12 +1,12 @@
 package com.billionsbounty.mobile.ui
 
-import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.billionsbounty.mobile.MainActivity
 import com.billionsbounty.mobile.ui.screens.WalletConnectionDialog
+import com.billionsbounty.mobile.wallet.WalletAdapter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -33,7 +33,7 @@ class WalletConnectionFlowTest {
         // The actual button click requires a real wallet app which we can't test in CI
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = null,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
                 onDismiss = { }
             )
@@ -48,7 +48,7 @@ class WalletConnectionFlowTest {
     fun walletConnectionButton_exists() {
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = null,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
                 onDismiss = { }
             )
@@ -67,9 +67,10 @@ class WalletConnectionFlowTest {
 
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = testAddress,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
-                onDismiss = { }
+                onDismiss = { },
+                prefillConnectedAddress = testAddress
             )
         }
 
@@ -83,9 +84,10 @@ class WalletConnectionFlowTest {
 
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = testAddress,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
-                onDismiss = { }
+                onDismiss = { },
+                prefillConnectedAddress = testAddress
             )
         }
 
@@ -106,31 +108,29 @@ class WalletConnectionDialogUITest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun `wallet dialog shows loading state when connecting`() {
+    fun walletDialogConnectButtonStartsEnabled() {
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = null,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
                 onDismiss = { }
             )
         }
 
-        // Find the connect button and verify it's clickable
+        // Verify the connect button renders and is enabled before any wallet authorization call.
         composeTestRule
             .onNodeWithText("Connect Wallet")
             .assertExists()
-            .performClick()
+            .assertIsEnabled()
 
-        // After clicking, we can't verify the wallet launch without actual SDK
-        // But we can verify the button becomes disabled during connection
-        // Note: This would require state management mocking to work fully
+        // Full loading state validation would require a fake wallet adapter that can expose transient state.
     }
 
     @Test
-    fun `wallet dialog displays all required elements`() {
+    fun walletDialogDisplaysAllRequiredElements() {
         composeTestRule.setContent {
             WalletConnectionDialog(
-                connectedAddress = null,
+                walletAdapter = WalletAdapter(),
                 onConnected = { },
                 onDismiss = { }
             )

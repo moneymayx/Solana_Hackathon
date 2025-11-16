@@ -23,13 +23,13 @@
 **Created**:
 - ✅ `src/services/obsolete/` directory with README
 - ✅ `ARCHITECTURE.md` - System architecture
-- ✅ `QUICK_REFERENCE_V2.md` - Quick answers
+- ✅ `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick answers
 - ✅ `.github/PULL_REQUEST_TEMPLATE.md` - PR template
 - ✅ `.env.example` - Environment variable template with V2 section
 
 **Updated**:
 - ✅ `README.md` - Added V2 status section at top
-- ✅ `PRODUCTION_READINESS_V2.md` - Added related docs links
+- ✅ `docs/maintenance/PRODUCTION_READINESS_V2.md` - Added related docs links
 - ✅ `src/services/smart_contract_service.py` - Added status comments
 - ✅ `src/services/v2/payment_processor.py` - Added status comments
 - ✅ `src/api/v2_payment_router.py` - Added status comments
@@ -101,8 +101,8 @@
 Billions_Bounty/
 ├── README.md                           # ✅ Updated with V2 status
 ├── ARCHITECTURE.md                     # ✅ System architecture
-├── QUICK_REFERENCE_V2.md              # ✅ Quick answers
-├── PRODUCTION_READINESS_V2.md         # ✅ Production guide
+├── docs/maintenance/QUICK_REFERENCE_V2.md              # ✅ Quick answers
+├── docs/maintenance/PRODUCTION_READINESS_V2.md         # ✅ Production guide
 ├── .env.example                        # ✅ Environment template
 ├── docs/
 │   ├── V2_INTEGRATION_GUIDE.md        # ✅ Integration guide

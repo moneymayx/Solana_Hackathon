@@ -51,12 +51,12 @@
 **Created**:
 - ✅ `src/services/obsolete/` directory with README
 - ✅ `ARCHITECTURE.md` - System architecture with active/deprecated markers
-- ✅ `QUICK_REFERENCE_V2.md` - Quick answers
+- ✅ `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick answers
 - ✅ `.github/PULL_REQUEST_TEMPLATE.md` - PR template
 
 **Updated**:
 - ✅ `README.md` - Added V2 status section at top
-- ✅ `PRODUCTION_READINESS_V2.md` - Added related docs links
+- ✅ `docs/maintenance/PRODUCTION_READINESS_V2.md` - Added related docs links
 
 ### 3. Git Strategy ✅
 
@@ -133,8 +133,8 @@ Backend serves as API layer only - no fund routing happens in backend code.
 
 ### Root Level
 - `ARCHITECTURE.md` - System architecture
-- `PRODUCTION_READINESS_V2.md` - Production readiness
-- `QUICK_REFERENCE_V2.md` - Quick reference
+- `docs/maintenance/PRODUCTION_READINESS_V2.md` - Production readiness
+- `docs/maintenance/QUICK_REFERENCE_V2.md` - Quick reference
 - `README.md` - Updated with V2 status
 
 ### `docs/` Directory

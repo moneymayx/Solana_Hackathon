@@ -7,8 +7,7 @@ import com.billionsbounty.mobile.wallet.WalletAdapter
 import com.billionsbounty.mobile.wallet.WalletConnectionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Before
@@ -43,6 +42,10 @@ class WalletViewModelTest {
     @Mock
     private lateinit var activity: ComponentActivity
 
+    private lateinit var connectionStateFlow: MutableStateFlow<WalletConnectionState>
+    private lateinit var walletAddressStateFlow: MutableStateFlow<String?>
+    private lateinit var preferencesWalletFlow: MutableStateFlow<String?>
+
     private lateinit var viewModel: WalletViewModel
     private lateinit var closeable: AutoCloseable
 
@@ -52,9 +55,13 @@ class WalletViewModelTest {
         closeable = MockitoAnnotations.openMocks(this)
 
         // Setup default mocks
-        whenever(walletAdapter.connectionState).thenReturn(flowOf(WalletConnectionState.Disconnected))
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(null))
-        whenever(walletPreferences.walletAddress).thenReturn(flowOf(null))
+        connectionStateFlow = MutableStateFlow(WalletConnectionState.Disconnected)
+        walletAddressStateFlow = MutableStateFlow<String?>(null)
+        preferencesWalletFlow = MutableStateFlow<String?>(null)
+
+        whenever(walletAdapter.connectionState).thenReturn(connectionStateFlow)
+        whenever(walletAdapter.walletAddress).thenReturn(walletAddressStateFlow)
+        whenever(walletPreferences.walletAddress).thenReturn(preferencesWalletFlow)
         
         // Create ViewModel
         viewModel = WalletViewModel(walletAdapter, walletPreferences, solanaClient)
@@ -90,8 +97,8 @@ class WalletViewModelTest {
         doNothing().whenever(walletPreferences).saveWalletConnection(any())
         
         // Update adapter state to simulate connection
-        whenever(walletAdapter.connectionState).thenReturn(flowOf(WalletConnectionState.Connected))
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        connectionStateFlow.value = WalletConnectionState.Connected
+        walletAddressStateFlow.value = testAddress
         
         val result = viewModel.connectWallet(activity)
         
@@ -119,8 +126,8 @@ class WalletViewModelTest {
     @Test
     fun `disconnectWallet clears state`() = runTest {
         // Setup initial connection state
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf("TestWallet123"))
-        whenever(walletAdapter.connectionState).thenReturn(flowOf(WalletConnectionState.Connected))
+        walletAddressStateFlow.value = "TestWallet123"
+        connectionStateFlow.value = WalletConnectionState.Connected
         doNothing().whenever(walletAdapter).disconnect(activity)
         doNothing().whenever(walletPreferences).clearWalletConnection()
         
@@ -140,7 +147,7 @@ class WalletViewModelTest {
         val testBalance = 5.5
         
         // Mock adapter state changes
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.success(testBalance))
         
         // Wait for collect to run
@@ -155,7 +162,7 @@ class WalletViewModelTest {
         val testAddress = "TestWalletAddress12345"
         val errorMessage = "Network error"
         
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.failure(Exception(errorMessage)))
         
         testDispatcher.scheduler.advanceUntilIdle()
@@ -169,7 +176,7 @@ class WalletViewModelTest {
         val testAddress = "TestWalletAddress12345"
         val testBalance = 10.0
         
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.success(testBalance))
         
         viewModel.refreshBalance()
@@ -181,7 +188,7 @@ class WalletViewModelTest {
 
     @Test
     fun `refreshBalance does nothing when not connected`() = runTest {
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(null))
+        walletAddressStateFlow.value = null
         
         viewModel.refreshBalance()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -206,7 +213,7 @@ class WalletViewModelTest {
     fun `switching to devnet refreshes balance`() = runTest {
         val testAddress = "TestWalletAddress12345"
         
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         doNothing().whenever(solanaClient).useDevnet(true)
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.success(1.0))
         
@@ -247,7 +254,7 @@ class WalletViewModelTest {
     fun `clearError removes error`() = runTest {
         // Set an error first
         val testAddress = "TestWalletAddress12345"
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(
             Result.failure(Exception("Network error"))
         )
@@ -279,7 +286,7 @@ class WalletViewModelTest {
         assertEquals(testAddress, connectResult.getOrNull())
         
         // Step 2: Balance should be fetched
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.success(testBalance))
         
         testDispatcher.scheduler.advanceUntilIdle()
@@ -297,7 +304,7 @@ class WalletViewModelTest {
         val testAddress = "TestWalletAddress12345"
         
         // Setup connected state
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(testAddress))
+        walletAddressStateFlow.value = testAddress
         whenever(solanaClient.getBalance(testAddress)).thenReturn(Result.success(10.0))
         
         testDispatcher.scheduler.advanceUntilIdle()
@@ -306,7 +313,7 @@ class WalletViewModelTest {
         // Disconnect
         doNothing().whenever(walletAdapter).disconnect(activity)
         doNothing().whenever(walletPreferences).clearWalletConnection()
-        whenever(walletAdapter.walletAddress).thenReturn(flowOf(null))
+        walletAddressStateFlow.value = null
         
         viewModel.disconnectWallet(activity)
         testDispatcher.scheduler.advanceUntilIdle()

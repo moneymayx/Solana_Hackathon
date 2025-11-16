@@ -187,7 +187,7 @@
 - **Deployment Guide**: [V2_DEPLOYMENT_GUIDE.md](./V2_DEPLOYMENT_GUIDE.md)
 - **Testing Guide**: [V2_TESTING_GUIDE.md](./V2_TESTING_GUIDE.md)
 - **Architecture**: [ARCHITECTURE.md](../ARCHITECTURE.md)
-- **Production Readiness**: [PRODUCTION_READINESS_V2.md](../PRODUCTION_READINESS_V2.md)
+- **Production Readiness**: [docs/maintenance/PRODUCTION_READINESS_V2.md](../docs/maintenance/PRODUCTION_READINESS_V2.md)
 
 ---
 

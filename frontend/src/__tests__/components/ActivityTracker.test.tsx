@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, waitFor, act } from '@testing-library/react'
-import ActivityTracker, { addActivity } from '@/components/ActivityTracker'
+import ActivityTracker, { addActivity, seedDevActivities } from '@/components/ActivityTracker'
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -207,6 +207,48 @@ describe('addActivity helper function', () => {
     expect(activities[0].username).toBe('user100')
     // Oldest activity should be dropped
     expect(activities.some((a: any) => a.username === 'user0')).toBe(false)
+  })
+})
+
+describe('seedDevActivities helper function', () => {
+  const originalNodeEnv = process.env.NODE_ENV
+  const originalSeedFlag = process.env.NEXT_PUBLIC_ACTIVITY_TRACKER_DEV_SEED
+
+  beforeEach(() => {
+    localStorageMock.clear()
+    process.env.NODE_ENV = 'development'
+    process.env.NEXT_PUBLIC_ACTIVITY_TRACKER_DEV_SEED = 'true'
+  })
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv
+    if (originalSeedFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_ACTIVITY_TRACKER_DEV_SEED
+    } else {
+      process.env.NEXT_PUBLIC_ACTIVITY_TRACKER_DEV_SEED = originalSeedFlag
+    }
+  })
+
+  it('seeds multiple activities for the target bounty', () => {
+    seedDevActivities(42)
+
+    const stored = localStorageMock.getItem('bounty_activities')
+    expect(stored).toBeTruthy()
+
+    const activities = JSON.parse(stored!)
+    expect(activities.length).toBeGreaterThanOrEqual(4)
+    // All seeded activities should use the supplied bounty id to keep filtering consistent.
+    activities.forEach((activity: any) => {
+      expect(activity.bounty_id).toBe(42)
+    })
+  })
+
+  it('does not seed when running in production mode', () => {
+    process.env.NODE_ENV = 'production'
+    seedDevActivities(7)
+
+    const stored = localStorageMock.getItem('bounty_activities')
+    expect(stored).toBeNull()
   })
 })
 

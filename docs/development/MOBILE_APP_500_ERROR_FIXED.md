@@ -191,5 +191,5 @@ pkill -f "uvicorn apps.backend.main:app"
 3. When ready for production, update the BASE_URL to your production domain
 4. For production, also enable HTTPS and restrict CORS to specific origins
 
-**Need Help?** Check the detailed fix guide: `mobile-app/MOBILE_APP_FIX.md`
+**Need Help?** Check the detailed fix guide: `mobile-app/docs/maintenance/MOBILE_APP_FIX.md`
 

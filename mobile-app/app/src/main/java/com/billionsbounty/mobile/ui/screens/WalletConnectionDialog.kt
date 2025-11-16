@@ -1,5 +1,6 @@
 package com.billionsbounty.mobile.ui.screens
 
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.billionsbounty.mobile.BuildConfig
+import com.billionsbounty.mobile.wallet.MockWalletAdapter
 import com.billionsbounty.mobile.wallet.WalletAdapter
 import com.billionsbounty.mobile.wallet.WalletConnectionState
 import kotlinx.coroutines.launch
@@ -31,15 +34,48 @@ import kotlinx.coroutines.launch
 fun WalletConnectionDialog(
     walletAdapter: WalletAdapter,
     onDismiss: () -> Unit,
-    onConnected: (String) -> Unit
+    onConnected: (String) -> Unit,
+    prefillConnectedAddress: String? = null
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
+    val mockWalletAdapter = remember { MockWalletAdapter() }
+    val canUseMockWallet = remember { BuildConfig.DEBUG && isRunningOnEmulator() }
     
     var isConnecting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var connectedAddress by remember { mutableStateOf<String?>(null) }
+    // Prefill is used strictly for previews/tests so we can verify connected UI without hitting the real adapter.
+    var connectedAddress by remember { mutableStateOf<String?>(prefillConnectedAddress) }
+    
+    fun startAuthorization(authorizer: suspend (ComponentActivity) -> Result<String>) {
+        val currentActivity = activity
+        if (currentActivity == null) {
+            error = "Cannot connect wallet from this context"
+            return
+        }
+        
+        isConnecting = true
+        error = null
+        
+        coroutineScope.launch {
+            val result = authorizer(currentActivity)
+            isConnecting = false
+            
+            result.fold(
+                onSuccess = { address ->
+                    connectedAddress = address
+                    // Give users a short success moment before closing.
+                    kotlinx.coroutines.delay(1500)
+                    onConnected(address)
+                    onDismiss()
+                },
+                onFailure = { throwable ->
+                    error = throwable.message ?: "Failed to connect wallet"
+                }
+            )
+        }
+    }
     
     // Keep the dialog open during the connection flow so users don't have to re-open it
     // Prevent dismissal on back press or outside tap while connecting
@@ -143,30 +179,8 @@ fun WalletConnectionDialog(
                     // Connect Button
                     Button(
                         onClick = {
-                            if (activity == null) {
-                                error = "Cannot connect wallet from this context"
-                                return@Button
-                            }
-                            
-                            isConnecting = true
-                            error = null
-                            
-                            coroutineScope.launch {
-                                val result = walletAdapter.authorize(activity)
-                                isConnecting = false
-                                
-                                result.fold(
-                                    onSuccess = { address ->
-                                        connectedAddress = address
-                                        // Wait a moment to show success, then callback
-                                        kotlinx.coroutines.delay(1500)
-                                        onConnected(address)
-                                        onDismiss()
-                                    },
-                                    onFailure = { e ->
-                                        error = e.message ?: "Failed to connect wallet"
-                                    }
-                                )
+                            startAuthorization { componentActivity ->
+                                walletAdapter.authorize(componentActivity)
                             }
                         },
                         modifier = Modifier
@@ -190,6 +204,27 @@ fun WalletConnectionDialog(
                         } else {
                             Text("Connect Wallet", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
+                    }
+                    
+                    if (canUseMockWallet) {
+                        // Provide a debug-only escape hatch so emulator testing can exercise post-wallet flows.
+                        TextButton(
+                            onClick = {
+                                startAuthorization { componentActivity ->
+                                    mockWalletAdapter.authorize(componentActivity)
+                                }
+                            },
+                            enabled = !isConnecting
+                        ) {
+                            Text("Simulate Wallet (Emulator)", fontSize = 12.sp)
+                        }
+                        Text(
+                            text = "Debug helper: generates a temporary wallet address so you can test flows without a mobile wallet.",
+                            fontSize = 10.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
                     
                     // Help Text
@@ -224,6 +259,22 @@ fun WalletConnectionDialog(
             }
         }
     }
+}
+
+private fun isRunningOnEmulator(): Boolean {
+    val fingerprint = Build.FINGERPRINT.lowercase()
+    val model = Build.MODEL.lowercase()
+    val brand = Build.BRAND.lowercase()
+    val product = Build.PRODUCT.lowercase()
+    
+    // Consolidated heuristics recommended by Android docs for detecting emulators during debug builds.
+    return fingerprint.contains("generic") ||
+        fingerprint.contains("unknown") ||
+        model.contains("sdk") ||
+        model.contains("emulator") ||
+        brand.startsWith("generic") ||
+        product.contains("sdk_gphone") ||
+        product.contains("emulator")
 }
 
 /**

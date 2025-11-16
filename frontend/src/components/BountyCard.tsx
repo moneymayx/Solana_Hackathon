@@ -11,7 +11,7 @@ import {
   Shield,
   Crown
 } from 'lucide-react'
-import ActivityTracker from './ActivityTracker'
+import ActivityTracker, { isDevActivitySeedEnabled, seedDevActivities } from './ActivityTracker'
 import { cn } from '@/lib/utils'
 
 interface Bounty {
@@ -107,6 +107,7 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
   
   // Check if activity tracker feature is enabled
   const isActivityTrackerEnabled = process.env.NEXT_PUBLIC_ENABLE_ACTIVITY_TRACKER === 'true'
+  const isDevSeedEnabled = isDevActivitySeedEnabled()
 
   return (
     <div
@@ -217,6 +218,17 @@ export default function BountyCard({ bounty, className }: BountyCardProps) {
         {/* Activity Tracker */}
         {isActivityTrackerEnabled && (
           <ActivityTracker bountyId={bounty.id} />
+        )}
+
+        {isActivityTrackerEnabled && isDevSeedEnabled && (
+          // Dev helper stays behind a build flag so production builds remain untouched.
+          <button
+            type="button"
+            onClick={() => seedDevActivities(bounty.id)}
+            className="mt-2 w-full rounded-md border border-dashed border-emerald-400 px-3 py-2 text-xs font-semibold text-emerald-600 transition hover:border-emerald-500 hover:text-emerald-700"
+          >
+            Seed Dev Activity
+          </button>
         )}
 
         {/* Hover Effect Overlay */}

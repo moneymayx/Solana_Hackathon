@@ -370,8 +370,8 @@ source venv/bin/activate
 - **Architecture**: [ARCHITECTURE.md](../ARCHITECTURE.md)
 - **Deployment**: [V2_DEPLOYMENT_GUIDE.md](./V2_DEPLOYMENT_GUIDE.md)
 - **Testing**: [V2_TESTING_GUIDE.md](../V2_TESTING_GUIDE.md)
-- **Production Readiness**: [PRODUCTION_READINESS_V2.md](../PRODUCTION_READINESS_V2.md)
-- **Quick Reference**: [QUICK_REFERENCE_V2.md](../QUICK_REFERENCE_V2.md)
+- **Production Readiness**: [docs/maintenance/PRODUCTION_READINESS_V2.md](../docs/maintenance/PRODUCTION_READINESS_V2.md)
+- **Quick Reference**: [docs/maintenance/QUICK_REFERENCE_V2.md](../docs/maintenance/QUICK_REFERENCE_V2.md)
 
 ---
 

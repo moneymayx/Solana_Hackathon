@@ -11,7 +11,7 @@ This index provides a complete guide to all documentation in the Billions Bounty
 **New to the project?** Start here:
 1. [README.md](../README.md) - Project overview and current status
 2. [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture and active code paths
-3. [QUICK_REFERENCE_V2.md](../QUICK_REFERENCE_V2.md) - Quick answers for common questions
+3. [docs/maintenance/QUICK_REFERENCE_V2.md](../docs/maintenance/QUICK_REFERENCE_V2.md) - Quick answers for common questions
 
 ---
 
@@ -57,7 +57,7 @@ All V2 documentation has been consolidated into comprehensive guides:
    - Known issues
    - Next steps
 
-5. **[PRODUCTION_READINESS_V2.md](../PRODUCTION_READINESS_V2.md)**
+5. **[docs/maintenance/PRODUCTION_READINESS_V2.md](../docs/maintenance/PRODUCTION_READINESS_V2.md)**
    - Production readiness checklist
    - Git branch strategy
    - File organization
@@ -65,7 +65,7 @@ All V2 documentation has been consolidated into comprehensive guides:
    - Environment variables
    - Deployment procedures
 
-6. **[QUICK_REFERENCE_V2.md](../QUICK_REFERENCE_V2.md)**
+6. **[docs/maintenance/QUICK_REFERENCE_V2.md](../docs/maintenance/QUICK_REFERENCE_V2.md)**
    - Quick answers
    - Active code locations
    - Deprecated code locations

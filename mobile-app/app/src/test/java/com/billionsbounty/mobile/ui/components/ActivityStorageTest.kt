@@ -253,6 +253,26 @@ class ActivityStorageTest {
     }
 
     @Test
+    fun `seedDevActivities injects curated demo entries`() {
+        // Given
+        whenever(mockSharedPreferences.getString("activities", null)).thenReturn(null)
+
+        // When
+        ActivityStorage.seedDevActivities(
+            context = mockContext,
+            bountyId = 42,
+            bountyName = "Devnet Bounty"
+        )
+
+        // Then
+        verify(mockEditor).putString(eq("activities"), argThat { json: String ->
+            json.contains("solana-hacker") &&
+            json.contains("Devnet Bounty")
+        })
+        verify(mockEditor).apply()
+    }
+
+    @Test
     fun `clearActivities removes all activities`() {
         // Given
         whenever(mockEditor.remove(any())).thenReturn(mockEditor)

@@ -3,8 +3,8 @@
 This module consolidates all revenue split parameters so our FastAPI backend,
 smart-contract integration, and staking services apply the exact same
 distribution math. Keeping these constants in one place prevents subtle bugs
-where the lottery smart contract (60/20/10/10 split) would disagree with the
-Python allocation logic.
+where the lottery smart contract (60/40 jackpot/buyback split) would disagree
+with the Python allocation logic.
 
 The enum and helpers below are also imported by tests and monitoring scripts to
 validate the on-chain staking program. Please update the values here whenever
@@ -43,25 +43,25 @@ NETWORK = "mainnet-beta"
 
 
 # ---------------------------------------------------------------------------
-# Revenue split configuration (lottery + staking smart contract)
+# Revenue split configuration (lottery smart contract, 60/40 jackpot/buyback)
 # ---------------------------------------------------------------------------
 
 # 60% of each bounty entry feeds the active jackpot pool.
 BOUNTY_CONTRIBUTION_RATE: float = 0.60
-# 20% covers operational expenses (infrastructure, compliance, audits).
-OPERATIONAL_FEE_RATE: float = 0.20
-# 10% funds the $100Bs buyback-and-burn wallet.
-BUYBACK_RATE: float = 0.10
-# 10% of revenue is routed to the staking rewards vault.
-STAKING_REVENUE_PERCENTAGE: float = 0.10
+# 20% previously covered operational expenses; now kept at 0.0 for compatibility.
+OPERATIONAL_FEE_RATE: float = 0.0
+# 40% funds the $100Bs buyback-and-burn wallet.
+BUYBACK_RATE: float = 0.40
+# 10% previously routed to the staking rewards vault; now 0.0, funded separately.
+_STAKING_REVENUE_PERCENTAGE_DEPRECATED: float = 0.0
+# Backwards-compatible alias for legacy imports that still expect this constant.
+STAKING_REVENUE_PERCENTAGE: float = _STAKING_REVENUE_PERCENTAGE_DEPRECATED
 
 # Convenience constant leveraged by health checks to make sure nothing exceeds
 # 100% of incoming funds.
 REVENUE_SPLIT_TOTAL: float = (
     BOUNTY_CONTRIBUTION_RATE
-    + OPERATIONAL_FEE_RATE
     + BUYBACK_RATE
-    + STAKING_REVENUE_PERCENTAGE
 )
 
 

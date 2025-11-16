@@ -25,13 +25,17 @@ import com.billionsbounty.mobile.ui.viewmodel.ChatViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import android.content.ClipData
 import android.content.ClipboardManager
+import com.billionsbounty.mobile.BuildConfig
 import com.billionsbounty.mobile.data.api.*
 import com.billionsbounty.mobile.data.api.Team as ApiTeam
 import com.billionsbounty.mobile.ui.viewmodel.BountyDetailViewModel
 import com.billionsbounty.mobile.ui.viewmodel.ChatMessage
+import com.billionsbounty.mobile.ui.viewmodel.ChatDiagnosticsState
 import com.billionsbounty.mobile.wallet.WalletAdapter
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.Locale
 import kotlin.math.pow
 
 /**
@@ -90,6 +94,9 @@ fun BountyDetailScreen(
     val error by viewModel.error.collectAsState()
     val isWalletConnected by viewModel.isWalletConnected.collectAsState()
     val showGlobalChat by viewModel.showGlobalChat.collectAsState()
+    val chatError by viewModel.chatError.collectAsState()
+    val chatLoading by viewModel.chatLoading.collectAsState()
+    val chatDiagnostics by viewModel.chatDiagnostics.collectAsState()
     
     var showPaymentFlow by remember { mutableStateOf(false) }
     var showReferralFlow by remember { mutableStateOf(false) }
@@ -103,10 +110,6 @@ fun BountyDetailScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     
-    // Chat section index (adjust based on actual position in LazyColumn)
-    // Header(0) + Wallet Banner(1) + Free Questions(2) + Stats(3) + Toggle(4) + Chat(5)
-    val chatSectionIndex = 5
-    
     // Load initial data
     LaunchedEffect(bountyId) {
         viewModel.loadBountyDetails(bountyId)
@@ -116,9 +119,6 @@ fun BountyDetailScreen(
     LaunchedEffect(startInWatchMode) {
         if (startInWatchMode && !showGlobalChat) {
             viewModel.toggleChatMode() // Enable watch mode
-            // Wait a bit for UI to render, then scroll
-            kotlinx.coroutines.delay(300)
-            listState.animateScrollToItem(chatSectionIndex)
         }
     }
     
@@ -191,10 +191,6 @@ fun BountyDetailScreen(
                 showGlobalChat = showGlobalChat,
                 onToggle = { 
                     viewModel.toggleChatMode()
-                    // Scroll to chat section when switching to Watch mode
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(chatSectionIndex)
-                    }
                 },
                 onViewRules = { showRulesDialog = true }
             )
@@ -211,9 +207,13 @@ fun BountyDetailScreen(
                 isWalletConnected = isWalletConnected,
                 userEligibility = userEligibility,
                 viewModel = viewModel,
+                chatError = chatError,
+                chatLoading = chatLoading,
+                chatDiagnostics = chatDiagnostics,
                 onShowPayment = { showPaymentFlow = true },
                 onShowReferral = { showReferralFlow = true },
-                onShowNft = { showNftFlow = true }
+                onShowNft = { showNftFlow = true },
+                onRunDiagnostics = { viewModel.runChatDiagnostics(bountyId) }
             )
         }
         
@@ -451,7 +451,10 @@ fun DifficultyBadge(difficulty: String) {
                 modifier = Modifier.size(16.dp)
             )
             Text(
-                text = difficulty.capitalize(),
+                text = difficulty.replaceFirstChar { char ->
+                    // Avoid deprecated capitalize() while still title-casing the difficulty label deterministically.
+                    if (char.isLowerCase()) char.titlecase(Locale.US) else char.toString()
+                },
                 color = textColor,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
@@ -769,9 +772,13 @@ fun ChatInterfaceSection(
     isWalletConnected: Boolean,
     userEligibility: UserEligibilityResponse?,
     viewModel: BountyDetailViewModel,
+    chatError: String?,
+    chatLoading: Boolean,
+    chatDiagnostics: ChatDiagnosticsState,
     onShowPayment: () -> Unit,
     onShowReferral: () -> Unit,
-    onShowNft: () -> Unit
+    onShowNft: () -> Unit,
+    onRunDiagnostics: () -> Unit
 ) {
     val messages by viewModel.messages.collectAsState()
     var messageText by remember { mutableStateOf("") }
@@ -870,6 +877,55 @@ fun ChatInterfaceSection(
             }
             
             // Messages
+            if (isWatching && chatLoading) {
+                // Surface a subtle loading bar so testers know the feed is fetching from the backend.
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    trackColor = Color(0xFFE2E8F0)
+                )
+            }
+            
+            if (isWatching && chatError != null) {
+                // Display backend reachability issues directly in the chat card for quick debugging.
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = Color(0xFFFEF2F2),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFB91C1C),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = chatError ?: "",
+                            color = Color(0xFFB91C1C),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+            
+            if (BuildConfig.DEBUG) {
+                ChatDiagnosticsDebugPanel(
+                    diagnostics = chatDiagnostics,
+                    onRunDiagnostics = onRunDiagnostics
+                )
+            }
+            
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f),
@@ -1020,6 +1076,63 @@ fun ChatInterfaceSection(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatDiagnosticsDebugPanel(
+    diagnostics: ChatDiagnosticsState,
+    onRunDiagnostics: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        TextButton(
+            onClick = onRunDiagnostics,
+            enabled = diagnostics !is ChatDiagnosticsState.Running
+        ) {
+            Text(
+                text = when (diagnostics) {
+                    ChatDiagnosticsState.Running -> "Pinging chat API..."
+                    else -> "Ping Chat API"
+                },
+                fontSize = 12.sp
+            )
+        }
+        
+        when (diagnostics) {
+            is ChatDiagnosticsState.Success -> {
+                Text(
+                    text = "Connected to ${diagnostics.endpoint} (${diagnostics.messageCount} msgs, ${diagnostics.durationMs} ms)",
+                    color = Color(0xFF15803D),
+                    fontSize = 12.sp
+                )
+            }
+            is ChatDiagnosticsState.Failure -> {
+                Text(
+                    text = "Failed to reach ${diagnostics.endpoint}: ${diagnostics.error}",
+                    color = Color(0xFFB91C1C),
+                    fontSize = 12.sp
+                )
+            }
+            ChatDiagnosticsState.Running -> {
+                Text(
+                    text = "Checking chat connectivity…",
+                    color = Color(0xFF2563EB),
+                    fontSize = 12.sp
+                )
+            }
+            ChatDiagnosticsState.Idle -> {
+                Text(
+                    text = "Use Ping Chat API to confirm emulator can reach the backend.",
+                    color = Color(0xFF64748B),
+                    fontSize = 12.sp
+                )
             }
         }
     }
@@ -1526,10 +1639,10 @@ fun PaymentFlowDialog(
                                         }
                                     }
                                     
-                                    val requestBody = okhttp3.RequestBody.create(
-                                        "application/json".toMediaType(),
-                                        json.toString()
-                                    )
+                                    // Use modern extension to avoid deprecated RequestBody.create while preserving media type.
+                                    val requestBody = json
+                                        .toString()
+                                        .toRequestBody("application/json".toMediaType())
                                     
                                     val request = okhttp3.Request.Builder()
                                         .url("http://10.0.2.2:8000/api/user/update-profile") // 10.0.2.2 for Android emulator

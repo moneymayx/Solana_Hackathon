@@ -111,20 +111,25 @@ fun NftVerificationDialog(
                             successMessage = result.message ?: "You've been granted ${result.questions_granted} free questions!"
                             
                             // Track activity: NFT redemption
-                            if (walletAddress != null && apiRepository != null) {
-                                coroutineScope.launch {
-                                    try {
-                                        val username = ActivityHelper.getUsername(context, walletAddress, apiRepository)
-                                        if (username != null) {
-                                            ActivityHelper.trackNftRedeem(
-                                                context = context,
-                                                bountyId = bountyId,
-                                                username = username
-                                            )
+                            val address = walletAddress
+                            val repository = apiRepository
+                            if (repository != null) {
+                                // Run activity tracking only when both dependencies are still available post-verification.
+                                address?.let { safeAddress ->
+                                    coroutineScope.launch {
+                                        try {
+                                            val username = ActivityHelper.getUsername(context, safeAddress, repository)
+                                            if (username != null) {
+                                                ActivityHelper.trackNftRedeem(
+                                                    context = context,
+                                                    bountyId = bountyId,
+                                                    username = username
+                                                )
+                                            }
+                                        } catch (e: Exception) {
+                                            // Activity tracking failed, but don't block success flow
+                                            android.util.Log.w("NftVerificationDialog", "Failed to track activity: ${e.message}")
                                         }
-                                    } catch (e: Exception) {
-                                        // Activity tracking failed, but don't block success flow
-                                        android.util.Log.w("NftVerificationDialog", "Failed to track activity: ${e.message}")
                                     }
                                 }
                             }

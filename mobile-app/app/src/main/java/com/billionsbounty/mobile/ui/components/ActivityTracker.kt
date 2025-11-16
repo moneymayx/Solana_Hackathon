@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.billionsbounty.mobile.BuildConfig
 import kotlinx.coroutines.delay
 import java.util.UUID
 
@@ -279,6 +280,71 @@ object ActivityStorage {
             android.util.Log.e("ActivityStorage", "Error saving activity", e)
         }
     }
+
+    /**
+     * Developer helper to seed demo activities without touching production builds.
+     * Uses curated entries to keep devnet sessions lively when real traffic is absent.
+     */
+    fun seedDevActivities(
+        context: Context,
+        bountyId: Int,
+        bountyName: String? = null
+    ) {
+        if (!BuildConfig.ENABLE_ACTIVITY_DEV_SEED) return
+
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val existingJson = prefs.getString(KEY_ACTIVITIES, null)
+            val existingActivities = if (existingJson != null) {
+                parseActivitiesJson(existingJson)
+            } else {
+                mutableListOf()
+            }
+
+            val now = System.currentTimeMillis()
+            val seedTemplates = listOf(
+                DevSeedTemplate(
+                    username = "solana-hacker",
+                    message = "just asked ${bountyName ?: "a question"}",
+                    offsetMs = 30_000L
+                ),
+                DevSeedTemplate(
+                    username = "nft-whale",
+                    message = "redeemed their NFT",
+                    offsetMs = 90_000L
+                ),
+                DevSeedTemplate(
+                    username = "referral-pro",
+                    message = "referred a new friend",
+                    offsetMs = 150_000L
+                ),
+                DevSeedTemplate(
+                    username = "newcomer",
+                    message = "just asked their first question",
+                    offsetMs = 210_000L
+                )
+            )
+
+            val seededActivities = seedTemplates.mapIndexed { index, template ->
+                Activity(
+                    id = "${now}-${index}-${UUID.randomUUID()}",
+                    username = template.username,
+                    message = template.message,
+                    timestamp = now - template.offsetMs,
+                    bountyId = bountyId
+                )
+            }
+
+            val combined = (seededActivities + existingActivities).take(MAX_ACTIVITIES)
+            val jsonString = activitiesToJson(combined)
+
+            prefs.edit()
+                .putString(KEY_ACTIVITIES, jsonString)
+                .apply()
+        } catch (e: Exception) {
+            android.util.Log.e("ActivityStorage", "Error seeding dev activities", e)
+        }
+    }
     
     /**
      * Parse JSON string to list of activities
@@ -344,5 +410,11 @@ object ActivityStorage {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_ACTIVITIES).apply()
     }
+
+    private data class DevSeedTemplate(
+        val username: String,
+        val message: String,
+        val offsetMs: Long
+    )
 }
 

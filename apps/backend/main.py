@@ -170,6 +170,26 @@ except Exception as e:
     logger.info(f"ℹ️  V3 payment router not available: {e}")
 # ===========================
 
+# ===========================
+# MOBILE PARALLEL API ROUTER (Feature Flag)
+# ===========================
+ENABLE_MOBILE_PARALLEL_API = os.getenv("ENABLE_MOBILE_PARALLEL_API", "false").lower() in {
+    "true",
+    "1",
+    "yes",
+    "on",
+}
+
+if ENABLE_MOBILE_PARALLEL_API:
+    try:
+        from apps.backend.api.mobile_parallel_router import router as mobile_parallel_router
+
+        app.include_router(mobile_parallel_router)
+        logger.info("✅ Mobile parallel API router registered")
+    except Exception as exc:
+        logger.error("❌ Failed to register mobile parallel API router: %s", exc)
+# ===========================
+
 # Initialize rate limiting and research system
 rate_limiter = RateLimiter()
 security_monitor = SecurityMonitor()

@@ -285,6 +285,23 @@ See docs/development/V3_INTEGRATION_GUIDE.md for initialization steps.`;
       jackpotWallet
     );
 
+    // Derive buyback wallet and its USDC ATA from environment.
+    // 40% of each entry is routed here to fund 100Bs buy-and-burn.
+    const buybackWalletEnv =
+      process.env.NEXT_PUBLIC_V3_BUYBACK_WALLET ||
+      process.env.NEXT_PUBLIC_BUYBACK_WALLET_ADDRESS;
+    if (!buybackWalletEnv) {
+      throw new Error(
+        "NEXT_PUBLIC_V3_BUYBACK_WALLET (or NEXT_PUBLIC_BUYBACK_WALLET_ADDRESS) is not set. " +
+          "This address is required so 40% of each entry can fund the 100Bs buy-and-burn wallet."
+      );
+    }
+    const buybackWallet = new PublicKey(buybackWalletEnv);
+    const buybackTokenAccount = await getAssociatedTokenAddress(
+      USDC_MINT,
+      buybackWallet
+    );
+
     // Build instruction discriminator
     const discriminator = deriveInstructionDiscriminator("process_entry_payment");
 
@@ -297,7 +314,8 @@ See docs/development/V3_INTEGRATION_GUIDE.md for initialization steps.`;
     ]);
 
     // Build account keys (must match exact order from contract)
-    // lottery, entry, user, user_wallet, user_token_account, jackpot_token_account, usdc_mint, token_program, associated_token_program, system_program
+    // lottery, entry, user, user_wallet, user_token_account, jackpot_token_account,
+    // buyback_wallet, buyback_token_account, usdc_mint, token_program, associated_token_program, system_program
     const keys = [
       { pubkey: lotteryPDA, isSigner: false, isWritable: true },
       { pubkey: entryPDA, isSigner: false, isWritable: true },
@@ -305,6 +323,8 @@ See docs/development/V3_INTEGRATION_GUIDE.md for initialization steps.`;
       { pubkey: userWallet, isSigner: false, isWritable: false }, // user_wallet (unchecked)
       { pubkey: userTokenAccount, isSigner: false, isWritable: true },
       { pubkey: jackpotTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: buybackWallet, isSigner: false, isWritable: false },
+      { pubkey: buybackTokenAccount, isSigner: false, isWritable: true },
       { pubkey: USDC_MINT, isSigner: false, isWritable: false },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },

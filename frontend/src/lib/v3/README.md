@@ -62,8 +62,9 @@ npm test -- src/lib/v3/paymentProcessor.test.ts
 ## Configuration
 
 Environment variables:
-- `NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V3` - V3 program ID (default: ALG8r2iZZaoQbfEZBAXAf9vCXL9g6qkyCupvYQqkuZmb)
+- `NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V3` - V3 program ID (default: 52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov)
 - `NEXT_PUBLIC_V3_USDC_MINT` - USDC mint address (default: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v)
+- `NEXT_PUBLIC_V3_BUYBACK_WALLET` - USDC wallet that receives 40% of each entry for 100Bs buy-and-burn (falls back to `NEXT_PUBLIC_BUYBACK_WALLET_ADDRESS`).
 
 ## Differences from V2
 
@@ -71,3 +72,4 @@ Environment variables:
 - Different PDA derivation (lottery vs global/bounty)
 - Simplified account structure
 - Enhanced security features (Ed25519, hashing, validation)
+- 60/40 economics: 60% of each entry grows the jackpot pot, 40% funds the 100Bs buy-and-burn wallet.

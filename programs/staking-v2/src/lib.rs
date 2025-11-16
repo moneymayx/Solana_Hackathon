@@ -1,4 +1,7 @@
+#![allow(unexpected_cfgs)] // Anchor macros reference cfg flags such as `anchor-debug` that are defined downstream by Solana tooling.
+
 use anchor_lang::prelude::*;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 declare_id!("CFgX8DxCbGqQP1QbiY538dNyPxD2UUHUi4tChAbuJaZC");
@@ -75,16 +78,25 @@ pub mod staking_v2 {
         require!(position.amount >= amount, ErrorCode::InsufficientStake);
         require!(position.user == ctx.accounts.user.key(), ErrorCode::Unauthorized);
         
-        // Transfer tokens back to user
+        // Transfer tokens back to the user, signed by the staking pool PDA to release locked funds.
+        let staking_pool_bump = *ctx
+            .bumps
+            .get("staking_pool")
+            .ok_or(ErrorCode::Unauthorized)?;
+        let staking_pool_bump_seed = [staking_pool_bump];
+        let staking_pool_seeds: [&[u8]; 2] = [b"staking_pool", &staking_pool_bump_seed];
+        let signer_seeds = &[&staking_pool_seeds[..]];
+
         let transfer_ix = Transfer {
             from: ctx.accounts.staking_token_account.to_account_info(),
             to: ctx.accounts.user_token_account.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
+            authority: staking_pool.to_account_info(),
         };
         
-        let cpi_ctx = CpiContext::new(
+        let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
             transfer_ix,
+            signer_seeds,
         );
         token::transfer(cpi_ctx, amount)?;
         
