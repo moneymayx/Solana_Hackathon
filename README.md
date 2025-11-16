@@ -6,14 +6,13 @@
 
 The ultimate AI jailbreak challenge where you get to test your skills, explore AI security, and potentially win real USDC—all while contributing to cutting-edge research. Think of it gaming meetinng AI research, with autonomous smart contracts ensuring fair play and instant payouts.
 
-## 🚀 Current System Status: V2 Smart Contracts (Devnet)
+## 🚀 Current System Status: V3 Lottery Smart Contract (Devnet)
 
-**✅ ACTIVE**: This repository uses **V2 Solana Smart Contracts** for all payment and fund management operations. The backend serves as an API layer only - **no fund routing happens in backend code**.
+**✅ ACTIVE**: This repository uses the **V3 Solana Lottery Smart Contract** for all question entry fees and jackpot management. The backend serves as an API/orchestration layer only – **no fund routing happens in backend code**.
 
-- **Smart Contracts**: `programs/billions-bounty-v2/` (Active)
-- **Backend Integration**: `src/services/v2/` (Active)
-- **API Endpoints**: `src/api/v2_payment_router.py` (Active)
-- **Deprecated Code**: `src/services/obsolete/` (Not in use)
+- **Smart Contracts**: `programs/billions-bounty-v3/` (Active, 60/40 jackpot/buyback)
+- **Backend Integration**: `src/services/contract_adapter_v3.py`, `src/services/smart_contract_service.py`
+- **API Layer**: `apps/backend/api/` (e.g. `app_integration.py` and feature routers)
 
 **📖 Documentation**:
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and code organization
