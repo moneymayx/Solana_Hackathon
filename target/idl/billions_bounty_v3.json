@@ -1,5 +1,5 @@
 {
-  "address": "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov",
+  "address": "7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh",
   "metadata": {
     "name": "billions_bounty_v3",
     "version": "0.3.0",
@@ -61,11 +61,11 @@
         },
         {
           "name": "jackpotWallet",
-          "type": "pubkey"
+          "type": "publicKey"
         },
         {
           "name": "backendAuthority",
-          "type": "pubkey"
+          "type": "publicKey"
         }
       ]
     },
@@ -150,7 +150,7 @@
         },
         {
           "name": "userWallet",
-          "type": "pubkey"
+          "type": "publicKey"
         },
         {
           "name": "entryNonce",
@@ -345,12 +345,12 @@
       "args": [
         {
           "name": "lastParticipant",
-          "type": "pubkey"
+          "type": "publicKey"
         },
         {
           "name": "participantList",
           "type": {
-            "vec": "pubkey"
+            "vec": "publicKey"
           }
         }
       ]
@@ -364,15 +364,19 @@
         "fields": [
           {
             "name": "authority",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "jackpotWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "backendAuthority",
-            "type": "pubkey"
+            "type": "publicKey"
+          },
+          {
+            "name": "bountyId",
+            "type": "u8"
           },
           {
             "name": "researchFundFloor",
@@ -418,7 +422,8 @@
             "name": "lastRecoveryTime",
             "type": "i64"
           }
-        ]
+        ],
+        "size": 195
       }
     },
     {
@@ -428,7 +433,7 @@
         "fields": [
           {
             "name": "userWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "amountPaid",
@@ -449,12 +454,13 @@
           {
             "name": "isProcessed",
             "type": "bool"
-        },
-        {
-          "name": "entryNonce",
-          "type": "u64"
+          },
+          {
+            "name": "entryNonce",
+            "type": "u64"
           }
-        ]
+        ],
+        "size": 73
       }
     },
     {
@@ -464,15 +470,15 @@
         "fields": [
           {
             "name": "authority",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "jackpotWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "backendAuthority",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "researchFundFloor",
@@ -492,16 +498,16 @@
         "fields": [
           {
             "name": "userWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "amount",
             "type": "u64"
           },
-        {
-          "name": "entryNonce",
-          "type": "u64"
-        },
+          {
+            "name": "entryNonce",
+            "type": "u64"
+          },
           {
             "name": "researchContribution",
             "type": "u64"
@@ -524,7 +530,7 @@
         "fields": [
           {
             "name": "winner",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "amount",
@@ -556,7 +562,7 @@
         "fields": [
           {
             "name": "authority",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "amount",
@@ -571,6 +577,31 @@
             "type": "u64"
           }
         ]
+      }
+    },
+    {
+      "name": "UserBountyState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userWallet",
+            "type": "publicKey"
+          },
+          {
+            "name": "activeBountyId",
+            "type": "u8"
+          },
+          {
+            "name": "totalEntries",
+            "type": "u64"
+          },
+          {
+            "name": "lastEntryTimestamp",
+            "type": "i64"
+          }
+        ],
+        "size": 49
       }
     }
   ],
@@ -592,15 +623,19 @@
         "fields": [
           {
             "name": "authority",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "jackpotWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "backendAuthority",
-            "type": "pubkey"
+            "type": "publicKey"
+          },
+          {
+            "name": "bountyId",
+            "type": "u8"
           },
           {
             "name": "researchFundFloor",
@@ -646,8 +681,10 @@
             "name": "lastRecoveryTime",
             "type": "i64"
           }
-        ]
-      }
+        ],
+        "size": 195
+      },
+      "size": 195
     },
     {
       "name": "entry",
@@ -666,7 +703,7 @@
         "fields": [
           {
             "name": "userWallet",
-            "type": "pubkey"
+            "type": "publicKey"
           },
           {
             "name": "amountPaid",
@@ -687,13 +724,51 @@
           {
             "name": "isProcessed",
             "type": "bool"
-        },
-        {
-          "name": "entryNonce",
-          "type": "u64"
+          },
+          {
+            "name": "entryNonce",
+            "type": "u64"
           }
-        ]
-      }
+        ],
+        "size": 73
+      },
+      "size": 73
+    },
+    {
+      "name": "userBountyState",
+      "discriminator": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "userWallet",
+            "type": "publicKey"
+          },
+          {
+            "name": "activeBountyId",
+            "type": "u8"
+          },
+          {
+            "name": "totalEntries",
+            "type": "u64"
+          },
+          {
+            "name": "lastEntryTimestamp",
+            "type": "i64"
+          }
+        ],
+        "size": 49
+      },
+      "size": 49
     }
   ],
   "events": [

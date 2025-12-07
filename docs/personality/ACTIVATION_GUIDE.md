@@ -5,8 +5,8 @@
 ## What You're Getting
 
 4 distinct AI personalities that match bounty difficulty levels:
-- **Easy** (Bounty 4): Overly Enthusiastic Tech Bro
-- **Medium** (Bounty 3): Deadpool Character  
+- **Easy** (Bounty 4): Deadpool Character
+- **Medium** (Bounty 3): Overly Enthusiastic Tech Bro  
 - **Hard** (Bounty 2): Zen Buddhist Monk
 - **Expert** (Bounty 1): Jonah Hill/Superbad (current personality)
 

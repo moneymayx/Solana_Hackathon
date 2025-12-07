@@ -4124,7 +4124,7 @@ async def get_user_achievements(wallet_address: str, session: AsyncSession = Dep
     # Check for wins
     successful_attempts = await session.execute(
         select(AttackAttempt)
-        .where(AttackAttempt.user_id == user.id, AttackAttempt.success == True)
+        .where(AttackAttempt.user_id == user.id, AttackAttempt.was_successful == True)
     )
     wins = successful_attempts.scalars().all()
     
@@ -4183,7 +4183,7 @@ async def get_top_winners(session: AsyncSession = Depends(get_db)):
             func.count(AttackAttempt.id).label('win_count')
         )
         .join(AttackAttempt, User.id == AttackAttempt.user_id)
-        .where(AttackAttempt.success == True)
+        .where(AttackAttempt.was_successful == True)
         .group_by(User.id, User.wallet_address, User.display_name, User.created_at)
         .order_by(func.count(AttackAttempt.id).desc())
         .limit(50)
@@ -4250,7 +4250,7 @@ async def get_recent_winners(session: AsyncSession = Depends(get_db)):
         )
         .join(User, AttackAttempt.user_id == User.id)
         .outerjoin(Transaction, AttackAttempt.id == Transaction.attack_attempt_id)
-        .where(AttackAttempt.success == True)
+        .where(AttackAttempt.was_successful == True)
         .order_by(AttackAttempt.created_at.desc())
         .limit(20)
     )
@@ -4288,7 +4288,7 @@ async def get_win_rate_leaderboard(session: AsyncSession = Depends(get_db)):
         )
         .outerjoin(AttackAttempt, and_(
             User.id == AttackAttempt.user_id,
-            AttackAttempt.success == True
+            AttackAttempt.was_successful == True
         ))
         .where(User.total_attempts >= 10)
         .group_by(User.id, User.wallet_address, User.display_name, User.total_attempts, User.total_cost)
@@ -4330,7 +4330,7 @@ async def get_leaderboard_stats(session: AsyncSession = Depends(get_db)):
     # Total wins
     total_wins = await session.execute(
         select(func.count(AttackAttempt.id))
-        .where(AttackAttempt.success == True)
+        .where(AttackAttempt.was_successful == True)
     )
     total_wins_count = total_wins.scalar()
     
@@ -4353,6 +4353,483 @@ async def get_leaderboard_stats(session: AsyncSession = Depends(get_db)):
         "average_attempts_per_user": round(total_attempts_count / total_users_count, 2) if total_users_count > 0 else 0
     }
 
+# Gamification Points Leaderboard
+@app.get("/api/leaderboards/points")
+async def get_points_leaderboard(
+    session: AsyncSession = Depends(get_db),
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Get gamification points leaderboard
+    
+    Points system:
+    - 1 point per question asked
+    - 2 points per successful referral
+    - 10x multiplier per successful jailbreak
+    """
+    from src.services.points_service import points_service
+    
+    try:
+        leaderboard = await points_service.get_leaderboard(session, limit, offset)
+        return {
+            "leaderboard": leaderboard,
+            "total_entries": len(leaderboard),
+            "limit": limit,
+            "offset": offset,
+            "points_rules": {
+                "question_points": 1,
+                "referral_points": 2,
+                "jailbreak_multiplier": 10
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting points leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get points leaderboard: {str(e)}")
+
+@app.get("/api/user/points/{user_id}")
+async def get_user_points(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Get detailed points breakdown for a specific user"""
+    from src.services.points_service import points_service
+    
+    try:
+        points_data = await points_service.calculate_user_points(session, user_id)
+        rank_data = await points_service.get_user_rank(session, user_id)
+        
+        if not rank_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "user_id": user_id,
+            "points": points_data,
+            "rank": rank_data,
+            "tier": rank_data['tier']
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting user points for {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get user points: {str(e)}")
+
+@app.get("/api/user/points/wallet/{wallet_address}")
+async def get_user_points_by_wallet(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get detailed points breakdown for a user by wallet address"""
+    from src.services.points_service import points_service
+    
+    try:
+        # Get user by wallet
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        points_data = await points_service.calculate_user_points(session, user.id)
+        rank_data = await points_service.get_user_rank(session, user.id)
+        
+        return {
+            "user_id": user.id,
+            "wallet_address": wallet_address,
+            "display_name": user.display_name,
+            "points": points_data,
+            "rank": rank_data,
+            "tier": rank_data['tier']
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting user points for wallet {wallet_address}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get user points: {str(e)}")
+
+@app.post("/api/user/points/update/{user_id}")
+async def update_user_points(user_id: int, session: AsyncSession = Depends(get_db)):
+    """Manually update/recalculate points for a user"""
+    from src.services.points_service import points_service
+    
+    try:
+        points_data = await points_service.update_user_points(session, user_id)
+        
+        if not points_data:
+            raise HTTPException(status_code=404, detail="User not found or update failed")
+        
+        return {
+            "message": "Points updated successfully",
+            "user_id": user_id,
+            "points": points_data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating user points for {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update user points: {str(e)}")
+
+@app.post("/api/admin/points/recalculate-all")
+async def recalculate_all_points(session: AsyncSession = Depends(get_db)):
+    """Admin endpoint: Recalculate points for all users"""
+    from src.services.points_service import points_service
+    
+    try:
+        result = await points_service.recalculate_all_user_points(session)
+        return {
+            "message": "Points recalculation completed",
+            "summary": result
+        }
+    except Exception as e:
+        logger.error(f"Error recalculating all points: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to recalculate points: {str(e)}")
+
+# ===========================
+# GAMIFICATION ENDPOINTS
+# ===========================
+
+# Daily Streak System
+@app.post("/api/user/activity")
+async def record_user_activity(
+    wallet_address: Optional[str] = None,
+    user_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_db)
+):
+    """Record user activity for streak tracking"""
+    from src.services.streak_service import streak_service
+    
+    try:
+        # Get user by wallet or ID
+        if wallet_address:
+            result = await session.execute(
+                select(User).where(User.wallet_address == wallet_address)
+            )
+            user = result.scalar_one_or_none()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            user_id = user.id
+        elif not user_id:
+            raise HTTPException(status_code=400, detail="Must provide wallet_address or user_id")
+        
+        streak_info = await streak_service.record_activity(session, user_id)
+        
+        if not streak_info:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return streak_info
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording activity: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record activity: {str(e)}")
+
+@app.get("/api/user/streak/{wallet_address}")
+async def get_user_streak(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get user's streak information"""
+    from src.services.streak_service import streak_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        streak_info = await streak_service.get_streak_info(session, user.id)
+        
+        if not streak_info:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return streak_info
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting streak info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get streak info: {str(e)}")
+
+# Challenge/Quest System
+@app.get("/api/challenges")
+async def get_challenges(
+    challenge_type: Optional[str] = None,
+    session: AsyncSession = Depends(get_db)
+):
+    """Get all active challenges"""
+    from src.services.challenge_service import challenge_service
+    
+    try:
+        challenges = await challenge_service.get_active_challenges(session, challenge_type)
+        return {
+            "challenges": challenges,
+            "total": len(challenges)
+        }
+    except Exception as e:
+        logger.error(f"Error getting challenges: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get challenges: {str(e)}")
+
+@app.get("/api/user/challenges/{wallet_address}")
+async def get_user_challenges(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get user's challenges with progress"""
+    from src.services.challenge_service import challenge_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        challenges = await challenge_service.get_user_challenges(session, user.id)
+        return challenges
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting user challenges: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get user challenges: {str(e)}")
+
+@app.post("/api/admin/challenges/create-daily")
+async def create_daily_challenges(session: AsyncSession = Depends(get_db)):
+    """Admin endpoint: Create daily challenges (should be called via cron)"""
+    from src.services.challenge_service import challenge_service
+    
+    try:
+        challenges = await challenge_service.create_daily_challenges(session)
+        return {
+            "message": "Daily challenges created",
+            "count": len(challenges),
+            "challenges": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "reward_points": c.reward_points
+                }
+                for c in challenges
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error creating daily challenges: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create daily challenges: {str(e)}")
+
+# Enhanced Achievement System
+@app.get("/api/user/achievements/{wallet_address}")
+async def get_user_achievements_enhanced(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Get user's achievements (enhanced version)"""
+    from src.services.achievement_service import achievement_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        achievements = await achievement_service.get_user_achievements(session, user.id)
+        return achievements
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting achievements: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get achievements: {str(e)}")
+
+@app.post("/api/user/achievements/check/{wallet_address}")
+async def check_user_achievements(wallet_address: str, session: AsyncSession = Depends(get_db)):
+    """Check and unlock new achievements for user"""
+    from src.services.achievement_service import achievement_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        new_achievements = await achievement_service.check_and_unlock_achievements(session, user.id)
+        return {
+            "new_achievements": new_achievements,
+            "count": len(new_achievements)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking achievements: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to check achievements: {str(e)}")
+
+# Power-Ups & Boosts
+@app.get("/api/user/power-ups/{wallet_address}")
+async def get_user_power_ups(
+    wallet_address: str,
+    include_used: bool = False,
+    session: AsyncSession = Depends(get_db)
+):
+    """Get user's power-ups"""
+    from src.services.powerup_service import powerup_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        power_ups = await powerup_service.get_user_power_ups(session, user.id, include_used)
+        return power_ups
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting power-ups: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get power-ups: {str(e)}")
+
+@app.post("/api/user/power-ups/activate/{power_up_id}")
+async def activate_power_up(
+    power_up_id: int,
+    wallet_address: str,
+    session: AsyncSession = Depends(get_db)
+):
+    """Activate a power-up"""
+    from src.services.powerup_service import powerup_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        result = await powerup_service.activate_power_up(session, user.id, power_up_id)
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Power-up not found or already used")
+        
+        return result
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error activating power-up: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to activate power-up: {str(e)}")
+
+@app.post("/api/user/power-ups/create")
+async def create_power_up(
+    wallet_address: str,
+    power_up_type: str,
+    source: str = "earned",
+    session: AsyncSession = Depends(get_db)
+):
+    """Create a power-up for a user (admin or system)"""
+    from src.services.powerup_service import powerup_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        power_up = await powerup_service.create_power_up(session, user.id, power_up_type, source)
+        
+        if not power_up:
+            raise HTTPException(status_code=400, detail="Invalid power-up type")
+        
+        return {
+            "id": power_up.id,
+            "power_up_type": power_up.power_up_type,
+            "name": power_up.name,
+            "description": power_up.description
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating power-up: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create power-up: {str(e)}")
+
+# Milestone Celebrations
+@app.get("/api/user/milestones/{wallet_address}")
+async def get_user_milestones(
+    wallet_address: str,
+    unshown_only: bool = True,
+    session: AsyncSession = Depends(get_db)
+):
+    """Get user's milestones"""
+    from src.services.milestone_service import milestone_service
+    
+    try:
+        result = await session.execute(
+            select(User).where(User.wallet_address == wallet_address)
+        )
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if unshown_only:
+            milestones = await milestone_service.get_unshown_milestones(session, user.id)
+        else:
+            # Get all milestones
+            from src.models import Milestone
+            result = await session.execute(
+                select(Milestone)
+                .where(Milestone.user_id == user.id)
+                .order_by(Milestone.achieved_at.desc())
+            )
+            milestones = [
+                {
+                    "id": m.id,
+                    "milestone_type": m.milestone_type,
+                    "name": m.milestone_name,
+                    "description": m.description,
+                    "value": m.value,
+                    "achieved_at": m.achieved_at.isoformat(),
+                    "celebration_shown": m.celebration_shown
+                }
+                for m in result.scalars().all()
+            ]
+        
+        return {
+            "milestones": milestones,
+            "count": len(milestones)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting milestones: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get milestones: {str(e)}")
+
+@app.post("/api/user/milestones/{milestone_id}/mark-shown")
+async def mark_milestone_shown(milestone_id: int, session: AsyncSession = Depends(get_db)):
+    """Mark a milestone as shown (celebration displayed)"""
+    from src.services.milestone_service import milestone_service
+    
+    try:
+        success = await milestone_service.mark_milestone_shown(session, milestone_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Milestone not found")
+        
+        return {"success": True, "message": "Milestone marked as shown"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error marking milestone as shown: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to mark milestone: {str(e)}")
+
 # Analytics Dashboard
 @app.get("/api/analytics/overview")
 async def get_analytics_overview(session: AsyncSession = Depends(get_db)):
@@ -4366,7 +4843,7 @@ async def get_analytics_overview(session: AsyncSession = Depends(get_db)):
     
     total_wins = await session.execute(
         select(func.count(AttackAttempt.id))
-        .where(AttackAttempt.success == True)
+        .where(AttackAttempt.was_successful == True)
     )
     total_wins_count = total_wins.scalar()
     
@@ -4391,7 +4868,7 @@ async def get_analytics_overview(session: AsyncSession = Depends(get_db)):
     
     recent_wins = await session.execute(
         select(func.count(AttackAttempt.id))
-        .where(AttackAttempt.success == True, AttackAttempt.created_at >= day_ago)
+        .where(AttackAttempt.was_successful == True, AttackAttempt.created_at >= day_ago)
     )
     recent_wins_count = recent_wins.scalar()
     
@@ -4555,7 +5032,7 @@ async def get_ai_performance_analytics(session: AsyncSession = Depends(get_db)):
         select(
             func.date(AttackAttempt.created_at).label('date'),
             func.count(AttackAttempt.id).label('total_attempts'),
-            func.sum(func.case((AttackAttempt.success == True, 1), else_=0)).label('wins')
+            func.sum(func.case((AttackAttempt.was_successful == True, 1), else_=0)).label('wins')
         )
         .where(AttackAttempt.created_at >= datetime.utcnow() - timedelta(days=30))
         .group_by(func.date(AttackAttempt.created_at))
@@ -4577,11 +5054,11 @@ async def get_ai_performance_analytics(session: AsyncSession = Depends(get_db)):
         select(
             AttackAttempt.attempt_type,
             func.count(AttackAttempt.id).label('total_attempts'),
-            func.sum(func.case((AttackAttempt.success == True, 1), else_=0)).label('wins')
+            func.sum(func.case((AttackAttempt.was_successful == True, 1), else_=0)).label('wins')
         )
         .group_by(AttackAttempt.attempt_type)
         .having(func.count(AttackAttempt.id) >= 5)  # Only types with at least 5 attempts
-        .order_by((func.sum(func.case((AttackAttempt.success == True, 1), else_=0)) / func.count(AttackAttempt.id)).desc())
+        .order_by((func.sum(func.case((AttackAttempt.was_successful == True, 1), else_=0)) / func.count(AttackAttempt.id)).desc())
     )
     
     successful_types = []
@@ -4643,7 +5120,7 @@ async def get_security_analytics(session: AsyncSession = Depends(get_db)):
         select(
             func.date(AttackAttempt.created_at).label('date'),
             func.count(AttackAttempt.id).label('total_attempts'),
-            func.sum(func.case((AttackAttempt.success == True, 1), else_=0)).label('successful_attacks')
+            func.sum(func.case((AttackAttempt.was_successful == True, 1), else_=0)).label('successful_attacks')
         )
         .where(AttackAttempt.created_at >= datetime.utcnow() - timedelta(days=7))
         .group_by(func.date(AttackAttempt.created_at))
@@ -4666,7 +5143,7 @@ async def get_security_analytics(session: AsyncSession = Depends(get_db)):
             User.wallet_address,
             User.display_name,
             func.count(AttackAttempt.id).label('total_attempts'),
-            func.sum(func.case((AttackAttempt.success == True, 1), else_=0)).label('wins')
+            func.sum(func.case((AttackAttempt.was_successful == True, 1), else_=0)).label('wins')
         )
         .join(AttackAttempt, User.id == AttackAttempt.user_id)
         .group_by(User.id, User.wallet_address, User.display_name)

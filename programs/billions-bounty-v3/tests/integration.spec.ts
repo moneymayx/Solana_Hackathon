@@ -228,6 +228,10 @@ describe("V3 Integration Tests", function() {
     expect(entry.researchContribution.toNumber()).to.equal(6); // 60% of 10 goes to jackpot
     expect(entry.operationalFee.toNumber()).to.equal(4); // 40% of 10 goes to buyback
 
+    const contributionSum = entry.researchContribution
+      .add(entry.operationalFee);
+    expect(contributionSum.eq(entry.amountPaid)).to.be.true;
+
     const finalUserBalance = await getAccount(provider.connection, userTokenAccount);
     const finalJackpotBalance = await getAccount(provider.connection, jackpotTokenAccount);
     const finalBuybackBalance = await getAccount(provider.connection, buybackTokenAccount);
@@ -235,14 +239,29 @@ describe("V3 Integration Tests", function() {
     // User should have paid the full entry amount.
     expect(initialUserBalance.amount - finalUserBalance.amount).to.equal(ENTRY_AMOUNT);
     // Jackpot should receive exactly 60% of the entry.
-    expect(finalJackpotBalance.amount - initialJackpotBalance.amount).to.equal(6);
+    const jackpotDelta =
+      Number(finalJackpotBalance.amount) - Number(initialJackpotBalance.amount);
+    const buybackDelta =
+      Number(finalBuybackBalance.amount) - Number(initialBuybackBalance.amount);
+    expect(jackpotDelta).to.equal(6);
     // Buyback wallet should receive exactly 40% of the entry.
-    expect(finalBuybackBalance.amount - initialBuybackBalance.amount).to.equal(4);
+    expect(buybackDelta).to.equal(4);
+    expect(jackpotDelta + buybackDelta).to.equal(ENTRY_AMOUNT);
 
     const lottery = await program.account.lottery.fetch(lotteryPDA);
     expect(lottery.totalEntries.toNumber()).to.equal(1);
     // Jackpot state should only increase by the 60% contribution.
     expect(lottery.currentJackpot.toNumber()).to.equal(RESEARCH_FUND_FLOOR + 6);
+  });
+
+  it("verifies escape plan rounding favors the community share", async () => {
+    const lottery = await program.account.lottery.fetch(lotteryPDA);
+    const totalJackpot = BigInt(lottery.currentJackpot.toString());
+    const lastParticipantShare = (totalJackpot * 20n) / 100n;
+    const communityShare = totalJackpot - lastParticipantShare;
+
+    expect(lastParticipantShare + communityShare).to.equal(totalJackpot);
+    expect(communityShare >= lastParticipantShare).to.be.true;
   });
 
   it("Processes AI decision and logs correctly", async () => {

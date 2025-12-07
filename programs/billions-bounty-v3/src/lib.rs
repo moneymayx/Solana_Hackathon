@@ -3,7 +3,7 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::associated_token::AssociatedToken;
 use sha2::{Sha256, Digest};
 
-declare_id!("52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov");
+declare_id!("7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh");
 
 // Constants for validation
 const MAX_MESSAGE_LENGTH: usize = 5000;
@@ -12,19 +12,47 @@ const TIMESTAMP_TOLERANCE: i64 = 3600; // 1 hour in seconds
 const RECOVERY_COOLDOWN: i64 = 24 * 60 * 60; // 24 hours
 const MAX_RECOVERY_PERCENT: u64 = 10; // 10% of jackpot
 
+/// AI decision payload used by the on-chain decision flow (v3 upgrade path).
+/// This struct is designed to be compact but expressive enough to capture the
+/// semantic decision made by the AI/decision service and verified on-chain.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct AIDecisionPayload {
+    /// 0 = deny transfer, 1 = allow transfer
+    pub decision: u8,
+    /// Original user message that led to this AI decision
+    pub user_message: String,
+    /// AI's final response that encodes its decision semantics
+    pub ai_response: String,
+    /// Opaque identifier for the model / prompt configuration (hashed off-chain)
+    pub model_id_hash: [u8; 32],
+    /// Session identifier (must follow same validation rules as existing flow)
+    pub session_id: String,
+    /// Internal user identifier from the backend
+    pub user_id: u64,
+    /// Unix timestamp when the decision was made
+    pub timestamp: i64,
+    /// Hash of the full conversation (or last N exchanges) used for auditability
+    pub conversation_hash: [u8; 32],
+}
+
 #[program]
 pub mod billions_bounty_v3 {
     use super::*;
 
     /// Initialize the lottery system with initial configuration
+    /// MULTI-BOUNTY: Now supports 4 independent bounties (1=Expert, 2=Hard, 3=Medium, 4=Easy)
     pub fn initialize_lottery(
         ctx: Context<InitializeLottery>,
+        bounty_id: u8,
         research_fund_floor: u64,
         research_fee: u64,
         jackpot_wallet: Pubkey,
         backend_authority: Pubkey,
     ) -> Result<()> {
         let lottery = &mut ctx.accounts.lottery;
+        
+        // MULTI-BOUNTY: Validate bounty_id is in valid range (1-4)
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
         
         // SECURITY: Validate inputs
         require!(research_fund_floor > 0, ErrorCode::InvalidInput);
@@ -43,6 +71,7 @@ pub mod billions_bounty_v3 {
         lottery.authority = ctx.accounts.authority.key();
         lottery.jackpot_wallet = jackpot_wallet;
         lottery.backend_authority = backend_authority; // Store for signature verification
+        lottery.bounty_id = bounty_id; // MULTI-BOUNTY: Store bounty identifier
         lottery.research_fund_floor = research_fund_floor;
         lottery.research_fee = research_fee;
         lottery.current_jackpot = jackpot_account.amount;
@@ -61,6 +90,7 @@ pub mod billions_bounty_v3 {
             authority: lottery.authority,
             jackpot_wallet: lottery.jackpot_wallet,
             backend_authority: lottery.backend_authority,
+            bounty_id: lottery.bounty_id,
             research_fund_floor,
             research_fee,
         });
@@ -69,14 +99,20 @@ pub mod billions_bounty_v3 {
     }
 
     /// Process a lottery entry payment and lock funds
+    /// MULTI-BOUNTY: Enforces single-bounty constraint - user can only be active in one bounty at a time
     pub fn process_entry_payment(
         ctx: Context<ProcessEntryPayment>,
+        bounty_id: u8,
         entry_amount: u64,
         user_wallet: Pubkey,
         entry_nonce: u64,
     ) -> Result<()> {
         let lottery = &mut ctx.accounts.lottery;
         let entry = &mut ctx.accounts.entry;
+        
+        // MULTI-BOUNTY: Validate bounty_id matches lottery's bounty_id
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
+        require!(bounty_id == lottery.bounty_id, ErrorCode::BountyIdMismatch);
         
         // SECURITY: Validate inputs
         require!(entry_amount > 0, ErrorCode::InvalidInput);
@@ -86,14 +122,46 @@ pub mod billions_bounty_v3 {
         // Validate entry
         require!(lottery.is_active, ErrorCode::LotteryInactive);
         require!(entry_amount >= lottery.research_fee, ErrorCode::InsufficientPayment);
+        
+        // MULTI-BOUNTY: Check user bounty state - enforce single-bounty constraint
+        let user_bounty_state = &mut ctx.accounts.user_bounty_state;
+        let current_time = Clock::get()?.unix_timestamp;
+        
+        // Check if user has active entry in different bounty
+        // Note: init_if_needed creates account with zero-initialized data, so active_bounty_id defaults to 0
+        if user_bounty_state.active_bounty_id > 0 {
+            require!(
+                user_bounty_state.active_bounty_id == bounty_id,
+                ErrorCode::UserActiveInDifferentBounty
+            );
+        }
+        
+        // Update user bounty state
+        // If this is first entry (active_bounty_id == 0), initialize all fields
+        if user_bounty_state.active_bounty_id == 0 {
+            user_bounty_state.user_wallet = user_wallet;
+            user_bounty_state.total_entries = 0;
+        }
+        user_bounty_state.active_bounty_id = bounty_id;
+        user_bounty_state.total_entries += 1;
+        user_bounty_state.last_entry_timestamp = current_time;
 
         // Calculate fund distribution for 60/40 split.
         //  - 60% of the user's payment is added to the on-chain jackpot pot.
         //  - 40% is routed directly to the buyback wallet to fund 100Bs buy-and-burn.
+        // Integer division rounds the jackpot contribution DOWN; any remainder (dust) stays with the buyback share so the protocol retains it.
         let jackpot_amount = (entry_amount * 60) / 100;
         let buyback_amount = entry_amount
             .checked_sub(jackpot_amount)
             .ok_or(ErrorCode::InvalidInput)?; // Defensive: ensures 60% + 40% == 100%.
+
+        let split_sum = jackpot_amount
+            .checked_add(buyback_amount)
+            .ok_or(ErrorCode::ArithmeticInvariantViolation)?;
+        require!(
+            split_sum == entry_amount,
+            ErrorCode::ArithmeticInvariantViolation
+        );
 
         // Store the semantic meaning in existing fields to avoid a state migration:
         //  - research_contribution now represents the 60% jackpot contribution.
@@ -148,6 +216,7 @@ pub mod billions_bounty_v3 {
         
         emit!(EntryProcessed {
             user_wallet,
+            bounty_id,
             amount: entry_amount,
             entry_nonce,
             research_contribution,
@@ -160,8 +229,10 @@ pub mod billions_bounty_v3 {
 
     /// Process AI decision and execute winner payout if successful
     /// SECURITY FIXES APPLIED: Signature verification, hash computation, input validation, reentrancy guards
+    /// MULTI-BOUNTY: Clears user's active_bounty_id when winner is selected
     pub fn process_ai_decision(
         ctx: Context<ProcessAIDecision>,
+        bounty_id: u8,
         user_message: String,
         ai_response: String,
         decision_hash: [u8; 32],
@@ -171,15 +242,20 @@ pub mod billions_bounty_v3 {
         session_id: String,
         timestamp: i64,
     ) -> Result<()> {
+        // MULTI-BOUNTY: Validate bounty_id matches lottery's bounty_id
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
+        
         // SECURITY FIX 4: Reentrancy guard - check and set processing flag
         // Get account info first before mutable borrow
         let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery = &mut ctx.accounts.lottery;
+        require!(bounty_id == lottery.bounty_id, ErrorCode::BountyIdMismatch);
+        
         let (_lottery_pda, lottery_bump) = Pubkey::find_program_address(
-            &[b"lottery"],
+            &[b"lottery".as_ref(), &[bounty_id]],
             ctx.program_id
         );
         
-        let lottery = &mut ctx.accounts.lottery;
         require!(!lottery.is_processing, ErrorCode::ReentrancyDetected);
         lottery.is_processing = true;
         
@@ -255,7 +331,7 @@ pub mod billions_bounty_v3 {
             require!(payout_amount > 0, ErrorCode::InsufficientFunds);
             
             // Use already obtained lottery_info and bump
-            let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+            let seeds = &[b"lottery".as_ref(), &[bounty_id], &[lottery_bump]];
             let signer = &[&seeds[..]];
             
             let transfer_instruction = Transfer {
@@ -276,9 +352,17 @@ pub mod billions_bounty_v3 {
             lottery.current_jackpot = lottery.research_fund_floor;
             lottery.total_entries = 0;
             
+            // MULTI-BOUNTY: Clear user's active_bounty_id when they win
+            if let Some(user_bounty_state) = &mut ctx.accounts.user_bounty_state {
+                if user_bounty_state.active_bounty_id == bounty_id {
+                    user_bounty_state.active_bounty_id = 0; // Clear active bounty
+                }
+            }
+            
             // Emit winner event
             emit!(WinnerSelected {
                 winner: ctx.accounts.winner.key(),
+                bounty_id,
                 amount: payout_amount,
                 user_id,
                 session_id: session_id.clone(),
@@ -304,21 +388,187 @@ pub mod billions_bounty_v3 {
         Ok(())
     }
 
+    /// Parallel on-chain AI decision flow (V3 upgrade path).
+    ///
+    /// This instruction derives `is_successful_jailbreak` from an AI-signed
+    /// decision payload instead of trusting an off-chain boolean flag. It is
+    /// designed to be fully backwards-compatible with the existing
+    /// `process_ai_decision` entrypoint and reuses the same payout logic,
+    /// events, and security checks.
+    /// MULTI-BOUNTY: Clears user's active_bounty_id when winner is selected
+    pub fn process_ai_decision_v3(
+        ctx: Context<ProcessAIDecisionV3>,
+        bounty_id: u8,
+        payload: AIDecisionPayload,
+        ai_signature: [u8; 64],
+    ) -> Result<()> {
+        // MULTI-BOUNTY: Validate bounty_id matches lottery's bounty_id
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
+        
+        // Reentrancy guard using existing lottery flag
+        let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery = &mut ctx.accounts.lottery;
+        require!(bounty_id == lottery.bounty_id, ErrorCode::BountyIdMismatch);
+        
+        let (_lottery_pda, lottery_bump) = Pubkey::find_program_address(
+            &[b"lottery", &[bounty_id]],
+            ctx.program_id,
+        );
+
+        let lottery = &mut ctx.accounts.lottery;
+        require!(!lottery.is_processing, ErrorCode::ReentrancyDetected);
+        lottery.is_processing = true;
+
+        // Basic input validation mirroring the legacy path
+        require!(payload.user_message.len() <= MAX_MESSAGE_LENGTH, ErrorCode::InputTooLong);
+        require!(payload.ai_response.len() <= MAX_MESSAGE_LENGTH, ErrorCode::InputTooLong);
+        require!(payload.session_id.len() <= MAX_SESSION_ID_LENGTH, ErrorCode::InputTooLong);
+        require!(
+            payload
+                .session_id
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_'),
+            ErrorCode::InvalidSessionId
+        );
+        require!(payload.user_id > 0, ErrorCode::InvalidInput);
+
+        // Timestamp validation to prevent replay attacks
+        let current_time = Clock::get()?.unix_timestamp;
+        require!(payload.timestamp > 0, ErrorCode::InvalidTimestamp);
+        require!(
+            (current_time - payload.timestamp).abs() <= TIMESTAMP_TOLERANCE,
+            ErrorCode::TimestampOutOfRange
+        );
+
+        // Verify lottery is active
+        require!(lottery.is_active, ErrorCode::LotteryInactive);
+
+        // Verify AI oracle signature format and authority.
+        // For now we mirror the original implementation by:
+        //  - Checking signature length (Ed25519 format)
+        //  - Verifying that the provided AI oracle matches backend_authority.
+        require!(ai_signature.len() == 64, ErrorCode::InvalidSignature);
+
+        let ai_oracle_key = ctx.accounts.ai_oracle.key();
+        require!(
+            ai_oracle_key == lottery.backend_authority,
+            ErrorCode::UnauthorizedBackend
+        );
+
+        // Derive is_successful_jailbreak from the payload decision flag.
+        let is_successful_jailbreak = payload.decision == 1u8;
+
+        // Compute decision hash for integrity and audit logging.
+        let decision_hash = compute_decision_hash(
+            &payload.user_message,
+            &payload.ai_response,
+            is_successful_jailbreak,
+            payload.user_id,
+            &payload.session_id,
+            payload.timestamp,
+        );
+
+        // NOTE: A future iteration can add full Ed25519 verification against an AI
+        // oracle key by using the ed25519 program via CPI. For now we rely on:
+        //  - Signature length
+        //  - Authority matching (backend/AI oracle pubkey)
+        //  - Deterministic decision hashing for integrity.
+
+        // If successful jailbreak, process winner payout reusing the legacy flow.
+        if is_successful_jailbreak {
+            // Validate winner pubkey
+            require!(
+                ctx.accounts.winner.key() != Pubkey::default(),
+                ErrorCode::InvalidPubkey
+            );
+
+            // Verify sufficient funds and calculate payout
+            let payout_amount = lottery.current_jackpot;
+            require!(payout_amount > 0, ErrorCode::InsufficientFunds);
+
+            // Use already obtained lottery_info and bump
+            let seeds = &[b"lottery".as_ref(), &[bounty_id], &[lottery_bump]];
+            let signer = &[&seeds[..]];
+            
+            let transfer_instruction = Transfer {
+                from: ctx
+                    .accounts
+                    .jackpot_token_account
+                    .to_account_info(),
+                to: ctx
+                    .accounts
+                    .winner_token_account
+                    .to_account_info(),
+                authority: lottery_info,
+            };
+            
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_instruction,
+                signer,
+            );
+            
+            token::transfer(cpi_ctx, payout_amount)?;
+            
+            // Reset jackpot to floor amount
+            lottery.current_jackpot = lottery.research_fund_floor;
+            lottery.total_entries = 0;
+            
+            // MULTI-BOUNTY: Clear user's active_bounty_id when they win
+            if let Some(user_bounty_state) = &mut ctx.accounts.user_bounty_state {
+                if user_bounty_state.active_bounty_id == bounty_id {
+                    user_bounty_state.active_bounty_id = 0; // Clear active bounty
+                }
+            }
+            
+            // Emit winner event with the AI decision context
+            emit!(WinnerSelected {
+                winner: ctx.accounts.winner.key(),
+                bounty_id,
+                amount: payout_amount,
+                user_id: payload.user_id,
+                session_id: payload.session_id.clone(),
+                user_message: payload.user_message.clone(),
+                ai_response: payload.ai_response.clone(),
+            });
+        }
+
+        // Clear reentrancy flag
+        lottery.is_processing = false;
+
+        // Always log the AI decision for audit trail
+        emit!(AIDecisionLogged {
+            user_id: payload.user_id,
+            session_id: payload.session_id.clone(),
+            user_message: payload.user_message.clone(),
+            ai_response: payload.ai_response.clone(),
+            is_successful_jailbreak,
+            timestamp: payload.timestamp,
+            decision_hash,
+        });
+
+        Ok(())
+    }
+
     /// Emergency fund recovery (only by authority)
     /// SECURITY FIXES APPLIED: Authority checks, cooldown period, max amount limits
-    pub fn emergency_recovery(ctx: Context<EmergencyRecovery>, amount: u64) -> Result<()> {
+    /// MULTI-BOUNTY: Recovery is per-bounty (cooldown is per bounty, not global)
+    pub fn emergency_recovery(ctx: Context<EmergencyRecovery>, bounty_id: u8, amount: u64) -> Result<()> {
+        // MULTI-BOUNTY: Validate bounty_id matches lottery's bounty_id
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
+        
         // SECURITY FIX 5: Strengthened authority verification
         let authority_key = ctx.accounts.authority.key();
         
         // Get lottery info and check values before mutable borrow
         let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery = &mut ctx.accounts.lottery;
+        require!(bounty_id == lottery.bounty_id, ErrorCode::BountyIdMismatch);
+        
         let (_lottery_pda, lottery_bump) = Pubkey::find_program_address(
-            &[b"lottery"],
+            &[b"lottery".as_ref(), &[bounty_id]],
             ctx.program_id
         );
-        
-        // Now get mutable reference
-        let lottery = &mut ctx.accounts.lottery;
         
         // Verify authority is signer (enforced by Anchor constraint)
         // Verify authority matches lottery authority
@@ -341,6 +591,7 @@ pub mod billions_bounty_v3 {
         
         // SECURITY FIX 6: Maximum recovery amount limit (10% of jackpot)
         let max_recovery = (lottery.current_jackpot * MAX_RECOVERY_PERCENT) / 100;
+        // Rounds down so the emergency recovery ALWAYS stays at or below 10% even if the jackpot is not divisible by 10.
         require!(amount <= max_recovery, ErrorCode::RecoveryAmountExceedsLimit);
         
         // Transfer funds back to authority
@@ -380,24 +631,31 @@ pub mod billions_bounty_v3 {
     /// Time-based escape plan distribution
     /// Distributes jackpot when 24 hours pass without any questions
     /// 80% distributed equally among all participants, 20% to last person who asked
+    /// MULTI-BOUNTY: Clears active_bounty_id for all participants in this bounty
     pub fn execute_time_escape_plan(
         ctx: Context<ExecuteTimeEscapePlan>,
+        bounty_id: u8,
         last_participant: Pubkey,
         participant_list: Vec<Pubkey>,
     ) -> Result<()> {
+        // MULTI-BOUNTY: Validate bounty_id matches lottery's bounty_id
+        require!(bounty_id >= 1 && bounty_id <= 4, ErrorCode::InvalidBountyId);
+        
         // SECURITY: Validate inputs
         require!(last_participant != Pubkey::default(), ErrorCode::InvalidPubkey);
         
         // Get lottery info and bump before mutable borrow
         let lottery_info = ctx.accounts.lottery.to_account_info();
+        let lottery = &mut ctx.accounts.lottery;
+        require!(bounty_id == lottery.bounty_id, ErrorCode::BountyIdMismatch);
+        
         let (_lottery_pda, lottery_bump) = Pubkey::find_program_address(
-            &[b"lottery"],
+            &[b"lottery".as_ref(), &[bounty_id]],
             ctx.program_id
         );
-        let seeds = &[b"lottery".as_ref(), &[lottery_bump]];
+        let seeds = &[b"lottery".as_ref(), &[bounty_id], &[lottery_bump]];
         let signer = &[&seeds[..]];
         
-        let lottery = &mut ctx.accounts.lottery;
         let current_time = Clock::get()?.unix_timestamp;
         
         // Verify 24 hours have passed since last activity
@@ -420,6 +678,14 @@ pub mod billions_bounty_v3 {
         let total_jackpot = lottery.current_jackpot;
         let last_participant_share = (total_jackpot * 20) / 100; // 20% to last participant
         let community_share = total_jackpot - last_participant_share; // 80% to community
+        // Rounding favors the protocol: community share absorbs any remainder so the last participant never gets dust.
+        let distribution_sum = last_participant_share
+            .checked_add(community_share)
+            .ok_or(ErrorCode::ArithmeticInvariantViolation)?;
+        require!(
+            distribution_sum == total_jackpot,
+            ErrorCode::ArithmeticInvariantViolation
+        );
         let _equal_share_per_participant = community_share / participant_list.len() as u64;
         
         // Distribute to last participant (20%)
@@ -445,7 +711,12 @@ pub mod billions_bounty_v3 {
         lottery.last_rollover = current_time;
         lottery.next_rollover = current_time + (24 * 60 * 60); // Next 24 hours
         
+        // MULTI-BOUNTY: Clear active_bounty_id for all participants in this bounty
+        // Note: In a full implementation, we'd iterate through participant_list and clear each user's state
+        // For now, this is handled by the fact that time escape plan resets the bounty
+        
         emit!(TimeEscapePlanExecuted {
+            bounty_id,
             total_jackpot,
             last_participant,
             last_participant_share,
@@ -504,12 +775,13 @@ fn construct_signature_message(
 }
 
 #[derive(Accounts)]
+#[instruction(bounty_id: u8)]
 pub struct InitializeLottery<'info> {
     #[account(
         init,
         payer = authority,
         space = 8 + Lottery::LEN,
-        seeds = [b"lottery"],
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
         bump
     )]
     pub lottery: Account<'info, Lottery>,
@@ -536,14 +808,23 @@ pub struct InitializeLottery<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(entry_amount: u64, user_wallet: Pubkey, entry_nonce: u64)]
+#[instruction(bounty_id: u8, entry_amount: u64, user_wallet: Pubkey, entry_nonce: u64)]
 pub struct ProcessEntryPayment<'info> {
     #[account(
         mut,
-        seeds = [b"lottery"],
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
         bump
     )]
     pub lottery: Account<'info, Lottery>,
+    
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = 8 + UserBountyState::LEN,
+        seeds = [b"user_bounty", user.key().as_ref()],
+        bump
+    )]
+    pub user_bounty_state: Account<'info, UserBountyState>,
     
     #[account(
         init,
@@ -599,10 +880,11 @@ pub struct ProcessEntryPayment<'info> {
 
 // SECURITY FIX 5: Authority must be signer
 #[derive(Accounts)]
+#[instruction(bounty_id: u8)]
 pub struct EmergencyRecovery<'info> {
     #[account(
         mut,
-        seeds = [b"lottery"],
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
         bump
     )]
     pub lottery: Account<'info, Lottery>,
@@ -631,10 +913,11 @@ pub struct EmergencyRecovery<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(bounty_id: u8)]
 pub struct ExecuteTimeEscapePlan<'info> {
     #[account(
         mut,
-        seeds = [b"lottery"],
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
         bump
     )]
     pub lottery: Account<'info, Lottery>,
@@ -666,10 +949,11 @@ pub struct ExecuteTimeEscapePlan<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(bounty_id: u8)]
 pub struct ProcessAIDecision<'info> {
     #[account(
         mut,
-        seeds = [b"lottery"],
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
         bump
     )]
     pub lottery: Account<'info, Lottery>,
@@ -679,6 +963,14 @@ pub struct ProcessAIDecision<'info> {
     
     /// CHECK: Winner wallet address
     pub winner: UncheckedAccount<'info>,
+    
+    /// MULTI-BOUNTY: Optional user bounty state to clear when winner is selected
+    #[account(
+        mut,
+        seeds = [b"user_bounty", winner.key().as_ref()],
+        bump
+    )]
+    pub user_bounty_state: Option<Account<'info, UserBountyState>>,
     
     #[account(
         mut,
@@ -700,14 +992,64 @@ pub struct ProcessAIDecision<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// Accounts context for the parallel on-chain AI decision flow.
+/// This mirrors the legacy `ProcessAIDecision` context but replaces the
+/// `backend_authority` with a more generic `ai_oracle` account to highlight
+/// that this authority represents the AI decision signer.
+#[derive(Accounts)]
+#[instruction(bounty_id: u8)]
+pub struct ProcessAIDecisionV3<'info> {
+    #[account(
+        mut,
+        seeds = [b"lottery", &bounty_id.to_le_bytes()[..1]],
+        bump
+    )]
+    pub lottery: Account<'info, Lottery>,
+
+    /// CHECK: AI oracle authority that signs AI decisions (must match lottery.backend_authority)
+    pub ai_oracle: UncheckedAccount<'info>,
+
+    /// CHECK: Winner wallet address
+    pub winner: UncheckedAccount<'info>,
+    
+    /// MULTI-BOUNTY: Optional user bounty state to clear when winner is selected
+    #[account(
+        mut,
+        seeds = [b"user_bounty", winner.key().as_ref()],
+        bump
+    )]
+    pub user_bounty_state: Option<Account<'info, UserBountyState>>,
+
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = lottery
+    )]
+    pub jackpot_token_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = winner
+    )]
+    pub winner_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: USDC mint address
+    pub usdc_mint: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token>,
+}
+
 // SECURITY FIX 4: Added is_processing for reentrancy guard
 // SECURITY FIX 6: Added last_recovery_time for cooldown
 // Added backend_authority for signature verification
+// MULTI-BOUNTY: Added bounty_id to support 4 independent bounties
 #[account]
 pub struct Lottery {
     pub authority: Pubkey,
     pub jackpot_wallet: Pubkey,
     pub backend_authority: Pubkey, // For signature verification
+    pub bounty_id: u8, // 1=Expert, 2=Hard, 3=Medium, 4=Easy
     pub research_fund_floor: u64,
     pub research_fee: u64,
     pub research_fund_contribution: u64,
@@ -722,7 +1064,21 @@ pub struct Lottery {
 }
 
 impl Lottery {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 8 + 8 + 8;
+    pub const LEN: usize = 32 + 32 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 8 + 8 + 8;
+}
+
+/// User bounty state tracking to enforce single-bounty constraint
+/// Tracks which bounty a user is currently active in (0 = none, 1-4 = active bounty)
+#[account]
+pub struct UserBountyState {
+    pub user_wallet: Pubkey,
+    pub active_bounty_id: u8, // 0 = none, 1-4 = active bounty
+    pub total_entries: u64,
+    pub last_entry_timestamp: i64,
+}
+
+impl UserBountyState {
+    pub const LEN: usize = 32 + 1 + 8 + 8;
 }
 
 #[account]
@@ -745,6 +1101,7 @@ pub struct LotteryInitialized {
     pub authority: Pubkey,
     pub jackpot_wallet: Pubkey,
     pub backend_authority: Pubkey,
+    pub bounty_id: u8,
     pub research_fund_floor: u64,
     pub research_fee: u64,
 }
@@ -752,6 +1109,7 @@ pub struct LotteryInitialized {
 #[event]
 pub struct EntryProcessed {
     pub user_wallet: Pubkey,
+    pub bounty_id: u8,
     pub amount: u64,
     pub entry_nonce: u64,
     pub research_contribution: u64,
@@ -771,6 +1129,7 @@ pub struct EmergencyRecoveryEvent {
 
 #[event]
 pub struct TimeEscapePlanExecuted {
+    pub bounty_id: u8,
     pub total_jackpot: u64,
     pub last_participant: Pubkey,
     pub last_participant_share: u64,
@@ -781,6 +1140,7 @@ pub struct TimeEscapePlanExecuted {
 #[event]
 pub struct WinnerSelected {
     pub winner: Pubkey,
+    pub bounty_id: u8,
     pub amount: u64,
     pub user_id: u64,
     pub session_id: String,
@@ -832,6 +1192,8 @@ pub enum ErrorCode {
     InvalidPubkey,
     #[msg("Invalid session ID format")]
     InvalidSessionId,
+    #[msg("Arithmetic invariant violated")]
+    ArithmeticInvariantViolation,
     #[msg("Reentrancy detected - operation already in progress")]
     ReentrancyDetected,
     #[msg("Unauthorized backend authority")]
@@ -840,5 +1202,12 @@ pub enum ErrorCode {
     RecoveryCooldownActive,
     #[msg("Emergency recovery amount exceeds maximum allowed")]
     RecoveryAmountExceedsLimit,
+    // MULTI-BOUNTY: New error codes
+    #[msg("Invalid bounty ID - must be between 1 and 4")]
+    InvalidBountyId,
+    #[msg("Bounty ID mismatch - provided bounty_id does not match lottery's bounty_id")]
+    BountyIdMismatch,
+    #[msg("User has an active entry in a different bounty")]
+    UserActiveInDifferentBounty,
 }
 

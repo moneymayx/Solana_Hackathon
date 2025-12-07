@@ -8,17 +8,17 @@ skip-lint = false
 [programs.devnet]
 billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 billions_bounty_v2 = "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"
-billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+billions_bounty_v3 = "7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh"
 
 [programs.localnet]
 billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 billions_bounty_v2 = "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"
-billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+billions_bounty_v3 = "7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh"
 
 [programs.mainnet]
 billions_bounty = "4ZGXVxuYtaWE3Px4MRingBGSH1EhotBAsFFruhVQMvJK"
 billions_bounty_v2 = "HDAfSw1n9o9iZynfEP54tnCf2KRa2cPVFnpTRFtM7Cfm"
-billions_bounty_v3 = "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov"
+billions_bounty_v3 = "7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh"
 
 [registry]
 url = "https://api.apr.dev"

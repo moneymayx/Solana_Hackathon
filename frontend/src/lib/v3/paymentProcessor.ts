@@ -24,7 +24,7 @@ import { Buffer } from "buffer";
 // V3 Contract Configuration
 const PROGRAM_ID = new PublicKey(
   process.env.NEXT_PUBLIC_LOTTERY_PROGRAM_ID_V3 ||
-    "52TDnXrrGRVGsTv6uE4a6cCs2YvELhe4hrtDt5dHoKov" // Updated: New V3 program ID deployed 2024
+    "7ZK2wtatnS8aqxCPt43pfLeUZGRqx5ucXXeZUngEboNh" // V3 Multi-Bounty program ID
 );
 
 const USDC_MINT = new PublicKey(

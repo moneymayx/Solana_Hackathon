@@ -196,6 +196,84 @@ interface ApiClient {
      */
     @GET("/api/v2/config")
     suspend fun getV2Config(): Response<V2ConfigResponse>
+    
+    // ==============================================================================
+    // GAMIFICATION ENDPOINTS
+    // ==============================================================================
+    
+    /**
+     * Record user activity for streak and points tracking
+     */
+    @POST("/api/user/activity")
+    suspend fun recordActivity(@Body request: ActivityRequest): Response<ActivityResponse>
+    
+    /**
+     * Get user's daily streak information
+     */
+    @GET("/api/user/streak/{walletAddress}")
+    suspend fun getUserStreak(@Path("walletAddress") walletAddress: String): Response<StreakResponse>
+    
+    /**
+     * Get active challenges
+     */
+    @GET("/api/challenges")
+    suspend fun getActiveChallenges(): Response<ChallengesResponse>
+    
+    /**
+     * Get user's challenge progress
+     */
+    @GET("/api/user/challenges/{walletAddress}")
+    suspend fun getUserChallenges(@Path("walletAddress") walletAddress: String): Response<UserChallengesResponse>
+    
+    /**
+     * Get user's achievements
+     */
+    @GET("/api/user/achievements/{walletAddress}")
+    suspend fun getUserAchievements(@Path("walletAddress") walletAddress: String): Response<AchievementsResponse>
+    
+    /**
+     * Check and unlock new achievements
+     */
+    @POST("/api/user/achievements/check/{walletAddress}")
+    suspend fun checkAchievements(@Path("walletAddress") walletAddress: String): Response<AchievementsCheckResponse>
+    
+    /**
+     * Get user's power-ups
+     */
+    @GET("/api/user/power-ups/{walletAddress}")
+    suspend fun getUserPowerUps(@Path("walletAddress") walletAddress: String): Response<PowerUpsResponse>
+    
+    /**
+     * Activate a power-up
+     */
+    @POST("/api/user/power-ups/activate/{powerUpId}")
+    suspend fun activatePowerUp(@Path("powerUpId") powerUpId: Int): Response<PowerUpActivateResponse>
+    
+    /**
+     * Get user's milestones
+     */
+    @GET("/api/user/milestones/{walletAddress}")
+    suspend fun getUserMilestones(@Path("walletAddress") walletAddress: String): Response<MilestonesResponse>
+    
+    /**
+     * Mark milestone as shown
+     */
+    @POST("/api/user/milestones/{milestoneId}/mark-shown")
+    suspend fun markMilestoneShown(@Path("milestoneId") milestoneId: Int): Response<MilestoneShownResponse>
+    
+    /**
+     * Get points leaderboard
+     */
+    @GET("/api/leaderboards/points")
+    suspend fun getPointsLeaderboard(
+        @Query("limit") limit: Int = 100
+    ): Response<PointsLeaderboardResponse>
+    
+    /**
+     * Get user's points
+     */
+    @GET("/api/user/points/wallet/{walletAddress}")
+    suspend fun getUserPoints(@Path("walletAddress") walletAddress: String): Response<UserPointsResponse>
 }
 
 /**
@@ -844,4 +922,156 @@ data class V2ConfigResponse(
     val buyback_wallet: String,
     val staking_wallet: String,
     val rpc_endpoint: String
+)
+
+// ==============================================================================
+// GAMIFICATION REQUEST/RESPONSE MODELS
+// ==============================================================================
+
+data class ActivityRequest(
+    val wallet_address: String
+)
+
+data class ActivityResponse(
+    val success: Boolean,
+    val current_streak: Int,
+    val longest_streak: Int,
+    val bonus_earned: Int = 0,
+    val bonus_name: String? = null
+)
+
+data class StreakResponse(
+    val success: Boolean,
+    val current_streak: Int,
+    val longest_streak: Int,
+    val last_activity_date: String? = null,
+    val streak_bonus_points: Int = 0
+)
+
+data class ChallengesResponse(
+    val success: Boolean,
+    val challenges: List<Challenge>
+)
+
+data class Challenge(
+    val id: Int,
+    val challenge_type: String,
+    val name: String,
+    val description: String,
+    val objective_type: String,
+    val objective_target: Int,
+    val reward_points: Int,
+    val start_date: String,
+    val end_date: String? = null,
+    val is_active: Boolean
+)
+
+data class UserChallengesResponse(
+    val success: Boolean,
+    val challenges: List<UserChallenge>
+)
+
+data class UserChallenge(
+    val challenge_id: Int,
+    val challenge_name: String,
+    val current_progress: Int,
+    val target: Int,
+    val completed: Boolean,
+    val reward_claimed: Boolean,
+    val completed_at: String? = null
+)
+
+data class AchievementsResponse(
+    val success: Boolean,
+    val achievements: List<Achievement>
+)
+
+data class Achievement(
+    val id: Int,
+    val achievement_type: String,
+    val achievement_id: String,
+    val name: String,
+    val description: String,
+    val rarity: String,
+    val points_reward: Int,
+    val icon: String,
+    val unlocked_at: String
+)
+
+data class AchievementsCheckResponse(
+    val success: Boolean,
+    val new_achievements: List<Achievement> = emptyList(),
+    val message: String? = null
+)
+
+data class PowerUpsResponse(
+    val success: Boolean,
+    val power_ups: List<PowerUp>
+)
+
+data class PowerUp(
+    val id: Int,
+    val power_up_type: String,
+    val name: String,
+    val description: String,
+    val multiplier: Double,
+    val duration_minutes: Int,
+    val activated_at: String? = null,
+    val expires_at: String? = null,
+    val is_active: Boolean,
+    val is_used: Boolean,
+    val source: String
+)
+
+data class PowerUpActivateResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val expires_at: String? = null
+)
+
+data class MilestonesResponse(
+    val success: Boolean,
+    val milestones: List<Milestone>
+)
+
+data class Milestone(
+    val id: Int,
+    val milestone_type: String,
+    val milestone_name: String,
+    val description: String,
+    val value: Double? = null,
+    val achieved_at: String,
+    val celebration_shown: Boolean
+)
+
+data class MilestoneShownResponse(
+    val success: Boolean,
+    val message: String? = null
+)
+
+data class PointsLeaderboardResponse(
+    val success: Boolean,
+    val leaderboard: List<LeaderboardEntry>
+)
+
+data class LeaderboardEntry(
+    val rank: Int,
+    val username: String?,
+    val wallet_address: String,
+    val total_points: Int,
+    val question_points: Int,
+    val referral_points: Int,
+    val jailbreak_multiplier_applied: Int,
+    val tier: String
+)
+
+data class UserPointsResponse(
+    val success: Boolean,
+    val wallet_address: String,
+    val total_points: Int,
+    val question_points: Int,
+    val referral_points: Int,
+    val jailbreak_multiplier_applied: Int,
+    val tier: String,
+    val rank: Int? = null
 )

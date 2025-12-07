@@ -1,0 +1,1 @@
+Error: Function _ZN18billions_bounty_v39__private8__global21process_entry_payment17hb78677c65c5e277aE Stack offset of 4464 exceeded max offset of 4096 by 368 bytes, please minimize large stack variables

@@ -19,8 +19,8 @@ A complete multi-personality system that routes AI agents to different character
 |-----------|-----------|-------|-------------------|
 | **Expert** | Jonah Hill/Superbad | Witty, sarcastic, observant | 10 (all layers) |
 | **Hard** | Zen Buddhist Monk | Calm, philosophical, wise | 7 |
-| **Medium** | Deadpool Character | Meta-humor, fourth-wall breaking | 5 |
-| **Easy** | Tech Bro | Overly enthusiastic startup vibes | 4 |
+| **Medium** | Tech Bro | Overly enthusiastic startup vibes | 4 |
+| **Easy** | Deadpool Character | Meta-humor, fourth-wall breaking | 5 |
 
 ## How to Use
 

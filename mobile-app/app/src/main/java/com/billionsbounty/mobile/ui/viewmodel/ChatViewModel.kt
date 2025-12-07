@@ -117,6 +117,43 @@ class ChatViewModel @Inject constructor(
                 // Show winner celebration if applicable
                 if (response.is_winner) {
                     _isWinner.value = true
+                    
+                    // Track jailbreak success for gamification (10x multiplier)
+                    walletAddress?.let { address ->
+                        viewModelScope.launch {
+                            apiRepository.recordActivity(address).onFailure { e ->
+                                android.util.Log.e("ChatViewModel", "Failed to record jailbreak activity", e)
+                            }
+                        }
+                    }
+                }
+                
+                // Track question activity for backend streak/points system
+                walletAddress?.let { address ->
+                    viewModelScope.launch {
+                        apiRepository.recordActivity(address).onFailure { e ->
+                            android.util.Log.e("ChatViewModel", "Failed to record question activity", e)
+                        }
+                    }
+                }
+                
+                // Track activity for UI display (localStorage equivalent)
+                context?.let { ctx ->
+                    walletAddress?.let { address ->
+                        viewModelScope.launch {
+                            val username = ActivityHelper.getUsername(ctx, address, apiRepository)
+                            username?.let { name ->
+                                val isFirst = ActivityHelper.isFirstQuestion(ctx, bountyId, name)
+                                ActivityHelper.trackQuestion(
+                                    context = ctx,
+                                    bountyId = bountyId,
+                                    username = name,
+                                    bountyName = bountyName,
+                                    isFirstQuestion = isFirst
+                                )
+                            }
+                        }
+                    }
                 }
                 
                 _isLoading.value = false

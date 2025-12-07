@@ -86,6 +86,18 @@ export default function TopNavigation() {
                 >
                   Analytics
                 </Link>
+                <Link 
+                  href="/leaderboard"
+                  className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                >
+                  🏆 Leaderboard
+                </Link>
+                <Link 
+                  href="/gamification"
+                  className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+                >
+                  🎮 Gamification
+                </Link>
                 <a 
                   href="https://100billioncapital.com/"
                   target="_blank"

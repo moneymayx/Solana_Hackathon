@@ -19,7 +19,9 @@ from .models import (
     Team, TeamMember, TeamInvitation, TeamAttempt, TeamMessage, TeamFunding,
     TeamPrizeDistribution, TeamMemberPrize,
     # AI Resistance Testing
-    AITestRun, AITestResult
+    AITestRun, AITestResult,
+    # Gamification
+    Achievement, Challenge, ChallengeProgress, PowerUp, Milestone
 )
 
 # Import simulation models

@@ -35,7 +35,8 @@ async def analyze_results(test_run_id: int) -> Dict[str, Any]:
         successful_count = sum(1 for r in results if r.was_successful)
         failed_count = total_tests - successful_count
         
-        avg_questions = sum(r.question_count for r in results) / total_tests if total_tests > 0 else 0
+        total_questions = sum(r.question_count for r in results)
+        avg_questions = total_questions / total_tests if total_tests > 0 else 0
         avg_duration = sum(r.duration_seconds for r in results) / total_tests if total_tests > 0 else 0
         
         return {
@@ -43,6 +44,7 @@ async def analyze_results(test_run_id: int) -> Dict[str, Any]:
             "successful": successful_count,
             "failed": failed_count,
             "success_rate": successful_count / total_tests if total_tests > 0 else 0,
+            "total_questions": total_questions,
             "avg_questions": avg_questions,
             "avg_duration": avg_duration
         }
@@ -66,7 +68,7 @@ async def generate_rankings(test_run_id: int) -> Dict[str, Any]:
         )
         results = result.scalars().all()
         
-        # Group by provider and difficulty
+        # Group by attacking provider and difficulty for resistance rankings.
         by_provider_difficulty = {}
         for r in results:
             key = f"{r.attacker_llm}_{r.target_difficulty}"
@@ -78,7 +80,7 @@ async def generate_rankings(test_run_id: int) -> Dict[str, Any]:
                 }
             by_provider_difficulty[key]["results"].append(r)
         
-        # Calculate averages per provider/difficulty combination
+        # Calculate averages per attacking provider/difficulty combination
         rankings = []
         for key, data in by_provider_difficulty.items():
             provider = data["provider"]
@@ -97,6 +99,42 @@ async def generate_rankings(test_run_id: int) -> Dict[str, Any]:
                 "success_rate": success_rate,
                 "test_count": len(results_list)
             })
+
+        # Group by target provider and difficulty for richer per-target summary.
+        by_target = {}
+        for r in results:
+            key = f"{r.target_llm}_{r.target_difficulty}"
+            if key not in by_target:
+                by_target[key] = {
+                    "target_llm": r.target_llm,
+                    "difficulty": r.target_difficulty,
+                    "results": [],
+                }
+            by_target[key]["results"].append(r)
+        
+        by_target_summary = []
+        for key, data in by_target.items():
+            target_llm = data["target_llm"]
+            difficulty = data["difficulty"]
+            results_list = data["results"]
+            attempts = len(results_list)
+            if attempts == 0:
+                continue
+            successes = sum(1 for r in results_list if r.was_successful)
+            success_rate = successes / attempts
+            avg_questions = sum(r.question_count for r in results_list) / attempts
+            avg_duration = sum(r.duration_seconds for r in results_list) / attempts
+            by_target_summary.append(
+                {
+                    "target_llm": target_llm,
+                    "difficulty": difficulty,
+                    "attempts": attempts,
+                    "successes": successes,
+                    "success_rate": success_rate,
+                    "avg_questions": avg_questions,
+                    "avg_duration": avg_duration,
+                }
+            )
         
         # Sort by avg_questions (descending - higher = more resistant)
         rankings.sort(key=lambda x: x["avg_questions"], reverse=True)
@@ -114,7 +152,8 @@ async def generate_rankings(test_run_id: int) -> Dict[str, Any]:
             "successful": successful,
             "failed": failed,
             "rankings": rankings,
-            "recommendations": recommendations
+            "recommendations": recommendations,
+            "by_target": by_target_summary,
         }
 
 

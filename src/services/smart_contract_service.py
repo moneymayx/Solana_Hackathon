@@ -283,8 +283,23 @@ class SmartContractService:
         """
         Process a lottery entry through the smart contract.
         This replaces the backend fund routing system.
+        MULTI-BOUNTY: Maps difficulty level to bounty_id and routes to correct lottery.
         """
         try:
+            # MULTI-BOUNTY: Extract and map difficulty to bounty_id
+            # Bounty ID mapping: 1=Expert, 2=Hard, 3=Medium, 4=Easy
+            difficulty = payment_data.get("difficulty", payment_data.get("difficulty_level", "medium")).lower()
+            bounty_id_map = {
+                "expert": 1,
+                "hard": 2,
+                "medium": 3,
+                "easy": 4
+            }
+            bounty_id = bounty_id_map.get(difficulty, 3)  # Default to medium if unknown
+            
+            logger.info(f"🎫 Processing lottery entry (MULTI-BOUNTY): ${entry_amount} from {user_wallet}")
+            logger.info(f"   Difficulty: {difficulty} -> Bounty ID: {bounty_id}")
+            
             # Validate entry amount (warn but don't block)
             # Convert entry_amount (USD) to USDC units for comparison
             entry_amount_usdc = int(entry_amount * 1_000_000)
@@ -298,7 +313,6 @@ class SmartContractService:
             jackpot_contribution = entry_amount * self.bounty_pool_contribution_rate
             buyback_amount = entry_amount * self.buyback_rate
             
-            logger.info(f"🎫 Processing lottery entry: ${entry_amount} from {user_wallet}")
             logger.info(f"   Jackpot (60%): ${jackpot_contribution:.2f}")
             logger.info(f"   Buyback (40%): ${buyback_amount:.2f} -> 100Bs buy-and-burn")
             
@@ -316,7 +330,9 @@ class SmartContractService:
                 return {"success": False, "error": "Failed to record lottery entry"}
             
             # Call smart contract to process entry and lock funds
+            # MULTI-BOUNTY: Pass bounty_id to contract adapter
             contract_result = await self._call_smart_contract_entry(
+                bounty_id,
                 user_wallet,
                 entry_amount,
                 jackpot_contribution,
@@ -341,7 +357,9 @@ class SmartContractService:
                     "operational_fee": buyback_amount,
                     "buyback_amount": buyback_amount,
                     "staking_amount": 0.0,
-                    "funds_locked": True
+                    "funds_locked": True,
+                    "bounty_id": bounty_id,  # MULTI-BOUNTY: Include bounty_id in response
+                    "difficulty": difficulty
                 }
             else:
                 # Mark entry as failed
@@ -615,6 +633,7 @@ class SmartContractService:
     
     async def _call_smart_contract_entry(
         self, 
+        bounty_id: int,
         user_wallet: str, 
         entry_amount: float,
         bounty_contribution: float,
@@ -622,17 +641,56 @@ class SmartContractService:
     ) -> Dict[str, Any]:
         """
         Call smart contract to process entry and lock funds.
+        MULTI-BOUNTY: Routes to correct bounty lottery PDA.
         In production, this would use the Anchor client.
         """
         try:
-            # Simulate smart contract call
-            # In production, this would:
-            # 1. Create transaction with process_entry_payment instruction
-            # 2. Sign with user's keypair
-            # 3. Send to Solana network
-            # 4. Wait for confirmation
+            # MULTI-BOUNTY: Use V3 adapter if available (supports multi-bounty)
+            if self._using_v3 and self._v3_adapter:
+                from solders.pubkey import Pubkey as SolPubkey
+                from solders.keypair import Keypair
+                
+                # Convert user_wallet string to Pubkey
+                user_pubkey = SolPubkey.from_string(user_wallet)
+                
+                # For now, create a dummy keypair (in production, user would sign)
+                # This is a placeholder - actual implementation would use user's keypair
+                dummy_keypair = Keypair()
+                
+                # Convert entry_amount to USDC units (6 decimals)
+                entry_amount_usdc = int(entry_amount * 1_000_000)
+                
+                logger.info(f"🔗 Calling V3 smart contract: process_entry_payment (MULTI-BOUNTY)")
+                logger.info(f"   Bounty ID: {bounty_id}")
+                logger.info(f"   User: {user_wallet}")
+                logger.info(f"   Amount: ${entry_amount} ({entry_amount_usdc} USDC units)")
+                
+                # Call V3 adapter with bounty_id
+                result = await self._v3_adapter.process_entry_payment(
+                    bounty_id=bounty_id,
+                    entry_amount=entry_amount_usdc,
+                    user_wallet=user_pubkey,
+                    user_keypair=dummy_keypair,
+                )
+                
+                if result.get("success"):
+                    return {
+                        "success": True,
+                        "transaction_signature": result.get("transaction_signature", f"v3_tx_{int(datetime.utcnow().timestamp())}"),
+                        "funds_locked": True,
+                        "bounty_contribution": bounty_contribution,
+                        "operational_fee": buyback_amount,
+                        "buyback_amount": buyback_amount,
+                        "bounty_id": bounty_id,
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": result.get("error", "V3 contract call failed"),
+                    }
             
-            logger.info(f"🔗 Calling smart contract: process_entry_payment")
+            # Fallback for V1/V2 (legacy - single lottery)
+            logger.info(f"🔗 Calling smart contract: process_entry_payment (legacy)")
             logger.info(f"   User: {user_wallet}")
             logger.info(f"   Amount: ${entry_amount}")
             

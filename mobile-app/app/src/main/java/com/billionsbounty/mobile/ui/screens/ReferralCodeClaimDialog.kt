@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.billionsbounty.mobile.data.repository.ApiRepository
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 /**
  * Dialog for claiming referral code
@@ -229,6 +230,11 @@ fun ReferralCodeClaimDialog(
                                         success = true
                                         receiverQuestions = data.receiver_questions
                                         referrerQuestions = data.referrer_questions
+                                        
+                                        // Track referral activity for gamification (2 points per referral)
+                                        repository.recordActivity(walletAddress).onFailure { e ->
+                                            android.util.Log.e("ReferralCodeClaimDialog", "Failed to record referral activity", e)
+                                        }
                                     } else {
                                         error = data?.detail ?: data?.error ?: "Failed to claim referral code"
                                     }

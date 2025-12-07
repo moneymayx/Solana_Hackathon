@@ -37,6 +37,19 @@ class User(Base):
     wallet_signature: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Store wallet signature for verification
     display_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Optional display name
     
+    # Gamification points system
+    total_points: Mapped[int] = mapped_column(Integer, default=0)  # Total gamification points
+    question_points: Mapped[int] = mapped_column(Integer, default=0)  # Points from questions (1 per question)
+    referral_points: Mapped[int] = mapped_column(Integer, default=0)  # Points from referrals (2 per referral)
+    jailbreak_multiplier_applied: Mapped[int] = mapped_column(Integer, default=0)  # Number of 10x multipliers applied
+    last_points_update: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Daily streak system
+    current_streak: Mapped[int] = mapped_column(Integer, default=0)  # Current consecutive days
+    longest_streak: Mapped[int] = mapped_column(Integer, default=0)  # Best streak ever achieved
+    last_activity_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Last day with activity
+    streak_bonus_points: Mapped[int] = mapped_column(Integer, default=0)  # Total bonus points from streaks
+    
     # NFT verification fields
     nft_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     nft_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -997,3 +1010,104 @@ class AITestResult(Base):
     
     # Relationships
     test_run: Mapped["AITestRun"] = relationship("AITestRun")
+
+
+# ===========================
+# GAMIFICATION MODELS
+# ===========================
+
+class Achievement(Base):
+    """User achievements and badges"""
+    __tablename__ = "achievements"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    achievement_type: Mapped[str] = mapped_column(String(50))  # 'points', 'jailbreak', 'referral', 'streak', etc.
+    achievement_id: Mapped[str] = mapped_column(String(100))  # 'first_break', 'point_collector_100', etc.
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    rarity: Mapped[str] = mapped_column(String(20), default="common")  # 'common', 'rare', 'epic', 'legendary'
+    points_reward: Mapped[int] = mapped_column(Integer, default=0)  # Bonus points for unlocking
+    icon: Mapped[str] = mapped_column(String(10), default="🏅")  # Emoji icon
+    unlocked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+class Challenge(Base):
+    """Challenges/Quests that users can complete"""
+    __tablename__ = "challenges"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    challenge_type: Mapped[str] = mapped_column(String(20))  # 'daily', 'weekly', 'event'
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    objective_type: Mapped[str] = mapped_column(String(50))  # 'questions', 'referrals', 'jailbreaks', 'points', 'streak'
+    objective_target: Mapped[int] = mapped_column(Integer)  # Target number to reach
+    reward_points: Mapped[int] = mapped_column(Integer, default=0)
+    start_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    end_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    progress: Mapped[list["ChallengeProgress"]] = relationship("ChallengeProgress", back_populates="challenge", cascade="all, delete-orphan")
+
+
+class ChallengeProgress(Base):
+    """User progress on challenges"""
+    __tablename__ = "challenge_progress"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    challenge_id: Mapped[int] = mapped_column(Integer, ForeignKey("challenges.id"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    current_progress: Mapped[int] = mapped_column(Integer, default=0)
+    target: Mapped[int] = mapped_column(Integer)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reward_claimed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    challenge: Mapped["Challenge"] = relationship("Challenge", back_populates="progress")
+    user: Mapped["User"] = relationship("User")
+
+
+class PowerUp(Base):
+    """User power-ups and boosts"""
+    __tablename__ = "power_ups"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    power_up_type: Mapped[str] = mapped_column(String(50))  # 'double_points', 'streak_shield', 'referral_boost', etc.
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    multiplier: Mapped[float] = mapped_column(Float, default=1.0)  # Multiplier effect
+    duration_minutes: Mapped[int] = mapped_column(Integer)  # How long it lasts
+    activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    source: Mapped[str] = mapped_column(String(50), default="earned")  # 'earned', 'purchased', 'gifted', 'challenge'
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+
+
+class Milestone(Base):
+    """User milestones for celebrations"""
+    __tablename__ = "milestones"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
+    milestone_type: Mapped[str] = mapped_column(String(50))  # 'first_100_points', 'first_jailbreak', 'new_tier', etc.
+    milestone_name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Value that triggered milestone (e.g., 100 points)
+    achieved_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    celebration_shown: Mapped[bool] = mapped_column(Boolean, default=False)  # Whether user has seen celebration
+    
+    # Relationships
+    user: Mapped["User"] = relationship("User")

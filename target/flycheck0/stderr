@@ -10,4 +10,4 @@ workspace: /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/Cargo.toml
 warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
 package:   /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/programs/nft-verification/Cargo.toml
 workspace: /Users/jaybrantley/myenv/Hackathon/Billions_Bounty/Cargo.toml
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.76s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.94s

@@ -13,6 +13,10 @@ import com.billionsbounty.mobile.ui.screens.DashboardScreen
 import com.billionsbounty.mobile.ui.screens.ReferralScreen
 import com.billionsbounty.mobile.ui.screens.StakingScreen
 import com.billionsbounty.mobile.ui.screens.TeamScreen
+import com.billionsbounty.mobile.ui.screens.GamificationScreen
+import com.billionsbounty.mobile.di.ApiRepositoryEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import androidx.compose.ui.platform.LocalContext
 import com.billionsbounty.mobile.ui.viewmodel.BountyViewModel
 import com.billionsbounty.mobile.ui.viewmodel.ChatViewModel
 import com.billionsbounty.mobile.ui.viewmodel.PaymentViewModel
@@ -27,6 +31,7 @@ sealed class Screen(val route: String) {
     object Referral : Screen("referral")
     object Staking : Screen("staking")
     object Team : Screen("team")
+    object Gamification : Screen("gamification")
 }
 
 @Composable
@@ -63,6 +68,9 @@ fun NavGraph(
                 },
                 onNavigateToTeam = {
                     navController.navigate(Screen.Team.route)
+                },
+                onNavigateToGamification = {
+                    navController.navigate(Screen.Gamification.route)
                 }
             )
         }
@@ -123,6 +131,26 @@ fun NavGraph(
         
         composable(Screen.Team.route) {
             TeamScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(Screen.Gamification.route) {
+            val context = LocalContext.current
+            val apiRepository = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                ApiRepositoryEntryPoint::class.java
+            ).apiRepository()
+            
+            // Get wallet address from wallet adapter or preferences
+            // For now, using a placeholder - you may need to get this from WalletViewModel
+            val walletAddress: String? = null // TODO: Get from WalletViewModel or preferences
+            
+            GamificationScreen(
+                walletAddress = walletAddress,
+                apiRepository = apiRepository,
                 onBackClick = {
                     navController.popBackStack()
                 }

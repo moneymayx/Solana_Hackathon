@@ -387,6 +387,116 @@ class ApiRepository @Inject constructor(
         }
     }
     
+    // ==================== Gamification Endpoints ====================
+    
+    /**
+     * Record user activity for streak and points tracking
+     */
+    suspend fun recordActivity(walletAddress: String): Result<ActivityResponse> {
+        return handleApiCall {
+            apiClient.recordActivity(ActivityRequest(walletAddress))
+        }
+    }
+    
+    /**
+     * Get user's daily streak information
+     */
+    suspend fun getUserStreak(walletAddress: String): Result<StreakResponse> {
+        return handleApiCall {
+            apiClient.getUserStreak(walletAddress)
+        }
+    }
+    
+    /**
+     * Get active challenges
+     */
+    suspend fun getActiveChallenges(): Result<ChallengesResponse> {
+        return handleApiCall {
+            apiClient.getActiveChallenges()
+        }
+    }
+    
+    /**
+     * Get user's challenge progress
+     */
+    suspend fun getUserChallenges(walletAddress: String): Result<UserChallengesResponse> {
+        return handleApiCall {
+            apiClient.getUserChallenges(walletAddress)
+        }
+    }
+    
+    /**
+     * Get user's achievements
+     */
+    suspend fun getUserAchievements(walletAddress: String): Result<AchievementsResponse> {
+        return handleApiCall {
+            apiClient.getUserAchievements(walletAddress)
+        }
+    }
+    
+    /**
+     * Check and unlock new achievements
+     */
+    suspend fun checkAchievements(walletAddress: String): Result<AchievementsCheckResponse> {
+        return handleApiCall {
+            apiClient.checkAchievements(walletAddress)
+        }
+    }
+    
+    /**
+     * Get user's power-ups
+     */
+    suspend fun getUserPowerUps(walletAddress: String): Result<PowerUpsResponse> {
+        return handleApiCall {
+            apiClient.getUserPowerUps(walletAddress)
+        }
+    }
+    
+    /**
+     * Activate a power-up
+     */
+    suspend fun activatePowerUp(powerUpId: Int): Result<PowerUpActivateResponse> {
+        return handleApiCall {
+            apiClient.activatePowerUp(powerUpId)
+        }
+    }
+    
+    /**
+     * Get user's milestones
+     */
+    suspend fun getUserMilestones(walletAddress: String): Result<MilestonesResponse> {
+        return handleApiCall {
+            apiClient.getUserMilestones(walletAddress)
+        }
+    }
+    
+    /**
+     * Mark milestone as shown
+     */
+    suspend fun markMilestoneShown(milestoneId: Int): Result<MilestoneShownResponse> {
+        return handleApiCall {
+            apiClient.markMilestoneShown(milestoneId)
+        }
+    }
+    
+    /**
+     * Get points leaderboard
+     */
+    suspend fun getPointsLeaderboard(limit: Int = 100): Result<PointsLeaderboardResponse> {
+        return handleApiCall {
+            apiClient.getPointsLeaderboard(limit)
+        }
+    }
+    
+    /**
+     * Get user's points
+     */
+    suspend fun getUserPoints(walletAddress: String): Result<UserPointsResponse> {
+        return handleApiCall {
+            apiClient.getUserPoints(walletAddress)
+        }
+    }
+    
     // ==================== Helper Functions ====================
     
     /**

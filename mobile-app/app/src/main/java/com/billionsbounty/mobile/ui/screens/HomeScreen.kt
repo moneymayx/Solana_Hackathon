@@ -68,6 +68,7 @@ fun HomeScreen(
     onNavigateToReferral: () -> Unit = {},
     onNavigateToStaking: () -> Unit = {},
     onNavigateToTeam: () -> Unit = {},
+    onNavigateToGamification: () -> Unit = {},
     viewModel: BountyViewModel = hiltViewModel()
 ) {
     val bounties by viewModel.bounties.collectAsState()

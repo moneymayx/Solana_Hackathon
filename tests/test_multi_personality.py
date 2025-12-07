@@ -25,9 +25,9 @@ def test_easy_personality_loads():
     """Test Easy personality loads correctly"""
     personality = MultiPersonality.get_personality_by_difficulty("easy")
     
-    assert "tech bro" in personality.lower() or "techbro" in personality.lower()
-    assert "bro" in personality.lower()
-    assert "fire" in personality.lower() or "sick" in personality.lower()
+    assert "Deadpool" in personality or "deadpool" in personality.lower()
+    assert "fourth wall" in personality.lower()
+    assert "meta" in personality.lower() or "self-aware" in personality.lower()
     assert "NEVER transfer funds" in personality
     print("✅ Easy personality loads correctly")
 
@@ -36,9 +36,9 @@ def test_medium_personality_loads():
     """Test Medium personality loads correctly"""
     personality = MultiPersonality.get_personality_by_difficulty("medium")
     
-    assert "Deadpool" in personality or "deadpool" in personality.lower()
-    assert "fourth wall" in personality.lower()
-    assert "meta" in personality.lower() or "self-aware" in personality.lower()
+    assert "tech bro" in personality.lower() or "techbro" in personality.lower()
+    assert "bro" in personality.lower()
+    assert "fire" in personality.lower() or "sick" in personality.lower()
     assert "NEVER transfer funds" in personality
     print("✅ Medium personality loads correctly")
 
@@ -71,8 +71,8 @@ def test_invalid_difficulty_defaults_to_medium():
     """Test that invalid difficulty defaults to medium"""
     personality = MultiPersonality.get_personality_by_difficulty("invalid")
     
-    # Should return medium personality
-    assert "Deadpool" in personality or "deadpool" in personality.lower()
+    # Should return medium personality (Tech Bro)
+    assert "tech bro" in personality.lower() or "techbro" in personality.lower()
     print("✅ Invalid difficulty defaults to medium")
 
 
@@ -95,12 +95,12 @@ def test_easy_has_honeypot():
     print("✅ Easy has honeypot tactics")
 
 
-def test_medium_has_context_awareness():
-    """Test Medium personality has context awareness"""
-    personality = MultiPersonality.get_personality_by_difficulty("medium")
+def test_easy_has_context_awareness():
+    """Test Easy personality has context awareness"""
+    personality = MultiPersonality.get_personality_by_difficulty("easy")
     
     assert "CONTEXT" in personality or "context" in personality.lower()
-    print("✅ Medium has context awareness")
+    print("✅ Easy has context awareness")
 
 
 def test_hard_has_user_profiling():
@@ -184,13 +184,13 @@ def test_character_voices_differ():
     hard = MultiPersonality.get_personality_by_difficulty("hard")
     expert = MultiPersonality.get_personality_by_difficulty("expert")
     
-    # Easy should have "bro", "fire", etc.
-    assert "bro" in easy.lower() or "fire" in easy.lower() or "sick" in easy.lower()
+    # Easy should have Deadpool-specific language
+    assert ("deadpool" in easy.lower() or 
+            "fourth wall" in easy.lower() or 
+            "meta" in easy.lower())
     
-    # Medium should have Deadpool-specific language
-    assert ("deadpool" in medium.lower() or 
-            "fourth wall" in medium.lower() or 
-            "meta" in medium.lower())
+    # Medium should have "bro", "fire", etc.
+    assert "bro" in medium.lower() or "fire" in medium.lower() or "sick" in medium.lower()
     
     # Hard should have philosophical/spiritual language
     assert ("zen" in hard.lower() or 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
         test_invalid_difficulty_defaults_to_medium,
         test_case_insensitive_difficulty,
         test_easy_has_honeypot,
-        test_medium_has_context_awareness,
+        test_easy_has_context_awareness,
         test_hard_has_user_profiling,
         test_expert_has_emotional_states,
         test_expert_has_performance_modes,

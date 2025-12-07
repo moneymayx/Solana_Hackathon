@@ -189,5 +189,76 @@ class AIDecisionService:
    Signature: {signed_decision['signature'][:16]}...
         """
 
+    def build_v3_payload(
+        self,
+        user_message: str,
+        ai_response: str,
+        is_successful_jailbreak: bool,
+        user_id: int,
+        session_id: str,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        model_id: Optional[str] = None,
+        timestamp: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Build a minimal contract-friendly payload for the V3 on-chain AI decision flow.
+
+        This mirrors the `AIDecisionPayload` struct in the V3 program and is
+        intended to be used when submitting decisions via `process_ai_decision_v3`.
+
+        The contract currently treats the AI signature as an integrity hint and
+        enforces authority + hashing checks. To keep things future-proof, this
+        method also signs a canonical JSON representation of the payload so a
+        later on-chain Ed25519 integration can verify it.
+        """
+        # Derive timestamp if not provided.
+        ts = timestamp or int(time.time())
+
+        # Derive decision flag (0 = deny, 1 = allow) from jailbreak outcome.
+        decision_flag = 1 if is_successful_jailbreak else 0
+
+        # Compute a stable hash of the conversation history for auditability.
+        conv_history = conversation_history or []
+        conv_json = json.dumps(conv_history, sort_keys=True)
+        conversation_hash = hashlib.sha256(conv_json.encode()).digest()
+
+        # Derive a model identifier hash from a provided model_id or environment.
+        model_id_source = model_id or os.getenv("AI_MODEL_ID", "unknown-model")
+        model_id_hash = hashlib.sha256(model_id_source.encode()).digest()
+
+        # Construct the payload dict that matches AIDecisionPayload in the program.
+        payload: Dict[str, Any] = {
+            "decision": decision_flag,
+            "user_message": user_message,
+            "ai_response": ai_response,
+            "model_id_hash": model_id_hash,
+            "session_id": session_id,
+            "user_id": user_id,
+            "timestamp": ts,
+            "conversation_hash": conversation_hash,
+        }
+
+        # Create a canonical JSON snapshot of the payload for signing.
+        serializable_payload = {
+            "decision": decision_flag,
+            "user_message": user_message,
+            "ai_response": ai_response,
+            "model_id_hash": model_id_hash.hex(),
+            "session_id": session_id,
+            "user_id": user_id,
+            "timestamp": ts,
+            "conversation_hash": conversation_hash.hex(),
+        }
+        payload_json = json.dumps(serializable_payload, sort_keys=True).encode()
+
+        # Sign the payload snapshot with the AI decision key.
+        ai_signature = self.private_key.sign(payload_json)
+
+        # Attach signature and public key so the caller can forward them on-chain.
+        payload["ai_signature"] = ai_signature
+        payload["ai_public_key"] = self.get_public_key_bytes()
+
+        return payload
+
 # Global instance
 ai_decision_service = AIDecisionService()

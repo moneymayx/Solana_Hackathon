@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { Gift, Mail } from 'lucide-react'
 import { getBackendUrl } from '@/lib/api/client'
+import { useActivityTracking } from '@/hooks/useActivityTracking'
 
 interface ReferralCodeClaimProps {
   referralCode: string
@@ -12,6 +13,7 @@ interface ReferralCodeClaimProps {
 
 export default function ReferralCodeClaim({ referralCode, onClaimed }: ReferralCodeClaimProps) {
   const { publicKey } = useWallet()
+  const { recordActivity } = useActivityTracking()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +51,14 @@ export default function ReferralCodeClaim({ referralCode, onClaimed }: ReferralC
 
       if (data.success) {
         alert(`🎉 Success! You now have ${data.receiver_questions} free questions! The person who referred you also got 5 questions!`)
+        
+        // Track referral activity for gamification (2 points per referral)
+        if (publicKey) {
+          recordActivity(publicKey.toString()).catch(err => 
+            console.error('Failed to record referral activity:', err)
+          )
+        }
+        
         onClaimed()
       } else {
         setError(data.detail || data.error || 'Failed to claim referral code')

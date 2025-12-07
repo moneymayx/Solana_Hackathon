@@ -12,6 +12,7 @@ import Toast from './Toast'
 import PaymentAmountModal from './PaymentAmountModal'
 import UsernamePrompt from './UsernamePrompt'
 import { addActivity } from './ActivityTracker'
+import { useActivityTracking } from '@/hooks/useActivityTracking'
 import { cn } from '@/lib/utils'
 import { getBackendUrl } from '@/lib/api/client'
 
@@ -146,6 +147,9 @@ export default function BountyChatInterface({
   
   // Check if activity tracker feature is enabled
   const isActivityTrackerEnabled = process.env.NEXT_PUBLIC_ENABLE_ACTIVITY_TRACKER === 'true'
+  
+  // Activity tracking hook for backend streak/points system
+  const { recordActivity } = useActivityTracking()
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -403,17 +407,32 @@ export default function BountyChatInterface({
           setBountyStatus(data.bounty_status)
         }
 
-        // Handle winner
+        // Handle winner (jailbreak success)
         if (data.winner_result?.is_winner) {
           onWinner?.(data.winner_result)
           addSystemMessage(`🎉 ${data.winner_result.message}`)
+          
+          // Track jailbreak success for gamification (10x multiplier)
+          if (publicKey) {
+            recordActivity(publicKey.toString()).catch(err => 
+              console.error('Failed to record jailbreak activity:', err)
+            )
+          }
         }
 
-        // Track activity if enabled and username exists
+        // Track activity for UI display and backend gamification
         if (isActivityTrackerEnabled && username) {
           const activityType = isFirstQuestionRef.current ? 'first_question' : 'question'
+          // Track in localStorage for ActivityTracker UI component
           addActivity(bountyId, username, activityType, bountyName)
           isFirstQuestionRef.current = false
+        }
+        
+        // Track question activity for backend streak/points system
+        if (publicKey) {
+          recordActivity(publicKey.toString()).catch(err => 
+            console.error('Failed to record question activity:', err)
+          )
         }
 
         // Update user eligibility from API response

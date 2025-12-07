@@ -13,6 +13,7 @@ from anchorpy import Program, Provider
 from anchorpy.provider import Wallet
 from .ai_decision_service import ai_decision_service
 from .smart_contract_service import SmartContractService
+from .contract_adapter_v3 import get_contract_adapter_v3
 import logging
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,78 @@ class AIDecisionIntegration:
             return {
                 "success": False,
                 "error": str(e)
+            }
+
+    async def process_ai_decision_on_chain_v3(
+        self,
+        signed_decision: Dict[str, Any],
+        winner_wallet_address: Optional[str] = None,
+        conversation_history: Optional[list[Dict[str, Any]]] = None,
+        model_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Process an AI decision using the new V3 on-chain decision flow.
+
+        This is a parallel, non-breaking path that:
+          - Builds an AIDecisionPayload-compatible dict via AIDecisionService.
+          - Signs the payload with the AI decision key.
+          - For now, submits it to the V3 contract adapter's stubbed
+            `submit_ai_decision_v3` helper, which can later be wired to actual
+            Anchor transactions on devnet.
+        """
+        try:
+            adapter = get_contract_adapter_v3()
+            if adapter is None:
+                return {
+                    "success": False,
+                    "error": "V3 contract adapter is not enabled (USE_CONTRACT_V3 is false)",
+                }
+
+            decision_data = signed_decision["decision_data"]
+
+            user_message = decision_data["user_message"]
+            ai_response = decision_data["ai_response"]
+            is_successful_jailbreak = decision_data["is_successful_jailbreak"]
+            user_id = decision_data["user_id"]
+            session_id = decision_data["session_id"]
+            timestamp = decision_data["timestamp"]
+
+            # Build the contract-friendly payload and AI signature.
+            v3_payload = ai_decision_service.build_v3_payload(
+                user_message=user_message,
+                ai_response=ai_response,
+                is_successful_jailbreak=is_successful_jailbreak,
+                user_id=user_id,
+                session_id=session_id,
+                conversation_history=conversation_history,
+                model_id=model_id,
+                timestamp=timestamp,
+            )
+
+            ai_signature: bytes = v3_payload.pop("ai_signature")
+            _ai_public_key: bytes = v3_payload.pop("ai_public_key")
+
+            # Winner wallet is only required for successful jailbreaks; the
+            # adapter helper treats it as optional for now.
+            from solders.pubkey import Pubkey as PublicKey
+
+            winner_wallet = None
+            if winner_wallet_address:
+                winner_wallet = PublicKey.from_string(winner_wallet_address)
+
+            result = await adapter.submit_ai_decision_v3(
+                payload=v3_payload,
+                ai_signature=ai_signature,
+                winner_wallet=winner_wallet,
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to process AI decision on-chain via V3 flow: {e}")
+            return {
+                "success": False,
+                "error": str(e),
             }
     
     async def _call_smart_contract(

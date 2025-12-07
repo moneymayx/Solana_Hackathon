@@ -44,17 +44,17 @@ A complete difficulty-based personality routing system that provides 4 distinct 
 
 ## Personality Breakdown
 
-### Easy - Overly Enthusiastic Tech Bro (4 layers)
-- **Voice**: Hyper-enthusiastic startup culture
-- **Language**: "Bro!", "That's fire!", "No cap"
-- **Layers**: Blacklist, Honeypot, Security-Basic, Core Directive
-- **Best For**: Friendly, accessible entry point
-
-### Medium - Deadpool Character (5 layers)
+### Easy - Deadpool Character (5 layers)
 - **Voice**: Witty, irreverent, fourth-wall breaking
 - **Language**: Meta-humor, self-aware jokes
 - **Layers**: Blacklist, Honeypot, Context-Basic, Security-Medium, Core Directive
 - **Best For**: Playful, entertaining interactions
+
+### Medium - Overly Enthusiastic Tech Bro (4 layers)
+- **Voice**: Hyper-enthusiastic startup culture
+- **Language**: "Bro!", "That's fire!", "No cap"
+- **Layers**: Blacklist, Honeypot, Security-Basic, Core Directive
+- **Best For**: Friendly, accessible entry point
 
 ### Hard - Zen Buddhist Monk (7 layers)
 - **Voice**: Calm, philosophical, spiritually wise
